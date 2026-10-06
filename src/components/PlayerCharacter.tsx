@@ -385,13 +385,13 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
         /* 🖥️ PC Responsive Layout (width >= 768px) */
         @media (min-width: 768px) {
           .hero-sprite-wrapper {
-            height: clamp(190px, 22vh, 300px);
-            width: calc(clamp(190px, 22vh, 300px) * 0.9);
+            height: clamp(230px, 27vh, 340px);
+            width: calc(clamp(230px, 27vh, 340px) * 0.9);
           }
 
           .character-ground-shadow {
-            width: calc(clamp(190px, 22vh, 300px) * 0.65);
-            height: calc(clamp(190px, 22vh, 300px) * 0.12);
+            width: calc(clamp(230px, 27vh, 340px) * 0.65);
+            height: calc(clamp(230px, 27vh, 340px) * 0.12);
           }
 
           @keyframes heroFullAttack {

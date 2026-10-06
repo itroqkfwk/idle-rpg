@@ -11,10 +11,13 @@ import {
   Pet,
   Quest,
   StageState,
+  Skill,
+  SkillEffectType,
 } from './types/game';
 import { loadGameData, saveGameData, getDefaultSaveData } from './utils/storage';
 import { getMonsterForStage } from './data/monsters';
 import { generateRandomEquipment } from './data/equipment';
+import { INITIAL_SKILLS, STARTER_EQUIPPED_SKILLS } from './data/skills';
 import { sound } from './utils/audio';
 
 import { TopHUD } from './components/TopHUD';
@@ -58,6 +61,14 @@ export const App: React.FC = () => {
   const quests = saveData.quests;
   const settings = saveData.settings;
   const freeChestLastOpened = saveData.freeChestLastOpened;
+  const skills = saveData.skills ?? INITIAL_SKILLS;
+  const equippedSkillIds = saveData.equippedSkillIds ?? STARTER_EQUIPPED_SKILLS;
+
+  // Live Auto Skill Engine State
+  const [skillCooldowns, setSkillCooldowns] = useState<Record<string, number>>({});
+  const [activeSkillVfx, setActiveSkillVfx] = useState<{ id: string; type: SkillEffectType } | null>(null);
+  const [castingSkillId, setCastingSkillId] = useState<string | null>(null);
+  const lastSkillCastTimeRef = useRef<number>(0);
 
   // Active Pet object
   const activePet = useMemo(() => {
@@ -206,16 +217,16 @@ export const App: React.FC = () => {
   }, [combatCalculations.totalMaxHp]);
 
   // Spawn floating damage numbers strictly anchored to combatant sprite DOM
-  const addDamageNumber = useCallback((val: number, isCritical: boolean, isPlayer: boolean) => {
+  const addDamageNumber = useCallback((val: number, isCritical: boolean, isPlayer: boolean, isSkill?: boolean, skillName?: string) => {
     if (!settings.damageNumbers) return;
     const id = `dmg_${Date.now()}_${Math.random()}`;
     const offsetX = Math.floor((Math.random() - 0.5) * 26);
     const offsetY = Math.floor((Math.random() - 0.5) * 12);
 
-    setDamages((prev) => [...prev.slice(-8), { id, value: val, isCritical, isPlayer, offsetX, offsetY }]);
+    setDamages((prev) => [...prev.slice(-8), { id, value: val, isCritical, isPlayer, offsetX, offsetY, isSkill, skillName }]);
     setTimeout(() => {
       setDamages((prev) => prev.filter((d) => d.id !== id));
-    }, 450);
+    }, 480);
   }, [settings.damageNumbers]);
 
   // Helper to update quest progress
@@ -424,6 +435,161 @@ export const App: React.FC = () => {
 
     return () => clearInterval(timer);
   }, [combatCalculations, currentMonster, isMonsterDefeated, handleMonsterDefeat, addDamageNumber, stage]);
+
+  // --- Auto Skill Engine: Single Unified 100ms Tick (Requirement 31) ---
+  const skillCooldownsRef = useRef(skillCooldowns);
+  useEffect(() => {
+    skillCooldownsRef.current = skillCooldowns;
+  }, [skillCooldowns]);
+
+  const skillsRef = useRef(skills);
+  useEffect(() => {
+    skillsRef.current = skills;
+  }, [skills]);
+
+  const equippedSkillIdsRef = useRef(equippedSkillIds);
+  useEffect(() => {
+    equippedSkillIdsRef.current = equippedSkillIds;
+  }, [equippedSkillIds]);
+
+  const currentMonsterRef = useRef(currentMonster);
+  useEffect(() => {
+    currentMonsterRef.current = currentMonster;
+  }, [currentMonster]);
+
+  const isMonsterDefeatedRef = useRef(isMonsterDefeated);
+  useEffect(() => {
+    isMonsterDefeatedRef.current = isMonsterDefeated;
+  }, [isMonsterDefeated]);
+
+  const combatCalcRef = useRef(combatCalculations);
+  useEffect(() => {
+    combatCalcRef.current = combatCalculations;
+  }, [combatCalculations]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      // 1. Decrement existing cooldowns by 0.1s
+      setSkillCooldowns((prev) => {
+        let hasActive = false;
+        const updated: Record<string, number> = {};
+        for (const [key, val] of Object.entries(prev)) {
+          if (val > 0) {
+            hasActive = true;
+            updated[key] = Math.max(0, Math.round((val - 0.1) * 10) / 10);
+          } else {
+            updated[key] = 0;
+          }
+        }
+        return hasActive ? updated : prev;
+      });
+
+      // 2. Check if eligible for casting
+      if (isMonsterDefeatedRef.current || currentMonsterRef.current.currentHp <= 0) return;
+
+      const now = Date.now();
+      // Enforce 0.35s global skill delay between any casts
+      if (now - lastSkillCastTimeRef.current < 350) return;
+
+      const currentSkills = skillsRef.current;
+      const currentEquipped = equippedSkillIdsRef.current;
+      const currentCds = skillCooldownsRef.current;
+      const targetMonster = currentMonsterRef.current;
+      const isBossTarget = targetMonster.isBoss || targetMonster.id.includes('boss');
+
+      // Candidate selection with Boss Priority for Meteor Slash or Slot 1 -> 4
+      let candidate: Skill | null = null;
+
+      // Boss encounter priority check: Meteor Slash if equipped and ready
+      if (isBossTarget) {
+        for (let i = 0; i < currentEquipped.length; i++) {
+          const sId = currentEquipped[i];
+          if (sId === 'meteor_slash') {
+            const cd = currentCds[sId] ?? 0;
+            if (cd <= 0) {
+              const sk = currentSkills.find((s) => s.id === sId);
+              if (sk) {
+                candidate = sk;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      // If no boss priority candidate found, evaluate Slot 1 -> 4
+      if (!candidate) {
+        for (let i = 0; i < currentEquipped.length; i++) {
+          const sId = currentEquipped[i];
+          if (!sId) continue;
+          const cd = currentCds[sId] ?? 0;
+          if (cd <= 0) {
+            const sk = currentSkills.find((s) => s.id === sId);
+            if (sk) {
+              candidate = sk;
+              break;
+            }
+          }
+        }
+      }
+
+      if (!candidate) return;
+
+      // Cast Candidate Skill!
+      lastSkillCastTimeRef.current = now;
+      const castSkill = candidate;
+
+      // Put skill on cooldown
+      setSkillCooldowns((prev) => ({
+        ...prev,
+        [castSkill.id]: castSkill.cooldown,
+      }));
+
+      // Trigger casting indicator
+      setCastingSkillId(castSkill.id);
+      setTimeout(() => setCastingSkillId(null), 300);
+
+      // Trigger VFX
+      const vfxId = `${castSkill.id}_${now}`;
+      setActiveSkillVfx({ id: vfxId, type: castSkill.effectType });
+      setTimeout(() => {
+        setActiveSkillVfx((prev) => (prev?.id === vfxId ? null : prev));
+      }, 550);
+
+      // Sound feedback
+      sound.playCriticalHit();
+
+      // Damage calculation
+      const mult = castSkill.baseDamageMult + (castSkill.level - 1) * castSkill.damageMultPerLevel;
+      const currentCalc = combatCalcRef.current;
+      const skillDamage = Math.floor(
+        Math.max(1, currentCalc.totalAtk * mult - targetMonster.def * 0.25)
+      );
+
+      // Visual feedback: Screen shake, hit stop, monster hit
+      const shake: 'normal' | 'crit' | 'boss' =
+        castSkill.id === 'meteor_slash' ? 'boss' : 'crit';
+      setScreenShake(shake);
+      setIsHitStop(true);
+      setIsMonsterHit(true);
+      addDamageNumber(skillDamage, true, false, true, castSkill.name);
+
+      setTimeout(() => setIsHitStop(false), 70);
+      setTimeout(() => setScreenShake('none'), 160);
+      setTimeout(() => setIsMonsterHit(false), 200);
+
+      // Apply damage to current monster
+      setCurrentMonster((prev) => {
+        const nextHp = Math.max(0, prev.currentHp - skillDamage);
+        if (nextHp <= 0) {
+          handleMonsterDefeat();
+        }
+        return { ...prev, currentHp: nextHp };
+      });
+    }, 100);
+
+    return () => clearInterval(timer);
+  }, [handleMonsterDefeat, addDamageNumber]);
 
   // --- Monster Attack Tick (Every 2.4s) ---
   useEffect(() => {
@@ -708,6 +874,97 @@ export const App: React.FC = () => {
     });
   };
 
+  // --- Handlers: Skills ---
+  const handleEquipSkill = (slotIndex: number, skillId: string | null) => {
+    setSaveData((prev) => {
+      const currentEquipped = [...(prev.equippedSkillIds ?? STARTER_EQUIPPED_SKILLS)];
+      if (skillId === null) {
+        currentEquipped[slotIndex] = null;
+      } else {
+        // If skill was equipped in another slot, unequip it from that slot first
+        for (let i = 0; i < currentEquipped.length; i++) {
+          if (currentEquipped[i] === skillId) {
+            currentEquipped[i] = null;
+          }
+        }
+        currentEquipped[slotIndex] = skillId;
+      }
+      return {
+        ...prev,
+        equippedSkillIds: currentEquipped,
+      };
+    });
+  };
+
+  const handleUpgradeSkill = (skillId: string) => {
+    setSaveData((prev) => {
+      const currentSkills = prev.skills ?? INITIAL_SKILLS;
+      const updated = currentSkills.map((sk) => {
+        if (sk.id === skillId && sk.pieces >= sk.piecesRequired) {
+          return {
+            ...sk,
+            level: sk.level + 1,
+            pieces: sk.pieces - sk.piecesRequired,
+            piecesRequired: Math.floor(sk.piecesRequired * 1.5),
+            baseDamageMult: Number((sk.baseDamageMult + sk.damageMultPerLevel).toFixed(2)),
+          };
+        }
+        return sk;
+      });
+      return {
+        ...prev,
+        skills: updated,
+      };
+    });
+  };
+
+  const handleSummonSkill = (count: 1 | 10) => {
+    const cost = count === 1 ? 100 : 900;
+    if (saveData.stats.gems < cost) return;
+
+    sound.playFanfare();
+    if (count === 10) {
+      confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
+    }
+
+    setSaveData((prev) => {
+      let updatedSkills = [...(prev.skills ?? INITIAL_SKILLS)];
+      const skillIds = updatedSkills.map((s) => s.id);
+
+      for (let i = 0; i < count; i++) {
+        const randomId = skillIds[Math.floor(Math.random() * skillIds.length)];
+        const pieceGain = Math.floor(Math.random() * 3) + 2; // 2~4 pieces
+
+        updatedSkills = updatedSkills.map((sk) => {
+          if (sk.id === randomId) {
+            return {
+              ...sk,
+              unlocked: true,
+              pieces: sk.pieces + pieceGain,
+            };
+          }
+          return sk;
+        });
+      }
+
+      setStageNotice(
+        count === 1
+          ? '🔮 스킬 비급서 조각 획득!'
+          : '🔮 스킬 비급서 10연속 소환 완료!'
+      );
+      setTimeout(() => setStageNotice(null), 1500);
+
+      return {
+        ...prev,
+        stats: {
+          ...prev.stats,
+          gems: prev.stats.gems - cost,
+        },
+        skills: updatedSkills,
+      };
+    });
+  };
+
   // --- Handlers: Quests ---
   const activeQuest = quests.find((q) => !q.claimed) || null;
 
@@ -883,6 +1140,13 @@ export const App: React.FC = () => {
           lootAlert={lootAlert}
           stageNotice={stageNotice}
           cpDelta={cpDelta}
+          skills={skills}
+          equippedSkillIds={equippedSkillIds}
+          skillCooldowns={skillCooldowns}
+          activeSkillVfx={activeSkillVfx}
+          castingSkillId={castingSkillId}
+          activeQuest={activeQuest}
+          onClaimQuest={handleClaimQuest}
         />
 
         {/* Quest Parchment Ribbon (Displayed only in main Adventure tab) */}
@@ -901,6 +1165,10 @@ export const App: React.FC = () => {
             equipped={equipped}
             activePet={activePet}
             onUpgradeStat={handleUpgradeStat}
+            skills={skills}
+            equippedSkillIds={equippedSkillIds}
+            onEquipSkill={handleEquipSkill}
+            onUpgradeSkill={handleUpgradeSkill}
             onClose={() => setActiveTab('adventure')}
           />
         )}
@@ -941,6 +1209,7 @@ export const App: React.FC = () => {
             onOpenGoldChest={handleOpenGoldChest}
             onOpenGemChest={handleOpenGemChest}
             onBuyGemsWithGold={handleBuyGemsWithGold}
+            onSummonSkill={handleSummonSkill}
             onClose={() => setActiveTab('adventure')}
           />
         )}

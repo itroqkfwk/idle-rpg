@@ -103,10 +103,37 @@ export interface DamageNumberData {
   value: number;
   isCritical: boolean;
   isPlayer: boolean;
+  isSkill?: boolean;
+  skillName?: string;
   x?: number;
   y?: number;
   offsetX?: number;
   offsetY?: number;
+}
+
+export type SkillEffectType = 'power_slash' | 'wind_blade' | 'whirlwind' | 'meteor_slash';
+
+export interface Skill {
+  id: string;
+  name: string;
+  rarity: EquipmentRarity;
+  description: string;
+  baseDamageMult: number; // e.g. 1.8 for 180%
+  damageMultPerLevel: number; // e.g. 0.08 for +8%
+  cooldown: number; // cooldown in seconds
+  level: number;
+  pieces: number; // duplicate pieces
+  piecesRequired: number; // required pieces to level up (e.g. level * 2)
+  owned: boolean;
+  effectType: SkillEffectType;
+  bossPriority?: boolean;
+  icon: string;
+}
+
+export interface SkillSlotState {
+  skillId: string | null;
+  currentCooldown: number; // in seconds (0 = ready)
+  maxCooldown: number;
 }
 
 export type ActiveTab = 'adventure' | 'hero' | 'equipment' | 'pet' | 'shop';
@@ -128,6 +155,8 @@ export interface GameSaveData {
   activePetId: string | null;
   stage: StageState;
   quests: Quest[];
+  skills: Skill[];
+  equippedSkillIds: (string | null)[];
   freeChestLastOpened: number;
   settings: GameSettings;
 }

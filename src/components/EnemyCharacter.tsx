@@ -55,10 +55,14 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
         {damages && damages.map((dmg) => (
           <div
             key={dmg.id}
-            className={`monster-dmg-pop ${dmg.isCritical ? 'dmg-crit' : 'dmg-normal'}`}
+            className={`monster-dmg-pop ${dmg.isSkill ? 'dmg-skill' : dmg.isCritical ? 'dmg-crit' : 'dmg-normal'}`}
             style={{ transform: `translateX(${dmg.offsetX ?? 0}px)` }}
           >
-            {dmg.isCritical && <span className="crit-burst-label">CRIT!</span>}
+            {dmg.isSkill ? (
+              <span className="skill-burst-label">{dmg.skillName ?? 'SKILL!'}</span>
+            ) : dmg.isCritical ? (
+              <span className="crit-burst-label">CRIT!</span>
+            ) : null}
             {dmg.value.toLocaleString()}
           </div>
         ))}
@@ -273,48 +277,20 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           animation: monsterCritPopAnim 0.45s cubic-bezier(0.18, 0.9, 0.32, 1.25) forwards;
         }
 
-        @keyframes monsterDmgPopAnim {
-          0% {
-            opacity: 0;
-            transform: scale(0.5) translateY(10px);
-          }
-          20% {
-            opacity: 1;
-            transform: scale(1.18) translateY(-4px);
-          }
-          40% {
-            transform: scale(1) translateY(-14px);
-          }
-          80% {
-            opacity: 1;
-            transform: scale(1) translateY(-24px);
-          }
-          100% {
-            opacity: 0;
-            transform: scale(0.9) translateY(-32px);
-          }
+        .dmg-skill {
+          color: #c084fc;
+          font-size: 2.1rem;
+          text-shadow: 0 0 14px #a855f7, 0 2px 6px rgba(0, 0, 0, 0.95), 0 0 24px #38bdf8;
+          animation: monsterSkillPopAnim 0.52s cubic-bezier(0.16, 1, 0.3, 1.2) forwards;
+          z-index: 50;
         }
 
-        @keyframes monsterCritPopAnim {
-          0% {
-            opacity: 0;
-            transform: scale(0.4) translateY(12px);
-          }
-          25% {
-            opacity: 1;
-            transform: scale(1.35) translateY(-8px);
-          }
-          50% {
-            transform: scale(1.08) translateY(-18px);
-          }
-          80% {
-            opacity: 1;
-            transform: scale(1) translateY(-28px);
-          }
-          100% {
-            opacity: 0;
-            transform: scale(0.85) translateY(-38px);
-          }
+        @keyframes monsterSkillPopAnim {
+          0% { opacity: 0; transform: scale(0.3) translateY(14px); }
+          22% { opacity: 1; transform: scale(1.4) translateY(-10px); }
+          45% { transform: scale(1.1) translateY(-20px); }
+          80% { opacity: 1; transform: scale(1.02) translateY(-30px); }
+          100% { opacity: 0; transform: scale(0.9) translateY(-42px); }
         }
 
         .crit-burst-label {
@@ -325,6 +301,17 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           color: #f97316;
           text-shadow: 0 0 8px #fde047, 0 1px 3px #000;
           text-align: center;
+        }
+
+        .skill-burst-label {
+          display: block;
+          font-size: 0.52em;
+          line-height: 1.1;
+          letter-spacing: 2px;
+          color: #38bdf8;
+          text-shadow: 0 0 10px #38bdf8, 0 1px 3px #000;
+          text-align: center;
+          font-weight: 900;
         }
 
         .hit-stop-freeze {
@@ -538,35 +525,35 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
         /* 🖥️ PC Responsive Layout (width >= 768px) */
         @media (min-width: 768px) {
           .enemy-sprite-wrapper {
-            height: clamp(170px, 20vh, 270px);
-            width: calc(clamp(170px, 20vh, 270px) * 0.95);
+            height: clamp(200px, 24vh, 310px);
+            width: calc(clamp(200px, 24vh, 310px) * 0.95);
           }
 
           .is-boss-combatant .enemy-sprite-wrapper {
-            height: clamp(240px, 29vh, 390px);
-            width: calc(clamp(240px, 29vh, 390px) * 0.98);
+            height: clamp(290px, 34vh, 430px);
+            width: calc(clamp(290px, 34vh, 430px) * 0.98);
           }
 
           .monster-2d-sprite.slime-size {
-            height: clamp(140px, 17vh, 220px);
+            height: clamp(160px, 19vh, 250px);
           }
 
           .monster-2d-sprite.medium-size {
-            height: clamp(170px, 20vh, 270px);
+            height: clamp(200px, 24vh, 310px);
           }
 
           .monster-2d-sprite.boss-size {
-            height: clamp(240px, 29vh, 390px);
+            height: clamp(290px, 34vh, 430px);
           }
 
           .character-ground-shadow.normal-ground-shadow {
-            width: calc(clamp(170px, 20vh, 270px) * 0.7);
-            height: calc(clamp(170px, 20vh, 270px) * 0.12);
+            width: calc(clamp(200px, 24vh, 310px) * 0.7);
+            height: calc(clamp(200px, 24vh, 310px) * 0.12);
           }
 
           .character-ground-shadow.boss-ground-shadow {
-            width: calc(clamp(240px, 29vh, 390px) * 0.75);
-            height: calc(clamp(240px, 29vh, 390px) * 0.13);
+            width: calc(clamp(290px, 34vh, 430px) * 0.75);
+            height: calc(clamp(290px, 34vh, 430px) * 0.13);
           }
         }
       `}</style>

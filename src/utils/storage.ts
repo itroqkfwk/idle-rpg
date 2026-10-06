@@ -2,6 +2,7 @@ import { GameSaveData, CharacterStats, StageState, GameSettings } from '../types
 import { STARTER_EQUIPMENT } from '../data/equipment';
 import { INITIAL_PETS } from '../data/pets';
 import { INITIAL_QUESTS } from '../data/quests';
+import { INITIAL_SKILLS, STARTER_EQUIPPED_SKILLS } from '../data/skills';
 
 const SAVE_KEY = 'COZY_IDLE_RPG_SAVE_V1';
 
@@ -54,6 +55,8 @@ export function getDefaultSaveData(): GameSaveData {
     activePetId: 'pet_fox',
     stage: initialStage,
     quests: [...INITIAL_QUESTS],
+    skills: [...INITIAL_SKILLS],
+    equippedSkillIds: [...STARTER_EQUIPPED_SKILLS],
     freeChestLastOpened: 0,
     settings: initialSettings,
   };
@@ -84,6 +87,14 @@ export function loadGameData(): { data: GameSaveData; offlineSeconds: number } {
     if (mergedData.pets) {
       mergedData.pets = mergedData.pets.map((p) => (p.id === 'pet_fox' ? { ...p, owned: true } : p));
     }
+
+    // Migrate skills
+    const baseSkills = INITIAL_SKILLS.map((initS) => {
+      const saved = parsed.skills?.find((s) => s.id === initS.id);
+      return saved ? { ...initS, ...saved } : { ...initS };
+    });
+    mergedData.skills = baseSkills;
+    mergedData.equippedSkillIds = parsed.equippedSkillIds || [...STARTER_EQUIPPED_SKILLS];
 
     return {
       data: mergedData,

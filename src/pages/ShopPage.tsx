@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Gift, Sparkles, Gem, Clock, X, Store } from 'lucide-react';
+import { Gift, Sparkles, Gem, Clock, X, Store, Wand2 } from 'lucide-react';
 import { sound } from '../utils/audio';
 
 interface ShopPageProps {
@@ -10,6 +10,7 @@ interface ShopPageProps {
   onOpenGoldChest: (cost: number) => void;
   onOpenGemChest: (cost: number) => void;
   onBuyGemsWithGold: (goldCost: number, gemGain: number) => void;
+  onSummonSkill?: (count: 1 | 10) => void;
   onClose?: () => void;
 }
 
@@ -21,6 +22,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
   onOpenGoldChest,
   onOpenGemChest,
   onBuyGemsWithGold,
+  onSummonSkill,
   onClose,
 }) => {
   const FREE_CHEST_COOLDOWN = 60; // 60 seconds
@@ -153,6 +155,42 @@ export const ShopPage: React.FC<ShopPageProps> = ({
               <span className="chest-price-text">💎 {GEM_CHEST_COST}</span>
             </button>
           </div>
+
+          {/* 4. Skill Summon (스킬 비급서 소환) */}
+          <div className="parchment-panel chest-row-panel skill-summon-theme">
+            <div className="chest-badge-tag new-tag">NEW! 스킬</div>
+            <div className="chest-visual-box">🔮📜</div>
+            <div className="chest-details">
+              <span className="chest-headline">신비한 스킬 비급서</span>
+              <span className="chest-subtext">스킬 조각 획득 & 스킬 성장</span>
+            </div>
+            <div className="skill-summon-btns-group">
+              <button
+                className="btn-game btn-game-wood chest-open-btn skill-half-btn"
+                disabled={gems < 100}
+                onClick={() => {
+                  if (gems >= 100 && onSummonSkill) {
+                    onSummonSkill(1);
+                  }
+                }}
+              >
+                <span>1회 소환</span>
+                <span className="chest-price-text">💎 100</span>
+              </button>
+              <button
+                className="btn-game btn-game-gold chest-open-btn skill-half-btn"
+                disabled={gems < 900}
+                onClick={() => {
+                  if (gems >= 900 && onSummonSkill) {
+                    onSummonSkill(10);
+                  }
+                }}
+              >
+                <span>10회 (-10%)</span>
+                <span className="chest-price-text">💎 900</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Currency Exchange Station */}
@@ -252,6 +290,11 @@ export const ShopPage: React.FC<ShopPageProps> = ({
           box-shadow: 0 0 16px rgba(239, 68, 68, 0.2);
         }
 
+        .skill-summon-theme {
+          border-color: rgba(168, 85, 247, 0.5);
+          box-shadow: 0 0 16px rgba(168, 85, 247, 0.25);
+        }
+
         .chest-badge-tag {
           position: absolute;
           top: -7px;
@@ -264,6 +307,20 @@ export const ShopPage: React.FC<ShopPageProps> = ({
         }
         .free-tag { background: #10b981; }
         .hot-tag { background: #ef4444; }
+        .new-tag { background: #a855f7; }
+
+        .skill-summon-btns-group {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .skill-half-btn {
+          min-width: 82px;
+          min-height: 32px;
+          padding: 2px 6px;
+          font-size: 10px;
+        }
 
         .chest-visual-box {
           font-size: 2.2rem;
