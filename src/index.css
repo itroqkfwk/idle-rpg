@@ -70,7 +70,7 @@ html, body {
   overflow: hidden;
 }
 
-/* Mobile Frame (100% edge-to-edge on mobile 320px ~ 480px) */
+/* Mobile Frame (Responsive mobile standard 320px ~ 430px, centered on desktop) */
 .mobile-frame {
   width: 100%;
   height: 100%;
@@ -82,15 +82,20 @@ html, body {
   box-sizing: border-box;
 }
 
-/* Only display phone chassis mockup on desktop screens >= 600px */
-@media (min-width: 600px) {
+@media (max-width: 499px) {
+  .mobile-frame {
+    max-width: 100%;
+    max-height: 100%;
+  }
+}
+
+@media (min-width: 500px) {
   #root {
     background: radial-gradient(circle at 50% 30%, #151d30 0%, #060911 100%);
   }
   .mobile-frame {
-    max-width: 420px;
-    height: 94vh;
-    max-height: 880px;
+    max-width: 390px;
+    max-height: 844px;
     border-radius: 36px;
     border: 3px solid #1e293b;
     box-shadow: 0 24px 70px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.12);
@@ -99,15 +104,14 @@ html, body {
 
 /* Screen Shake Effect */
 .screen-shake {
-  animation: screenShakeAnim 0.22s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  animation: screenShakeAnim 0.18s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 
 @keyframes screenShakeAnim {
   0%, 100% { transform: translate(0, 0); }
-  20% { transform: translate(-4px, 2px) rotate(-0.4deg); }
-  40% { transform: translate(3px, -3px) rotate(0.4deg); }
-  60% { transform: translate(-2px, 1px); }
-  80% { transform: translate(1px, -1px); }
+  25% { transform: translate(-3px, 1px); }
+  50% { transform: translate(3px, -2px); }
+  75% { transform: translate(-1px, 2px); }
 }
 
 /* Screen Container */
@@ -284,43 +288,43 @@ html, body {
 
 .dmg-normal {
   color: #ffffff;
-  font-size: 1.35rem;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 4px #000;
-  animation: normalDmgPop 0.65s ease-out forwards;
+  font-size: 1.25rem;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 2px #000;
+  animation: normalDmgPop 0.45s ease-out forwards;
 }
 
 .dmg-crit {
   color: #fbbf24;
-  font-size: 1.85rem;
-  text-shadow: 0 0 12px rgba(245, 158, 11, 0.8), 0 2px 4px #000;
-  animation: critDmgPop 0.75s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  font-size: 1.65rem;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9), 0 0 4px #000;
+  animation: critDmgPop 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
 .dmg-player-hit {
   color: #ef4444;
-  font-size: 1.25rem;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 4px #000;
-  animation: playerHitPop 0.65s ease-out forwards;
+  font-size: 1.15rem;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 2px #000;
+  animation: playerHitPop 0.45s ease-out forwards;
 }
 
 @keyframes normalDmgPop {
-  0% { opacity: 0; transform: translateY(0) scale(0.6); }
-  25% { opacity: 1; transform: translateY(-18px) scale(1.15); }
-  70% { opacity: 1; transform: translateY(-34px) scale(1); }
-  100% { opacity: 0; transform: translateY(-50px) scale(0.85); }
+  0% { opacity: 0; transform: translateY(0) scale(0.7); }
+  25% { opacity: 1; transform: translateY(-16px) scale(1.1); }
+  65% { opacity: 1; transform: translateY(-28px) scale(1); }
+  100% { opacity: 0; transform: translateY(-42px) scale(0.9); }
 }
 
 @keyframes critDmgPop {
-  0% { opacity: 0; transform: translateY(0) scale(0.5) rotate(-6deg); }
-  25% { opacity: 1; transform: translateY(-24px) scale(1.3) rotate(3deg); }
-  65% { opacity: 1; transform: translateY(-44px) scale(1.1) rotate(0deg); }
-  100% { opacity: 0; transform: translateY(-64px) scale(0.9); }
+  0% { opacity: 0; transform: translateY(0) scale(0.7); }
+  25% { opacity: 1; transform: translateY(-20px) scale(1.35, 0.95); }
+  60% { opacity: 1; transform: translateY(-38px) scale(1.1); }
+  100% { opacity: 0; transform: translateY(-50px) scale(0.95); }
 }
 
 @keyframes playerHitPop {
-  0% { opacity: 0; transform: translateY(0) scale(0.6); }
-  30% { opacity: 1; transform: translateY(-14px) scale(1.1); }
-  100% { opacity: 0; transform: translateY(-40px) scale(0.8); }
+  0% { opacity: 0; transform: translateY(0) scale(0.7); }
+  30% { opacity: 1; transform: translateY(-12px) scale(1.05); }
+  100% { opacity: 0; transform: translateY(-32px) scale(0.85); }
 }
 
 /* Modals Backdrops */

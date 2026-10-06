@@ -50,6 +50,13 @@ export const PetPage: React.FC<PetPageProps> = ({
 
   const activePet = pets.find((p) => p.id === activePetId) || pets[0];
 
+  const getPetSprite = (p: Pet) => {
+    if (p.id.includes('fox') || p.name.includes('여우')) return '/assets/pet_fox.png';
+    if (p.id.includes('slime') || p.name.includes('슬라임')) return '/assets/monster_slime.png';
+    if (p.id.includes('fairy') || p.name.includes('요정')) return '/assets/monster_spirit.png';
+    return '/assets/pet_fox.png';
+  };
+
   return (
     <div className="half-sheet-drawer">
       {/* Drawer Header */}
@@ -74,7 +81,7 @@ export const PetPage: React.FC<PetPageProps> = ({
             <div className="pedestal-glow-ring" />
             <div className="pedestal-sprite-container">
               <img
-                src="/assets/pet_fox.png"
+                src={getPetSprite(activePet)}
                 alt={activePet.name}
                 className="pedestal-pet-img"
               />
@@ -110,11 +117,7 @@ export const PetPage: React.FC<PetPageProps> = ({
                 <div className="pet-card-top-row">
                   {/* Avatar Frame */}
                   <div className="pet-avatar-frame">
-                    {pet.id === 'fox' || pet.name.includes('여우') ? (
-                      <img src="/assets/pet_fox.png" alt={pet.name} className="pet-thumb-img" />
-                    ) : (
-                      <span className="pet-emoji-sprite">{pet.icon}</span>
-                    )}
+                    <img src={getPetSprite(pet)} alt={pet.name} className="pet-thumb-img" />
                     {!pet.owned && (
                       <div className="pet-lock-badge">
                         <Lock size={12} color="#fff" />

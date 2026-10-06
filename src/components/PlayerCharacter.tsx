@@ -6,6 +6,7 @@ interface PlayerCharacterProps {
   maxHp: number;
   isAttacking: boolean;
   isHit: boolean;
+  isVictory?: boolean;
   equippedWeapon?: Equipment;
 }
 
@@ -14,6 +15,7 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
   maxHp,
   isAttacking,
   isHit,
+  isVictory = false,
 }) => {
   const [ghostHpPercent, setGhostHpPercent] = useState(100);
   const hpPercent = Math.max(0, Math.min(100, Math.round((stats.currentHp / maxHp) * 100)));
@@ -45,8 +47,14 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
       {/* Hero 2D Sprite Body */}
       <div
         className={`hero-sprite-wrapper ${
-          isAttacking ? 'hero-act-lunge' : 'hero-act-idle'
-        } ${isHit ? 'hero-act-hit' : ''}`}
+          isVictory
+            ? 'hero-act-victory'
+            : isAttacking
+            ? 'hero-act-lunge'
+            : isHit
+            ? 'hero-act-hit'
+            : 'hero-act-idle'
+        }`}
       >
         {/* Soft Ground Contact Shadow */}
         <div className="character-ground-shadow" />
@@ -61,6 +69,9 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
 
         {/* Dynamic Sword Slash Arc */}
         {isAttacking && <div className="hero-slash-arc-vfx" />}
+
+        {/* Victory Sparkle */}
+        {isVictory && <div className="hero-victory-sparkle">✨</div>}
       </div>
 
       <style>{`
@@ -76,7 +87,7 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           display: flex;
           flex-direction: column;
           align-items: center;
-          margin-bottom: 8px;
+          margin-bottom: 6px;
           z-index: 10;
         }
 
@@ -84,13 +95,13 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           display: flex;
           align-items: center;
           gap: 4px;
-          margin-bottom: 3px;
+          margin-bottom: 2px;
         }
 
         .lvl-badge {
           background: linear-gradient(135deg, #f59e0b, #b45309);
           color: #ffffff;
-          font-size: 10px;
+          font-size: 9px;
           font-weight: 800;
           padding: 1px 5px;
           border-radius: 9999px;
@@ -106,13 +117,13 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
 
         .combatant-hp-track {
           position: relative;
-          width: 90px;
-          height: 8px;
+          width: 88px;
+          height: 6px;
           background: rgba(15, 23, 42, 0.85);
           border-radius: 9999px;
           overflow: hidden;
           border: 1px solid rgba(255, 255, 255, 0.2);
-          box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5), inset 0 1px 2px rgba(0, 0, 0, 0.6);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(0, 0, 0, 0.6);
         }
 
         .combatant-hp-ghost {
@@ -142,7 +153,7 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
         .combatant-hp-val {
           font-size: 9px;
           font-weight: 800;
-          color: #e2e8f0;
+          color: #cbd5e1;
           text-shadow: 0 1px 2px #000, 0 0 3px #000;
           margin-top: 2px;
           letter-spacing: 0.2px;
@@ -150,8 +161,8 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
 
         .hero-sprite-wrapper {
           position: relative;
-          width: 140px;
-          height: 160px;
+          width: 155px;
+          height: 168px;
           display: flex;
           justify-content: center;
           align-items: flex-end;
@@ -161,9 +172,9 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
         .character-ground-shadow {
           position: absolute;
           bottom: 2px;
-          width: 95px;
-          height: 18px;
-          background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.2) 50%, transparent 75%);
+          width: 110px;
+          height: 20px;
+          background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.65) 0%, rgba(0, 0, 0, 0.2) 50%, transparent 75%);
           border-radius: 50%;
           pointer-events: none;
           z-index: 1;
@@ -182,17 +193,17 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
         /* ⚔️ Slash Arc Blade Wave VFX */
         .hero-slash-arc-vfx {
           position: absolute;
-          top: 25%;
-          right: -45px;
-          width: 90px;
-          height: 90px;
+          top: 20%;
+          right: -42px;
+          width: 95px;
+          height: 95px;
           border-radius: 50%;
           border-right: 7px solid #ffffff;
           border-top: 5px solid #38bdf8;
           border-bottom: 2px solid transparent;
           border-left: transparent;
-          filter: drop-shadow(0 0 12px #38bdf8) drop-shadow(0 0 20px #ffffff);
-          animation: slashSweep 0.2s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+          filter: drop-shadow(0 0 10px #38bdf8) drop-shadow(0 0 16px #ffffff);
+          animation: slashSweep 0.22s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
           z-index: 15;
           pointer-events: none;
         }
@@ -208,11 +219,11 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           }
           100% {
             opacity: 0;
-            transform: scale(1.5) rotate(110deg);
+            transform: scale(1.45) rotate(110deg);
           }
         }
 
-        /* Hero Animations */
+        /* Hero Idle Animation */
         .hero-act-idle {
           animation: heroBreathing 2.2s ease-in-out infinite;
         }
@@ -222,36 +233,71 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
             transform: translateY(0) scale(1);
           }
           50% {
-            transform: translateY(-4px) scale(1.01, 0.99);
+            transform: translateY(-3px) scale(1.01, 0.99);
           }
         }
 
+        /* 6-Stage Attack Animation (Anticipation -> Dash -> Slash Peak -> Recovery) */
         .hero-act-lunge {
-          animation: heroLungeAnim 0.22s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+          animation: heroLungeAnim 0.3s cubic-bezier(0.2, 0.8, 0.25, 1) forwards;
         }
 
         @keyframes heroLungeAnim {
           0% {
             transform: translateX(0) scale(1);
           }
-          40% {
-            transform: translateX(34px) scale(1.06, 0.96);
+          20% {
+            transform: translateX(-7px) scale(0.97, 1.02); /* Anticipation */
+          }
+          55% {
+            transform: translateX(38px) scale(1.08, 0.95); /* Dash */
+          }
+          75% {
+            transform: translateX(28px) scale(1.02); /* Slash Impact */
           }
           100% {
-            transform: translateX(0) scale(1);
+            transform: translateX(0) scale(1); /* Recovery */
           }
         }
 
+        /* Hurt Shake Feedback */
         .hero-act-hit {
-          animation: heroHurtShake 0.24s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-          filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.8)) brightness(1.2);
+          animation: heroHurtShake 0.16s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+          filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.7)) brightness(1.2);
         }
 
         @keyframes heroHurtShake {
           0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(-8px); }
-          50% { transform: translateX(6px); }
-          75% { transform: translateX(-4px); }
+          25% { transform: translateX(-5px); }
+          50% { transform: translateX(4px); }
+          75% { transform: translateX(-2px); }
+        }
+
+        /* Victory Stance Animation */
+        .hero-act-victory {
+          animation: heroVictoryHop 0.5s ease-out forwards;
+        }
+
+        @keyframes heroVictoryHop {
+          0% { transform: translateY(0) scale(1); }
+          35% { transform: translateY(-12px) scale(1.06, 0.95); }
+          65% { transform: translateY(-4px) scale(0.98, 1.02); }
+          100% { transform: translateY(0) scale(1); }
+        }
+
+        .hero-victory-sparkle {
+          position: absolute;
+          top: 10px;
+          right: 20px;
+          font-size: 16px;
+          animation: victorySparklePop 0.5s ease-out forwards;
+          z-index: 10;
+        }
+
+        @keyframes victorySparklePop {
+          0% { transform: scale(0.2); opacity: 0; }
+          40% { transform: scale(1.3); opacity: 1; }
+          100% { transform: scale(1) translateY(-10px); opacity: 0; }
         }
       `}</style>
     </div>

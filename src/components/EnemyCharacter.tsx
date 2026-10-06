@@ -124,8 +124,8 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
         .combatant-name-tag {
           display: flex;
           align-items: center;
-          gap: 5px;
-          margin-bottom: 3px;
+          gap: 4px;
+          margin-bottom: 2px;
         }
 
         .enemy-lvl-badge {
@@ -142,7 +142,7 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
         .boss-lvl-badge {
           background: linear-gradient(135deg, #ef4444, #991b1b);
           color: #ffffff;
-          font-size: 10px;
+          font-size: 9px;
           font-weight: 900;
           padding: 1px 6px;
           border-radius: 9999px;
@@ -161,13 +161,13 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
 
         .combatant-hp-track {
           position: relative;
-          width: 95px;
-          height: 7px;
+          width: 88px;
+          height: 6px;
           background: rgba(15, 23, 42, 0.85);
           border-radius: 9999px;
           overflow: hidden;
           border: 1px solid rgba(255, 255, 255, 0.2);
-          box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
         }
 
         .boss-hp-track {
@@ -221,25 +221,25 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           transform-origin: bottom center;
         }
 
-        /* Sprite Dimensions (Prominent & Clear) */
+        /* Distinct Silhouettes and Proportions */
         .slime-size {
-          width: 140px;
-          height: 140px;
+          width: 130px;
+          height: 118px;
         }
 
         .medium-size {
-          width: 145px;
-          height: 145px;
+          width: 135px;
+          height: 155px;
         }
 
         .boss-size {
-          width: 185px;
-          height: 185px;
+          width: 195px;
+          height: 195px;
         }
 
         .character-ground-shadow {
           position: absolute;
-          bottom: 4px;
+          bottom: 2px;
           background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.65) 0%, rgba(0, 0, 0, 0.2) 50%, transparent 75%);
           border-radius: 50%;
           pointer-events: none;
@@ -247,12 +247,12 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
         }
 
         .normal-ground-shadow {
-          width: 100px;
-          height: 18px;
+          width: 95px;
+          height: 16px;
         }
 
         .boss-ground-shadow {
-          width: 155px;
+          width: 160px;
           height: 24px;
         }
 
@@ -321,8 +321,8 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
         }
 
         @keyframes beeHover {
-          0%, 100% { transform: translateY(0) scale(1); }
-          50% { transform: translateY(-8px) scale(1.02); }
+          0%, 100% { transform: translateY(-16px) scale(1); }
+          50% { transform: translateY(-24px) scale(1.02); }
         }
 
         .spirit-act-idle {
@@ -330,8 +330,8 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
         }
 
         @keyframes spiritFloat {
-          0%, 100% { transform: translateY(0) rotate(-1deg); }
-          50% { transform: translateY(-7px) rotate(1deg); filter: drop-shadow(0 0 16px rgba(52, 211, 153, 0.8)); }
+          0%, 100% { transform: translateY(-12px) rotate(-1deg); }
+          50% { transform: translateY(-20px) rotate(1deg); filter: drop-shadow(0 0 12px rgba(52, 211, 153, 0.7)); }
         }
 
         .boss-act-idle {
@@ -356,20 +356,20 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
 
         /* Hit Shake & Brightness Flash */
         .enemy-act-hit {
-          animation: enemyHitShake 0.24s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-          filter: brightness(2.2) drop-shadow(0 0 18px rgba(255, 255, 255, 0.95));
+          animation: enemyHitShake 0.16s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+          filter: brightness(2) drop-shadow(0 0 14px rgba(255, 255, 255, 0.9));
         }
 
         @keyframes enemyHitShake {
           0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(12px); }
-          50% { transform: translateX(-8px); }
-          75% { transform: translateX(4px); }
+          25% { transform: translateX(10px); }
+          50% { transform: translateX(-6px); }
+          75% { transform: translateX(3px); }
         }
 
         /* Defeat Fade & Scale Down */
         .enemy-act-defeat {
-          animation: enemyDefeatDissolve 0.38s ease-in forwards;
+          animation: enemyDefeatDissolve 0.36s ease-in forwards;
         }
 
         @keyframes enemyDefeatDissolve {

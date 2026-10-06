@@ -8,12 +8,19 @@ interface PetCompanionProps {
 export const PetCompanion: React.FC<PetCompanionProps> = ({ pet }) => {
   if (!pet) return null;
 
+  const getPetSprite = (p: Pet) => {
+    if (p.id.includes('fox') || p.name.includes('여우')) return '/assets/pet_fox.png';
+    if (p.id.includes('slime') || p.name.includes('슬라임')) return '/assets/monster_slime.png';
+    if (p.id.includes('fairy') || p.name.includes('요정')) return '/assets/monster_spirit.png';
+    return '/assets/pet_fox.png';
+  };
+
   return (
     <div className="pet-companion-box" title={`${pet.name} (${pet.description})`}>
       <div className="pet-sprite anim-pet-bounce">
-        {/* Real 2D Flame Fox Sprite */}
+        {/* Real 2D Companion Sprite */}
         <img
-          src="/assets/pet_fox.png"
+          src={getPetSprite(pet)}
           alt={pet.name}
           className="pet-2d-sprite"
           draggable={false}

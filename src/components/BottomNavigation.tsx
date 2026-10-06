@@ -14,11 +14,11 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   badges = {},
 }) => {
   const navItems: { tab: ActiveTab; label: string; icon: React.ReactNode }[] = [
-    { tab: 'adventure', label: '모험', icon: <Swords size={18} /> },
-    { tab: 'hero', label: '영웅', icon: <User size={18} /> },
-    { tab: 'equipment', label: '장비', icon: <Shield size={18} /> },
-    { tab: 'pet', label: '펫', icon: <Sparkles size={18} /> },
-    { tab: 'shop', label: '상점', icon: <Store size={18} /> },
+    { tab: 'adventure', label: '모험', icon: <Swords size={24} /> },
+    { tab: 'hero', label: '영웅', icon: <User size={24} /> },
+    { tab: 'equipment', label: '장비', icon: <Shield size={24} /> },
+    { tab: 'pet', label: '펫', icon: <Sparkles size={24} /> },
+    { tab: 'shop', label: '상점', icon: <Store size={24} /> },
   ];
 
   return (
@@ -60,7 +60,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
         }
 
         .nav-dock-container {
-          height: 56px;
+          height: 58px;
           background: rgba(11, 17, 32, 0.92);
           backdrop-filter: blur(16px);
           border: 1px solid rgba(255, 255, 255, 0.12);
@@ -78,7 +78,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
           position: relative;
           flex: 1;
           min-width: 0;
-          height: 46px;
+          height: 48px;
           border: none;
           background: transparent;
           border-radius: 12px;
@@ -87,26 +87,27 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          gap: 1px;
+          gap: 2px;
           color: #94a3b8;
-          transition: transform 0.1s ease, color 0.15s ease;
+          transition: transform 0.15s ease, color 0.15s ease;
           padding: 0;
         }
 
         .nav-dock-item:active {
-          transform: scale(0.92);
+          transform: scale(0.94);
         }
 
         .nav-item-active {
           color: #f59e0b;
+          transform: translateY(-2px);
         }
 
         .active-pill-glow {
           position: absolute;
           inset: 2px;
-          background: rgba(245, 158, 11, 0.12);
+          background: rgba(245, 158, 11, 0.08);
           border-radius: 10px;
-          border: 1px solid rgba(245, 158, 11, 0.25);
+          border: 1px solid rgba(245, 158, 11, 0.2);
           pointer-events: none;
         }
 

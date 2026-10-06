@@ -104,13 +104,13 @@ export const TopHUD: React.FC<TopHUDProps> = ({
           top: 0;
           left: 0;
           right: 0;
-          height: 60px;
+          height: 54px;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 6px 8px;
+          padding: 4px 10px;
           z-index: 40;
-          background: linear-gradient(180deg, rgba(8, 12, 22, 0.88) 0%, rgba(8, 12, 22, 0.45) 80%, transparent 100%);
+          background: linear-gradient(180deg, rgba(8, 12, 22, 0.82) 0%, rgba(8, 12, 22, 0.35) 75%, transparent 100%);
           backdrop-filter: blur(8px);
           user-select: none;
           box-sizing: border-box;

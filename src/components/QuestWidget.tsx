@@ -33,38 +33,36 @@ export const QuestWidget: React.FC<QuestWidgetProps> = ({ quest, onClaim }) => {
           </div>
         </div>
 
-        {/* Claim Button or Reward Preview */}
-        <div className="quest-action-slot">
-          {isReady ? (
+        {/* Claim Button displayed only when ready */}
+        {isReady && (
+          <div className="quest-action-slot">
             <button className="quest-claim-pill-btn" onClick={() => onClaim(quest.id)}>
               <Sparkles size={11} color="#ffffff" />
               <span>보상 받기</span>
             </button>
-          ) : (
-            <div className="quest-reward-preview-pill">
-              <span>🪙 +{quest.rewardGold}</span>
-              <span>💎 +{quest.rewardGems}</span>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <style>{`
         .floating-quest-card {
           position: absolute;
-          top: 68px;
-          left: 10px;
-          right: 10px;
+          top: 60px;
+          left: 12px;
+          right: 12px;
           z-index: 30;
+          height: 38px;
           background: rgba(15, 23, 42, 0.82);
           backdrop-filter: blur(12px);
           border: 1px solid rgba(255, 255, 255, 0.12);
-          border-radius: 14px;
-          padding: 6px 10px;
+          border-radius: 12px;
+          padding: 0 10px;
           box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
           transition: border-color 0.2s ease, box-shadow 0.2s ease;
           user-select: none;
           box-sizing: border-box;
+          display: flex;
+          align-items: center;
         }
 
         .quest-ready-glow {

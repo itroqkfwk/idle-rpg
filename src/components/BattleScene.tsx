@@ -91,6 +91,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
             maxHp={maxHp}
             isAttacking={isPlayerAttacking}
             isHit={isPlayerHit}
+            isVictory={isMonsterDefeated}
             equippedWeapon={equippedWeapon}
           />
           <PetCompanion pet={activePet} />
@@ -251,18 +252,24 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         /* 🌿 Foreground Foliage Framing */
         .foreground-bush {
           position: absolute;
-          bottom: -10px;
-          width: 90px;
-          height: 60px;
+          bottom: 0px;
+          width: 105px;
+          height: 70px;
           border-radius: 50% 50% 0 0;
-          background: radial-gradient(ellipse at center, rgba(16, 44, 20, 0.65) 0%, transparent 80%);
-          filter: blur(4px);
+          background: radial-gradient(ellipse at center, rgba(16, 44, 20, 0.72) 0%, transparent 80%);
+          filter: blur(5px);
           pointer-events: none;
           z-index: 8;
+          animation: bushWindSway 6s ease-in-out infinite alternate;
         }
 
-        .bush-left { left: -25px; }
-        .bush-right { right: -25px; }
+        .bush-left { left: -30px; }
+        .bush-right { right: -30px; animation-delay: -3s; }
+
+        @keyframes bushWindSway {
+          0% { transform: skewX(-2deg); }
+          100% { transform: skewX(3deg); }
+        }
 
         /* Boss Vignette Pulse */
         .boss-vignette-pulse {
@@ -287,7 +294,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           display: flex;
           justify-content: space-between;
           align-items: flex-end;
-          padding: 0 16px 26px 18px;
+          padding: 0 16px 84px 16px;
           box-sizing: border-box;
         }
 
@@ -300,10 +307,12 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
 
         .hero-slot {
           align-self: flex-end;
+          margin-left: 10px;
         }
 
         .enemy-slot {
           align-self: flex-end;
+          margin-right: 10px;
         }
 
         /* Center Boss Alert */
