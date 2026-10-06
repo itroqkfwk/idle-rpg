@@ -534,6 +534,41 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           50% { opacity: 0.6; transform: scale(1.1) translateY(-6px); filter: brightness(3) drop-shadow(0 0 20px #f59e0b); }
           100% { opacity: 0; transform: scale(0.3) translateY(16px); filter: brightness(1); }
         }
+
+        /* 🖥️ PC Responsive Layout (width >= 768px) */
+        @media (min-width: 768px) {
+          .enemy-sprite-wrapper {
+            height: clamp(170px, 20vh, 270px);
+            width: calc(clamp(170px, 20vh, 270px) * 0.95);
+          }
+
+          .is-boss-combatant .enemy-sprite-wrapper {
+            height: clamp(240px, 29vh, 390px);
+            width: calc(clamp(240px, 29vh, 390px) * 0.98);
+          }
+
+          .monster-2d-sprite.slime-size {
+            height: clamp(140px, 17vh, 220px);
+          }
+
+          .monster-2d-sprite.medium-size {
+            height: clamp(170px, 20vh, 270px);
+          }
+
+          .monster-2d-sprite.boss-size {
+            height: clamp(240px, 29vh, 390px);
+          }
+
+          .character-ground-shadow.normal-ground-shadow {
+            width: calc(clamp(170px, 20vh, 270px) * 0.7);
+            height: calc(clamp(170px, 20vh, 270px) * 0.12);
+          }
+
+          .character-ground-shadow.boss-ground-shadow {
+            width: calc(clamp(240px, 29vh, 390px) * 0.75);
+            height: calc(clamp(240px, 29vh, 390px) * 0.13);
+          }
+        }
       `}</style>
     </div>
   );

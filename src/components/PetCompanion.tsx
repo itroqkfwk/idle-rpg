@@ -96,6 +96,24 @@ export const PetCompanion: React.FC<PetCompanionProps> = ({ pet }) => {
             transform: translateY(0) scale(1.02, 0.98);
           }
         }
+
+        /* 🖥️ PC Responsive Layout (width >= 768px) */
+        @media (min-width: 768px) {
+          .pet-companion-box {
+            left: clamp(8px, 1.5vw, 24px);
+            bottom: clamp(8px, 1.2vh, 18px);
+          }
+
+          .pet-2d-sprite {
+            width: clamp(44px, 5.5vh, 64px);
+            height: clamp(44px, 5.5vh, 64px);
+          }
+
+          .pet-shadow {
+            width: clamp(32px, 4vh, 48px);
+            height: clamp(8px, 1vh, 12px);
+          }
+        }
       `}</style>
     </div>
   );

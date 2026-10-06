@@ -381,6 +381,28 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           40% { transform: scale(1.3); opacity: 1; }
           100% { transform: scale(1) translateY(-10px); opacity: 0; }
         }
+
+        /* 🖥️ PC Responsive Layout (width >= 768px) */
+        @media (min-width: 768px) {
+          .hero-sprite-wrapper {
+            height: clamp(190px, 22vh, 300px);
+            width: calc(clamp(190px, 22vh, 300px) * 0.9);
+          }
+
+          .character-ground-shadow {
+            width: calc(clamp(190px, 22vh, 300px) * 0.65);
+            height: calc(clamp(190px, 22vh, 300px) * 0.12);
+          }
+
+          @keyframes heroFullAttack {
+            0% { transform: translateX(0) rotate(0deg); }
+            15% { transform: translateX(-8px) rotate(-3deg) scale(0.97, 1.03); }
+            32% { transform: translateX(clamp(65px, 5.5vw, 95px)) rotate(5deg) scale(1.08, 0.94); }
+            48% { transform: translateX(clamp(65px, 5.5vw, 95px)) rotate(11deg) scale(1.04, 0.98); }
+            65% { transform: translateX(clamp(65px, 5.5vw, 95px)) rotate(10deg) scale(1.03, 0.98); }
+            100% { transform: translateX(0) rotate(0deg) scale(1); }
+          }
+        }
       `}</style>
     </div>
   );

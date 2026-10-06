@@ -310,6 +310,73 @@ export const TopHUD: React.FC<TopHUDProps> = ({
         .settings-circle-btn:active {
           transform: scale(0.92);
         }
+
+        /* 🖥️ PC Responsive Layout (width >= 768px) */
+        @media (min-width: 768px) {
+          .game-top-hud {
+            height: 62px;
+            padding: 6px clamp(20px, 3.5vw, 48px);
+            max-width: min(94vw, 1320px);
+            left: 50%;
+            right: auto;
+            transform: translateX(-50%);
+            border-radius: 0 0 24px 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            border-left: 1px solid rgba(255, 255, 255, 0.08);
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            background: linear-gradient(180deg, rgba(11, 17, 32, 0.95) 0%, rgba(11, 17, 32, 0.8) 100%);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+          }
+
+          .profile-capsule-btn {
+            padding: 3px 12px 3px 3px;
+            gap: 8px;
+          }
+
+          .profile-avatar-thumb {
+            width: 34px;
+            height: 34px;
+          }
+
+          .profile-name-text {
+            font-size: 13px;
+          }
+
+          .profile-lvl-tag {
+            font-size: 11px;
+            padding: 1px 6px;
+          }
+
+          .stage-crest-badge {
+            padding: 4px 16px;
+          }
+
+          .stage-title-text {
+            font-size: 13px;
+          }
+
+          .currency-cluster {
+            gap: 10px;
+          }
+
+          .currency-pill {
+            padding: 5px 14px;
+            font-size: 12px;
+          }
+
+          .currency-val {
+            font-size: 12px;
+          }
+
+          .currency-icon {
+            font-size: 12px;
+          }
+
+          .settings-circle-btn {
+            width: 32px;
+            height: 32px;
+          }
+        }
       `}</style>
     </header>
   );

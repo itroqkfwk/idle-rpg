@@ -135,6 +135,35 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
           font-weight: 600;
           letter-spacing: -0.2px;
         }
+
+        /* 🖥️ PC Responsive Layout (width >= 768px) */
+        @media (min-width: 768px) {
+          .game-floating-dock-nav {
+            left: 50%;
+            right: auto;
+            transform: translateX(-50%);
+            width: clamp(420px, 40vw, 680px);
+            bottom: 16px;
+          }
+
+          .nav-dock-container {
+            height: 56px;
+            border-radius: 20px;
+            padding: 0 12px;
+            background: rgba(11, 17, 32, 0.94);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+          }
+
+          .nav-dock-item {
+            height: 48px;
+          }
+
+          .nav-item-label {
+            font-size: 11px;
+            letter-spacing: 0px;
+          }
+        }
       `}</style>
     </nav>
   );

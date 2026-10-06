@@ -692,6 +692,68 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         .cp-chip-label { font-size: 10px; font-weight: 700; color: #94a3b8; }
         .cp-chip-val { font-size: 11px; font-weight: 800; color: #f8fafc; }
         .cp-chip-up { font-size: 11px; font-weight: 800; color: #22c55e; }
+
+        /* 🖥️ PC Responsive Layout (width >= 768px) */
+        @media (min-width: 768px) {
+          .battle-bg-image {
+            object-fit: cover;
+            object-position: center 34%;
+            transform: scale(1.0);
+          }
+
+          .combat-arena-stage {
+            width: min(72vw, 1200px);
+            margin: 0 auto;
+            gap: clamp(24px, 4.5vw, 64px);
+            padding: 0 24px clamp(130px, 16vh, 200px) 24px;
+          }
+
+          .hero-slot {
+            width: clamp(190px, 18vw, 290px);
+          }
+
+          .enemy-slot {
+            width: clamp(180px, 17vw, 280px);
+          }
+
+          .battle-bottom-floating-bar {
+            bottom: 84px;
+          }
+
+          .floating-boss-btn {
+            padding: 9px 24px;
+            font-size: 13px;
+          }
+
+          .floating-retreat-btn {
+            padding: 7px 18px;
+            font-size: 12px;
+          }
+
+          .floating-auto-hunt-pill {
+            padding: 4px 16px;
+            font-size: 11px;
+          }
+        }
+
+        /* 🖥️ Low Height PC Screens (e.g. 1366x768, 1280x720, max-height: 800px) */
+        @media (min-width: 768px) and (max-height: 800px) {
+          .combat-arena-stage {
+            padding-bottom: clamp(100px, 14vh, 140px);
+            gap: clamp(20px, 3.5vw, 48px);
+          }
+
+          .battle-bottom-floating-bar {
+            bottom: 74px;
+          }
+        }
+
+        /* 🖥️ Ultra-wide Screens (width >= 1600px) */
+        @media (min-width: 1600px) {
+          .combat-arena-stage {
+            max-width: 1200px;
+          }
+        }
       `}</style>
     </div>
   );

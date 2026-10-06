@@ -179,6 +179,33 @@ export const QuestWidget: React.FC<QuestWidgetProps> = ({ quest, onClaim }) => {
           font-weight: 700;
           color: #cbd5e1;
         }
+
+        /* 🖥️ PC Responsive Layout (width >= 768px) */
+        @media (min-width: 768px) {
+          .floating-quest-card {
+            top: 74px;
+            left: clamp(24px, 4vw, 64px);
+            right: auto;
+            width: clamp(280px, 24vw, 420px);
+            height: 38px;
+            padding: 0 14px;
+            background: rgba(15, 23, 42, 0.82);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+          }
+
+          .quest-title-text {
+            font-size: 12px;
+          }
+
+          .quest-count-tag {
+            font-size: 11px;
+          }
+
+          .quest-claim-pill-btn {
+            font-size: 11px;
+            padding: 4px 10px;
+          }
+        }
       `}</style>
     </div>
   );
