@@ -45,7 +45,8 @@ export const App: React.FC = () => {
   const [offlineReward, setOfflineReward] = useState<{ seconds: number; gold: number; exp: number } | null>(null);
   const [revealedItem, setRevealedItem] = useState<Equipment | null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [isScreenShaking, setIsScreenShaking] = useState(false);
+  const [screenShake, setScreenShake] = useState<'none' | 'normal' | 'crit' | 'boss'>('none');
+  const [isHitStop, setIsHitStop] = useState(false);
 
   // Unpack state variables
   const stats = saveData.stats;
@@ -204,28 +205,18 @@ export const App: React.FC = () => {
     }
   }, [combatCalculations.totalMaxHp]);
 
-  // Screen Shake trigger
-  const triggerScreenShake = useCallback(() => {
-    setIsScreenShaking(true);
-    setTimeout(() => setIsScreenShaking(false), 220);
-  }, []);
-
-  // Spawn floating damage numbers
+  // Spawn floating damage numbers strictly anchored to combatant sprite DOM
   const addDamageNumber = useCallback((val: number, isCritical: boolean, isPlayer: boolean) => {
     if (!settings.damageNumbers) return;
     const id = `dmg_${Date.now()}_${Math.random()}`;
-    const x = isPlayer ? 70 + Math.random() * 30 : 220 + Math.random() * 40;
-    const y = 160 + Math.random() * 30;
+    const offsetX = Math.floor((Math.random() - 0.5) * 26);
+    const offsetY = Math.floor((Math.random() - 0.5) * 12);
 
-    if (isCritical) {
-      triggerScreenShake();
-    }
-
-    setDamages((prev) => [...prev.slice(-8), { id, value: val, isCritical, isPlayer, x, y }]);
+    setDamages((prev) => [...prev.slice(-8), { id, value: val, isCritical, isPlayer, offsetX, offsetY }]);
     setTimeout(() => {
       setDamages((prev) => prev.filter((d) => d.id !== id));
-    }, 750);
-  }, [settings.damageNumbers, triggerScreenShake]);
+    }, 450);
+  }, [settings.damageNumbers]);
 
   // Helper to update quest progress
   const progressQuest = useCallback((type: Quest['type'], amount: number = 1) => {
@@ -354,20 +345,29 @@ export const App: React.FC = () => {
     }, 380);
   }, [currentMonster, combatCalculations, stage, progressQuest]);
 
-  // --- Auto Combat Tick (Player Attack) ---
+  // --- Auto Combat Tick (Player Attack: 7-Phase Choreography & Hit Stop) ---
   const attackCooldownRef = useRef(false);
   useEffect(() => {
     if (isMonsterDefeated) return;
 
-    const intervalMs = Math.max(400, Math.floor(1000 / combatCalculations.totalAtkSpeed));
+    // Minimum cycle is 540ms to accommodate complete 7-stage animation
+    const intervalMs = Math.max(540, Math.floor(1000 / combatCalculations.totalAtkSpeed));
     const timer = setInterval(() => {
       if (attackCooldownRef.current || isMonsterDefeated) return;
 
       attackCooldownRef.current = true;
       setIsPlayerAttacking(true);
 
+      // Phase 1 to Phase 3: Anticipation (80ms) + Dash (90ms) -> Contact arrives at 210ms
       setTimeout(() => {
+        if (isMonsterDefeated) {
+          setIsPlayerAttacking(false);
+          attackCooldownRef.current = false;
+          return;
+        }
+
         const isCrit = Math.random() < combatCalculations.totalCritRate;
+        const isBoss = stage.stage === 10 && stage.inBossFight;
         const damage = Math.floor(
           Math.max(1, combatCalculations.totalAtk * (isCrit ? combatCalculations.totalCritDmg : 1) - currentMonster.def * 0.3)
         );
@@ -378,7 +378,13 @@ export const App: React.FC = () => {
           sound.playAttack();
         }
 
+        // Contact Impact & Hit Stop Freeze Frame
+        const hitStopDuration = isBoss ? 85 : isCrit ? 75 : 50;
+        const shakeType: 'normal' | 'crit' | 'boss' = isBoss ? 'boss' : isCrit ? 'crit' : 'normal';
+
+        setIsHitStop(true);
         setIsMonsterHit(true);
+        setScreenShake(shakeType);
         addDamageNumber(damage, isCrit, false);
 
         setCurrentMonster((prev) => {
@@ -389,16 +395,35 @@ export const App: React.FC = () => {
           return { ...prev, currentHp: nextHp };
         });
 
-        setTimeout(() => setIsPlayerAttacking(false), 140);
-        setTimeout(() => setIsMonsterHit(false), 200);
+        // Hit Stop unfreeze
+        setTimeout(() => {
+          setIsHitStop(false);
+        }, hitStopDuration);
+
+        // Shake release
+        setTimeout(() => {
+          setScreenShake('none');
+        }, hitStopDuration + 80);
+
+        // Enemy knockback recovery
+        setTimeout(() => {
+          setIsMonsterHit(false);
+        }, 160);
+
+        // Player completes recovery to idle (approx 520ms total)
+        setTimeout(() => {
+          setIsPlayerAttacking(false);
+        }, 310);
+
+        // Cooldown reset
         setTimeout(() => {
           attackCooldownRef.current = false;
-        }, intervalMs * 0.4);
-      }, 100);
+        }, Math.max(340, intervalMs - 210));
+      }, 210);
     }, intervalMs);
 
     return () => clearInterval(timer);
-  }, [combatCalculations, currentMonster, isMonsterDefeated, handleMonsterDefeat, addDamageNumber]);
+  }, [combatCalculations, currentMonster, isMonsterDefeated, handleMonsterDefeat, addDamageNumber, stage]);
 
   // --- Monster Attack Tick (Every 2.4s) ---
   useEffect(() => {
@@ -825,7 +850,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className={`mobile-frame ${isScreenShaking ? 'screen-shake' : ''}`}>
+    <div className="mobile-frame">
       {/* 1. Floating Top Game Crest & HUD */}
       <TopHUD
         stats={stats}
@@ -849,6 +874,8 @@ export const App: React.FC = () => {
           isPlayerHit={isPlayerHit}
           isMonsterHit={isMonsterHit}
           isMonsterDefeated={isMonsterDefeated}
+          isHitStop={isHitStop}
+          screenShake={screenShake}
           damages={damages}
           onChallengeBoss={handleChallengeBoss}
           onRetreatToNormal={handleRetreatToNormal}

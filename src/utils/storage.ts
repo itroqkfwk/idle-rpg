@@ -51,7 +51,7 @@ export function getDefaultSaveData(): GameSaveData {
     equipped: { ...STARTER_EQUIPMENT },
     inventory: [],
     pets: [...INITIAL_PETS],
-    activePetId: 'pet_slime',
+    activePetId: 'pet_fox',
     stage: initialStage,
     quests: [...INITIAL_QUESTS],
     freeChestLastOpened: 0,
@@ -72,12 +72,21 @@ export function loadGameData(): { data: GameSaveData; offlineSeconds: number } {
     // Cap at 12 hours (43,200 seconds)
     const cappedSeconds = Math.min(elapsedSeconds, 12 * 3600);
 
+    const defaultData = getDefaultSaveData();
+    const mergedData: GameSaveData = {
+      ...defaultData,
+      ...parsed,
+      lastOnlineTime: now,
+    };
+    if (!mergedData.activePetId || !mergedData.pets?.some((p) => p.id === mergedData.activePetId)) {
+      mergedData.activePetId = 'pet_fox';
+    }
+    if (mergedData.pets) {
+      mergedData.pets = mergedData.pets.map((p) => (p.id === 'pet_fox' ? { ...p, owned: true } : p));
+    }
+
     return {
-      data: {
-        ...getDefaultSaveData(),
-        ...parsed,
-        lastOnlineTime: now,
-      },
+      data: mergedData,
       offlineSeconds: cappedSeconds,
     };
   } catch (err) {

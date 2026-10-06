@@ -36,6 +36,8 @@ interface BattleSceneProps {
   lootAlert?: LootAlertData | null;
   stageNotice?: string | null;
   cpDelta?: { value: number; delta: number } | null;
+  isHitStop?: boolean;
+  screenShake?: 'none' | 'normal' | 'crit' | 'boss';
 }
 
 export const BattleScene: React.FC<BattleSceneProps> = ({
@@ -57,6 +59,8 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
   lootAlert,
   stageNotice,
   cpDelta,
+  isHitStop,
+  screenShake,
 }) => {
   const isBossFight = stage.stage === 10 && stage.inBossFight;
 
@@ -94,12 +98,12 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         <div className="foreground-bush bush-left" />
         <div className="foreground-bush bush-right" />
 
+        {/* 🌿 Layer 5.5: Atmospheric Silhouette Contrast Overlay */}
+        <div className="battle-ground-vignette" />
+
         {/* 🩸 Boss Encounter Crimson Pulse Vignette */}
         {isBossFight && <div className="boss-vignette-pulse" />}
       </div>
-
-      {/* Floating Damage Numbers */}
-      <DamageNumbers damages={damages} />
 
       {/* ⚡ Combat Power Growth Chip */}
       {cpDelta && (
@@ -135,7 +139,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
       )}
 
       {/* ⚔️ Main Combat Arena Stage */}
-      <div className="combat-arena-stage">
+      <div className={`combat-arena-stage ${screenShake && screenShake !== 'none' ? `shake-${screenShake}` : ''}`}>
         {/* Left Side: Adventurer Knight & Companion Pet */}
         <div className="combatant-slot hero-slot">
           <PlayerCharacter
@@ -145,6 +149,8 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
             isHit={isPlayerHit}
             isVictory={isMonsterDefeated}
             equippedWeapon={equippedWeapon}
+            isHitStop={isHitStop}
+            damages={damages.filter((d) => d.isPlayer)}
           />
           <PetCompanion pet={activePet} />
         </div>
@@ -172,6 +178,8 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
             isHit={isMonsterHit}
             isDefeated={isMonsterDefeated}
             isAttacking={isMonsterAttacking}
+            isHitStop={isHitStop}
+            damages={damages.filter((d) => !d.isPlayer)}
           />
         </div>
       </div>
@@ -343,16 +351,19 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           50% { opacity: 1; }
         }
 
-        /* ⚔️ Combat Arena Stage */
+        /* ⚔️ Combat Arena Stage - Elevated Baseline onto Forest Pathway */
         .combat-arena-stage {
           position: relative;
           z-index: 6;
           width: 100%;
           display: flex;
-          justify-content: space-between;
+          justify-content: center;
           align-items: flex-end;
-          padding: 0 16px 84px 16px;
+          gap: 20px;
+          padding: 0 12px 170px 12px;
           box-sizing: border-box;
+          transform: translate3d(0, 0, 0);
+          will-change: transform;
         }
 
         .combatant-slot {
@@ -364,12 +375,60 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
 
         .hero-slot {
           align-self: flex-end;
-          margin-left: 10px;
+          width: 175px;
+          flex-shrink: 0;
         }
 
         .enemy-slot {
           align-self: flex-end;
-          margin-right: 10px;
+          width: 165px;
+          flex-shrink: 0;
+        }
+
+        /* Scoped Screen Shake on Battle Stage Only */
+        @keyframes scopedShakeNormal {
+          0%, 100% { transform: translate(0, 0); }
+          25% { transform: translate(-1px, 0.8px); }
+          50% { transform: translate(1px, -0.8px); }
+          75% { transform: translate(-0.6px, -0.5px); }
+        }
+
+        @keyframes scopedShakeCrit {
+          0%, 100% { transform: translate(0, 0); }
+          20% { transform: translate(-2.5px, 1.8px); }
+          40% { transform: translate(2.5px, -1.8px); }
+          60% { transform: translate(-1.8px, -1.2px); }
+          80% { transform: translate(1.2px, 1.2px); }
+        }
+
+        @keyframes scopedShakeBoss {
+          0%, 100% { transform: translate(0, 0); }
+          20% { transform: translate(-3.5px, 2.5px); }
+          40% { transform: translate(3.5px, -2.5px); }
+          60% { transform: translate(-2.5px, -2px); }
+          80% { transform: translate(2px, 1.5px); }
+        }
+
+        .shake-normal {
+          animation: scopedShakeNormal 0.12s ease-out;
+        }
+
+        .shake-crit {
+          animation: scopedShakeCrit 0.16s ease-out;
+        }
+
+        .shake-boss {
+          animation: scopedShakeBoss 0.22s ease-out;
+        }
+
+        /* Ground Vignette & Contrast Control */
+        .battle-ground-vignette {
+          position: absolute;
+          inset: 0;
+          background: radial-gradient(ellipse 90% 65% at 50% 68%, transparent 40%, rgba(10, 15, 25, 0.38) 100%),
+                      linear-gradient(to top, rgba(10, 15, 25, 0.72) 0%, rgba(10, 15, 25, 0.25) 30%, transparent 60%);
+          pointer-events: none;
+          z-index: 4;
         }
 
         /* Center Boss Alert */
@@ -397,14 +456,19 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           letter-spacing: 1px;
         }
 
-        /* Floating Bottom Bar (Above Bottom Navigation) */
+        /* Floating Bottom Bar (Cleanly anchored above bottom dock) */
         .battle-bottom-floating-bar {
-          position: relative;
+          position: absolute;
+          bottom: 58px;
+          left: 50%;
+          transform: translateX(-50%);
           z-index: 10;
           display: flex;
           justify-content: center;
           align-items: center;
-          padding-bottom: 6px;
+          width: 100%;
+          pointer-events: auto;
+          box-sizing: border-box;
         }
 
         .floating-boss-btn {

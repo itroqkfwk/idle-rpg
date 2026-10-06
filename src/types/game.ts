@@ -103,8 +103,10 @@ export interface DamageNumberData {
   value: number;
   isCritical: boolean;
   isPlayer: boolean;
-  x: number;
-  y: number;
+  x?: number;
+  y?: number;
+  offsetX?: number;
+  offsetY?: number;
 }
 
 export type ActiveTab = 'adventure' | 'hero' | 'equipment' | 'pet' | 'shop';

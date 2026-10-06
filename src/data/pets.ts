@@ -2,16 +2,16 @@ import { Pet } from '../types/game';
 
 export const INITIAL_PETS: Pet[] = [
   {
-    id: 'pet_slime',
-    name: '퐁퐁 슬라임',
-    icon: '🟢',
-    description: '말랑말랑한 촉감으로 모험가의 사기를 북돋아 공격력을 올려줍니다.',
-    buffType: 'atk',
-    baseBuffValue: 0.08, // +8%
+    id: 'pet_fox',
+    name: '붉은 방울 여우',
+    icon: '🦊',
+    description: '민첩한 눈빛으로 적의 약점을 찾아내어 치명타 확률을 대폭 상승시킵니다.',
+    buffType: 'critRate',
+    baseBuffValue: 0.05, // +5%
     level: 1,
     owned: true,
     costGems: 0,
-    personality: '느긋하고 호기심 많은 친구',
+    personality: '영리하고 날렵한 숲의 길잡이',
   },
   {
     id: 'pet_fairy',
@@ -26,16 +26,16 @@ export const INITIAL_PETS: Pet[] = [
     personality: '명랑하고 반짝이는 것을 좋아하는 요정',
   },
   {
-    id: 'pet_fox',
-    name: '붉은 방울 여우',
-    icon: '🦊',
-    description: '민첩한 눈빛으로 적의 약점을 찾아내어 치명타 확률을 대폭 상승시킵니다.',
-    buffType: 'critRate',
-    baseBuffValue: 0.05, // +5%
+    id: 'pet_slime',
+    name: '퐁퐁 슬라임',
+    icon: '🟢',
+    description: '말랑말랑한 촉감으로 모험가의 사기를 북돋아 공격력을 올려줍니다.',
+    buffType: 'atk',
+    baseBuffValue: 0.08, // +8%
     level: 1,
     owned: false,
     costGems: 600,
-    personality: '영리하고 날렵한 숲의 길잡이',
+    personality: '느긋하고 호기심 많은 친구',
   },
   {
     id: 'pet_cat',

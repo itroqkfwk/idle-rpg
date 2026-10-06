@@ -47,17 +47,17 @@ export const QuestWidget: React.FC<QuestWidgetProps> = ({ quest, onClaim }) => {
       <style>{`
         .floating-quest-card {
           position: absolute;
-          top: 60px;
-          left: 12px;
-          right: 12px;
+          top: 56px;
+          left: 14px;
+          right: 14px;
           z-index: 30;
-          height: 38px;
-          background: rgba(15, 23, 42, 0.82);
-          backdrop-filter: blur(12px);
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          border-radius: 12px;
-          padding: 0 10px;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+          height: 34px;
+          background: rgba(15, 23, 42, 0.68);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          border-radius: 9999px;
+          padding: 0 12px;
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
           transition: border-color 0.2s ease, box-shadow 0.2s ease;
           user-select: none;
           box-sizing: border-box;

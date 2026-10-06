@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CharacterStats, Equipment } from '../types/game';
+import { CharacterStats, Equipment, DamageNumberData } from '../types/game';
 
 interface PlayerCharacterProps {
   stats: CharacterStats;
@@ -8,6 +8,8 @@ interface PlayerCharacterProps {
   isHit: boolean;
   isVictory?: boolean;
   equippedWeapon?: Equipment;
+  isHitStop?: boolean;
+  damages?: DamageNumberData[];
 }
 
 export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
@@ -16,6 +18,8 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
   isAttacking,
   isHit,
   isVictory = false,
+  isHitStop,
+  damages,
 }) => {
   const [ghostHpPercent, setGhostHpPercent] = useState(100);
   const hpPercent = Math.max(0, Math.min(100, Math.round((stats.currentHp / maxHp) * 100)));
@@ -29,6 +33,19 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
 
   return (
     <div className="hero-character-box">
+      {/* 💥 Overhead Player Damage Numbers */}
+      <div className="player-damage-anchor-layer">
+        {damages && damages.map((dmg) => (
+          <div
+            key={dmg.id}
+            className="player-dmg-pop"
+            style={{ transform: `translateX(${dmg.offsetX ?? 0}px)` }}
+          >
+            -{dmg.value.toLocaleString()}
+          </div>
+        ))}
+      </div>
+
       {/* Sleek Overhead HP Bar */}
       <div className="combatant-hp-cluster">
         <div className="combatant-name-tag">
@@ -50,14 +67,14 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           isVictory
             ? 'hero-act-victory'
             : isAttacking
-            ? 'hero-act-lunge'
+            ? 'hero-act-full-attack'
             : isHit
             ? 'hero-act-hit'
             : 'hero-act-idle'
-        }`}
+        } ${isHitStop ? 'hit-stop-freeze' : ''}`}
       >
         {/* Soft Ground Contact Shadow */}
-        <div className="character-ground-shadow" />
+        <div className={`character-ground-shadow ${isAttacking ? 'hero-shadow-lunge' : ''}`} />
 
         {/* Real 2D Anime Knight Sprite */}
         <img
@@ -69,6 +86,9 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
 
         {/* Dynamic Sword Slash Arc */}
         {isAttacking && <div className="hero-slash-arc-vfx" />}
+
+        {/* Dash Ground Dust Puff */}
+        {isAttacking && <div className="hero-dash-dust" />}
 
         {/* Victory Sparkle */}
         {isVictory && <div className="hero-victory-sparkle">✨</div>}
@@ -159,10 +179,38 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           letter-spacing: 0.2px;
         }
 
+        .player-damage-anchor-layer {
+          position: absolute;
+          top: -20px;
+          left: 50%;
+          transform: translateX(-50%);
+          pointer-events: none;
+          z-index: 40;
+        }
+
+        .player-dmg-pop {
+          color: #ef4444;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          font-size: 1.25rem;
+          font-weight: 900;
+          text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9), 0 0 4px #000;
+          animation: playerDmgPopAnim 0.45s ease-out forwards;
+        }
+
+        @keyframes playerDmgPopAnim {
+          0% { opacity: 0; transform: scale(0.5) translateY(10px); }
+          20% { opacity: 1; transform: scale(1.15) translateY(-4px); }
+          100% { opacity: 0; transform: scale(0.9) translateY(-28px); }
+        }
+
+        .hit-stop-freeze {
+          animation-play-state: paused !important;
+        }
+
         .hero-sprite-wrapper {
           position: relative;
-          width: 155px;
-          height: 168px;
+          width: 175px;
+          height: 195px;
           display: flex;
           justify-content: center;
           align-items: flex-end;
@@ -172,12 +220,18 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
         .character-ground-shadow {
           position: absolute;
           bottom: 2px;
-          width: 110px;
-          height: 20px;
+          width: 125px;
+          height: 22px;
           background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.65) 0%, rgba(0, 0, 0, 0.2) 50%, transparent 75%);
           border-radius: 50%;
           pointer-events: none;
           z-index: 1;
+          transition: transform 0.15s ease, opacity 0.15s ease;
+        }
+
+        .hero-shadow-lunge {
+          transform: scale(0.85, 0.75) translateX(45px);
+          opacity: 0.45;
         }
 
         .hero-2d-sprite {
@@ -193,70 +247,98 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
         /* ⚔️ Slash Arc Blade Wave VFX */
         .hero-slash-arc-vfx {
           position: absolute;
-          top: 20%;
-          right: -42px;
-          width: 95px;
-          height: 95px;
+          top: 15%;
+          right: -55px;
+          width: 120px;
+          height: 120px;
           border-radius: 50%;
-          border-right: 7px solid #ffffff;
-          border-top: 5px solid #38bdf8;
+          border-right: 8px solid #ffffff;
+          border-top: 6px solid #38bdf8;
           border-bottom: 2px solid transparent;
           border-left: transparent;
-          filter: drop-shadow(0 0 10px #38bdf8) drop-shadow(0 0 16px #ffffff);
-          animation: slashSweep 0.22s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
-          z-index: 15;
+          box-shadow: 0 0 20px #38bdf8, 0 0 35px #ffffff, inset 0 0 15px #0284c7;
+          filter: drop-shadow(0 0 12px #38bdf8);
+          animation: slashSweep 0.14s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+          z-index: 20;
           pointer-events: none;
         }
 
         @keyframes slashSweep {
           0% {
-            opacity: 0.9;
-            transform: scale(0.6) rotate(-45deg);
+            opacity: 0.2;
+            transform: scale(0.4) rotate(-60deg);
           }
-          50% {
+          40% {
             opacity: 1;
-            transform: scale(1.25) rotate(45deg);
+            transform: scale(1.2) rotate(25deg);
           }
           100% {
             opacity: 0;
-            transform: scale(1.45) rotate(110deg);
+            transform: scale(1.4) rotate(90deg);
           }
         }
 
-        /* Hero Idle Animation */
+        /* 💨 Dash Ground Dust Puff */
+        .hero-dash-dust {
+          position: absolute;
+          bottom: 4px;
+          left: -12px;
+          width: 28px;
+          height: 14px;
+          border-radius: 50%;
+          background: rgba(180, 160, 130, 0.65);
+          filter: blur(2px);
+          animation: dashDustPuff 0.3s ease-out forwards;
+          z-index: 1;
+        }
+
+        @keyframes dashDustPuff {
+          0% { transform: scale(0.4); opacity: 0.8; }
+          100% { transform: scale(1.7) translateX(-12px); opacity: 0; }
+        }
+
+        /* Hero Idle Animation: Subtle organic breathing rhythm */
         .hero-act-idle {
-          animation: heroBreathing 2.2s ease-in-out infinite;
+          animation: heroBreathing 1.8s ease-in-out infinite;
         }
 
         @keyframes heroBreathing {
           0%, 100% {
-            transform: translateY(0) scale(1);
+            transform: translateY(0) scale(1, 1);
           }
           50% {
-            transform: translateY(-3px) scale(1.01, 0.99);
+            transform: translateY(-1.5px) scale(0.995, 1.008);
           }
         }
 
-        /* 6-Stage Attack Animation (Anticipation -> Dash -> Slash Peak -> Recovery) */
-        .hero-act-lunge {
-          animation: heroLungeAnim 0.3s cubic-bezier(0.2, 0.8, 0.25, 1) forwards;
+        /* 7-Stage Attack Animation (Anticipation -> Dash -> Swing & Contact -> Hit Stop -> Recovery) */
+        .hero-act-full-attack {
+          animation: heroFullAttackAnim 0.52s cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
         }
 
-        @keyframes heroLungeAnim {
+        @keyframes heroFullAttackAnim {
           0% {
             transform: translateX(0) scale(1);
           }
-          20% {
-            transform: translateX(-7px) scale(0.97, 1.02); /* Anticipation */
+          15% {
+            /* Anticipation (80ms): pulls back 7px */
+            transform: translateX(-7px) rotate(-4deg) scale(0.97, 1.03);
           }
-          55% {
-            transform: translateX(38px) scale(1.08, 0.95); /* Dash */
+          35% {
+            /* Dash (90ms): lunges 60px forward towards monster */
+            transform: translateX(60px) rotate(8deg) scale(1.08, 0.94);
           }
-          75% {
-            transform: translateX(28px) scale(1.02); /* Slash Impact */
+          48% {
+            /* Weapon Swing & Contact (110ms): sword sweeps right through monster */
+            transform: translateX(65px) rotate(11deg) scale(1.04, 0.98);
+          }
+          65% {
+            /* Hit Stop Hold (Peak freeze point) */
+            transform: translateX(65px) rotate(10deg) scale(1.03, 0.98);
           }
           100% {
-            transform: translateX(0) scale(1); /* Recovery */
+            /* Recovery (180ms): steps back smoothly to origin */
+            transform: translateX(0) rotate(0deg) scale(1);
           }
         }
 

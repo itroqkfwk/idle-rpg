@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Monster } from '../types/game';
+import { Monster, DamageNumberData } from '../types/game';
 import { Skull } from 'lucide-react';
 
 interface EnemyCharacterProps {
@@ -7,6 +7,8 @@ interface EnemyCharacterProps {
   isHit: boolean;
   isDefeated: boolean;
   isAttacking: boolean;
+  isHitStop?: boolean;
+  damages?: DamageNumberData[];
 }
 
 export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
@@ -14,6 +16,8 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
   isHit,
   isDefeated,
   isAttacking,
+  isHitStop,
+  damages,
 }) => {
   const [ghostHpPercent, setGhostHpPercent] = useState(100);
   const hpPercent = Math.max(0, Math.min(100, Math.round((monster.currentHp / monster.maxHp) * 100)));
@@ -46,6 +50,20 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
 
   return (
     <div className={`enemy-character-box ${isBoss ? 'is-boss-combatant' : ''}`}>
+      {/* 💥 Overhead Damage Numbers strictly anchored to Monster Sprite */}
+      <div className="monster-damage-anchor-layer">
+        {damages && damages.map((dmg) => (
+          <div
+            key={dmg.id}
+            className={`monster-dmg-pop ${dmg.isCritical ? 'dmg-crit' : 'dmg-normal'}`}
+            style={{ transform: `translateX(${dmg.offsetX ?? 0}px)` }}
+          >
+            {dmg.isCritical && <span className="crit-burst-label">CRIT!</span>}
+            {dmg.value.toLocaleString()}
+          </div>
+        ))}
+      </div>
+
       {/* Overhead Enemy HP Cluster */}
       <div className="combatant-hp-cluster">
         <div className="combatant-name-tag">
@@ -82,7 +100,7 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
             : isAttacking
             ? 'enemy-act-attack'
             : monsterConfig.idleClass
-        }`}
+        } ${isHitStop ? 'hit-stop-freeze' : ''}`}
       >
         {/* Soft Ground Contact Shadow */}
         <div className={`character-ground-shadow ${isBoss ? 'boss-ground-shadow' : 'normal-ground-shadow'}`} />
@@ -95,13 +113,18 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           draggable={false}
         />
 
-        {/* Impact Hit Starburst VFX */}
+        {/* Impact Hit Torso Spark & Flash VFX */}
         {isHit && (
           <div className="enemy-hit-burst-vfx">
+            <div className="impact-flash-ring" />
             <div className="star-sparkle spark-1">✦</div>
             <div className="star-sparkle spark-2">✦</div>
+            <div className="star-sparkle spark-3">✦</div>
           </div>
         )}
+
+        {/* Ground Knockback Dust */}
+        {isHit && <div className="enemy-knockback-dust" />}
       </div>
 
       <style>{`
@@ -213,6 +236,101 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           margin-top: 2px;
         }
 
+        /* 💥 Overhead Damage Numbers strictly anchored to Monster Head */
+        .monster-damage-anchor-layer {
+          position: absolute;
+          top: -20px;
+          left: 50%;
+          transform: translateX(-50%);
+          pointer-events: none;
+          z-index: 40;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .monster-dmg-pop {
+          position: absolute;
+          bottom: 0;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          font-weight: 900;
+          letter-spacing: -0.5px;
+          white-space: nowrap;
+          pointer-events: none;
+        }
+
+        .dmg-normal {
+          color: #ffffff;
+          font-size: 1.35rem;
+          text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9), 0 0 4px #000;
+          animation: monsterDmgPopAnim 0.42s ease-out forwards;
+        }
+
+        .dmg-crit {
+          color: #fde047;
+          font-size: 1.7rem;
+          text-shadow: 0 2px 6px rgba(0, 0, 0, 0.95), 0 0 10px #ea580c;
+          animation: monsterCritPopAnim 0.45s cubic-bezier(0.18, 0.9, 0.32, 1.25) forwards;
+        }
+
+        @keyframes monsterDmgPopAnim {
+          0% {
+            opacity: 0;
+            transform: scale(0.5) translateY(10px);
+          }
+          20% {
+            opacity: 1;
+            transform: scale(1.18) translateY(-4px);
+          }
+          40% {
+            transform: scale(1) translateY(-14px);
+          }
+          80% {
+            opacity: 1;
+            transform: scale(1) translateY(-24px);
+          }
+          100% {
+            opacity: 0;
+            transform: scale(0.9) translateY(-32px);
+          }
+        }
+
+        @keyframes monsterCritPopAnim {
+          0% {
+            opacity: 0;
+            transform: scale(0.4) translateY(12px);
+          }
+          25% {
+            opacity: 1;
+            transform: scale(1.35) translateY(-8px);
+          }
+          50% {
+            transform: scale(1.08) translateY(-18px);
+          }
+          80% {
+            opacity: 1;
+            transform: scale(1) translateY(-28px);
+          }
+          100% {
+            opacity: 0;
+            transform: scale(0.85) translateY(-38px);
+          }
+        }
+
+        .crit-burst-label {
+          display: block;
+          font-size: 0.58em;
+          line-height: 1;
+          letter-spacing: 1.5px;
+          color: #f97316;
+          text-shadow: 0 0 8px #fde047, 0 1px 3px #000;
+          text-align: center;
+        }
+
+        .hit-stop-freeze {
+          animation-play-state: paused !important;
+        }
+
         .enemy-sprite-wrapper {
           position: relative;
           display: flex;
@@ -221,20 +339,20 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           transform-origin: bottom center;
         }
 
-        /* Distinct Silhouettes and Proportions */
+        /* Distinct Silhouettes and Proportions (Meeting 390x844 spec) */
         .slime-size {
-          width: 130px;
-          height: 118px;
+          width: 148px;
+          height: 140px;
         }
 
         .medium-size {
-          width: 135px;
-          height: 155px;
+          width: 155px;
+          height: 175px;
         }
 
         .boss-size {
-          width: 195px;
-          height: 195px;
+          width: 230px;
+          height: 235px;
         }
 
         .character-ground-shadow {
@@ -247,13 +365,13 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
         }
 
         .normal-ground-shadow {
-          width: 95px;
-          height: 16px;
+          width: 105px;
+          height: 18px;
         }
 
         .boss-ground-shadow {
-          width: 160px;
-          height: 24px;
+          width: 175px;
+          height: 26px;
         }
 
         .monster-2d-sprite {
@@ -266,34 +384,73 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           pointer-events: none;
         }
 
-        /* 💥 Impact Starburst */
+        /* 💥 Impact Torso Flash & Starburst */
         .enemy-hit-burst-vfx {
           position: absolute;
-          top: 35%;
-          left: 40%;
+          top: 45%;
+          left: 45%;
+          transform: translate(-50%, -50%);
           pointer-events: none;
-          z-index: 12;
+          z-index: 15;
+        }
+
+        .impact-flash-ring {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 55px;
+          height: 55px;
+          border-radius: 50%;
+          background: radial-gradient(circle, #ffffff 0%, rgba(254, 240, 138, 0.75) 45%, transparent 75%);
+          animation: impactFlashRing 0.15s ease-out forwards;
+        }
+
+        @keyframes impactFlashRing {
+          0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; }
+          100% { transform: translate(-50%, -50%) scale(1.4); opacity: 0; }
         }
 
         .star-sparkle {
           position: absolute;
-          font-size: 22px;
+          font-size: 24px;
           color: #fef08a;
-          text-shadow: 0 0 8px #ff0055, 0 0 14px #ffffff;
-          animation: sparkPop 0.25s ease-out forwards;
+          text-shadow: 0 0 8px #ff0055, 0 0 16px #ffffff;
+          animation: sparkPop 0.22s ease-out forwards;
         }
 
         .spark-1 {
-          transform: translate(-10px, -15px);
+          transform: translate(-12px, -18px);
         }
         .spark-2 {
-          transform: translate(15px, 5px);
-          animation-delay: 0.05s;
+          transform: translate(16px, 6px);
+          animation-delay: 0.04s;
+        }
+        .spark-3 {
+          transform: translate(-6px, 14px);
+          animation-delay: 0.08s;
         }
 
         @keyframes sparkPop {
           0% { transform: scale(0.3) rotate(0deg); opacity: 1; }
           100% { transform: scale(1.4) rotate(45deg); opacity: 0; }
+        }
+
+        .enemy-knockback-dust {
+          position: absolute;
+          bottom: 2px;
+          right: 20px;
+          width: 26px;
+          height: 12px;
+          border-radius: 50%;
+          background: rgba(180, 170, 140, 0.65);
+          filter: blur(2px);
+          animation: knockbackDust 0.28s ease-out forwards;
+        }
+
+        @keyframes knockbackDust {
+          0% { transform: scale(0.5); opacity: 0.8; }
+          100% { transform: scale(1.6) translateX(12px); opacity: 0; }
         }
 
         /* Idle Animations by Monster Archetype */
@@ -313,11 +470,11 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
 
         @keyframes mushroomBob {
           0%, 100% { transform: translateY(0) rotate(0deg); }
-          50% { transform: translateY(-5px) rotate(1.5deg); }
+          50% { transform: translateY(-5px) rotate(2deg); }
         }
 
         .bee-act-idle {
-          animation: beeHover 1.2s ease-in-out infinite;
+          animation: beeHover 0.85s ease-in-out infinite;
         }
 
         @keyframes beeHover {
@@ -354,17 +511,17 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           100% { transform: translateX(0); }
         }
 
-        /* Hit Shake & Brightness Flash */
+        /* Hit Knockback & White Flash (Contact Reaction) */
         .enemy-act-hit {
-          animation: enemyHitShake 0.16s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-          filter: brightness(2) drop-shadow(0 0 14px rgba(255, 255, 255, 0.9));
+          animation: enemyKnockbackAnim 0.24s cubic-bezier(0.2, 0.85, 0.3, 1) forwards;
+          filter: brightness(2.8) contrast(1.25) drop-shadow(0 0 16px rgba(255, 255, 255, 0.95));
         }
 
-        @keyframes enemyHitShake {
-          0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(10px); }
-          50% { transform: translateX(-6px); }
-          75% { transform: translateX(3px); }
+        @keyframes enemyKnockbackAnim {
+          0% { transform: translateX(0) scale(1, 1); }
+          25% { transform: translateX(9px) scale(0.92, 1.08); }
+          65% { transform: translateX(4px) scale(1.04, 0.96); }
+          100% { transform: translateX(0) scale(1, 1); }
         }
 
         /* Defeat Fade & Scale Down */

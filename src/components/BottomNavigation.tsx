@@ -60,12 +60,12 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
         }
 
         .nav-dock-container {
-          height: 58px;
-          background: rgba(11, 17, 32, 0.92);
-          backdrop-filter: blur(16px);
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          border-radius: 18px;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+          height: 50px;
+          background: rgba(11, 17, 32, 0.88);
+          backdrop-filter: blur(14px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 16px;
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.12);
           display: flex;
           align-items: center;
           justify-content: space-around;
@@ -78,23 +78,22 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
           position: relative;
           flex: 1;
           min-width: 0;
-          height: 48px;
+          height: 44px;
           border: none;
           background: transparent;
-          border-radius: 12px;
           cursor: pointer;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          gap: 2px;
-          color: #94a3b8;
+          gap: 1px;
+          color: #64748b;
           transition: transform 0.15s ease, color 0.15s ease;
           padding: 0;
         }
 
         .nav-dock-item:active {
-          transform: scale(0.94);
+          transform: scale(0.95);
         }
 
         .nav-item-active {
@@ -104,10 +103,12 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
 
         .active-pill-glow {
           position: absolute;
-          inset: 2px;
-          background: rgba(245, 158, 11, 0.08);
-          border-radius: 10px;
-          border: 1px solid rgba(245, 158, 11, 0.2);
+          top: 2px;
+          width: 14px;
+          height: 2px;
+          border-radius: 9999px;
+          background: #f59e0b;
+          box-shadow: 0 0 6px rgba(245, 158, 11, 0.8);
           pointer-events: none;
         }
 
@@ -122,17 +123,17 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
           position: absolute;
           top: -2px;
           right: -4px;
-          width: 6px;
-          height: 6px;
+          width: 5px;
+          height: 5px;
           border-radius: 50%;
           background: #ef4444;
-          box-shadow: 0 0 6px #ef4444;
+          box-shadow: 0 0 4px #ef4444;
         }
 
         .nav-item-label {
-          font-size: 10px;
-          font-weight: 800;
-          letter-spacing: 0.1px;
+          font-size: 9px;
+          font-weight: 600;
+          letter-spacing: -0.2px;
         }
       `}</style>
     </nav>
