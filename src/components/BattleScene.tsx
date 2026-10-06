@@ -4,8 +4,7 @@ import { PlayerCharacter } from './PlayerCharacter';
 import { EnemyCharacter } from './EnemyCharacter';
 import { PetCompanion } from './PetCompanion';
 import { DamageNumbers } from './DamageNumbers';
-import { CHAPTERS_DATA } from '../data/monsters';
-import { Swords, Skull } from 'lucide-react';
+import { Swords, Skull, Flame } from 'lucide-react';
 
 interface BattleSceneProps {
   stats: CharacterStats;
@@ -40,64 +39,53 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
   onChallengeBoss,
   onRetreatToNormal,
 }) => {
-  const currentChapter = CHAPTERS_DATA[(stage.chapter - 1) % CHAPTERS_DATA.length];
+  const isBossFight = stage.stage === 10 && stage.inBossFight;
 
   return (
-    <div className="battle-environment-root">
-      {/* 🌲 Layer 0: Sky with Sunlight God Rays */}
-      <div className="env-layer layer-sky" style={{ background: currentChapter.bgGradient }}>
-        <div className="god-rays" />
-        <div className="ambient-sun-orb" />
-      </div>
+    <div className={`battle-environment-root ${isBossFight ? 'boss-battle-mode' : ''}`}>
+      {/* 🌲 Layer 1: High-Res 2D Painted Forest Panorama Backdrop */}
+      <div className="battle-bg-container">
+        <img
+          src="/assets/forest_bg.jpg"
+          alt="Battle Forest Background"
+          className="battle-bg-image"
+          draggable={false}
+        />
 
-      {/* 🌲 Layer 1: Far Misty Silhouette Mountain Range */}
-      <div className="env-layer layer-far-mountains">
-        <svg viewBox="0 0 400 120" preserveAspectRatio="none" className="mountains-svg">
-          <path d="M0 80 Q90 30 180 75 T360 40 Q390 60 400 80 L400 120 L0 120 Z" fill="rgba(40, 80, 50, 0.45)" />
-        </svg>
-      </div>
+        {/* ☀️ Layer 2: Sunlight Godrays Streaming from Canopy */}
+        <div className="god-rays-overlay" />
 
-      {/* 🌲 Layer 2: Midground Ancient Forest Canopy & Fireflies */}
-      <div className="env-layer layer-midground-forest">
-        <svg viewBox="0 0 400 160" preserveAspectRatio="none" className="canopy-svg">
-          {/* Giant Tree Trunks and Foliage */}
-          <path
-            d="M-20 0 Q40 40 100 0 Q180 50 260 0 Q340 45 420 0 L420 160 L-20 160 Z"
-            fill="rgba(25, 55, 30, 0.7)"
-          />
-        </svg>
-        {/* Floating Glowing Fireflies */}
-        <div className="firefly firefly-1" />
-        <div className="firefly firefly-2" />
-        <div className="firefly firefly-3" />
-        <div className="firefly firefly-4" />
-      </div>
-
-      {/* 🌲 Layer 3: Main Battle Ground Path (Cobblestones & Moss Foliage) */}
-      <div className="env-layer layer-ground-path">
-        <div className="ground-soil-base">
-          {/* Cobblestone Details */}
-          <div className="stone-pebble stone-1" />
-          <div className="stone-pebble stone-2" />
-          <div className="stone-pebble stone-3" />
-          <div className="grass-tuft grass-1" />
-          <div className="grass-tuft grass-2" />
+        {/* 🍃 Layer 3: Natural Floating Leaves drifting through the wind */}
+        <div className="floating-leaves-container">
+          <div className="falling-leaf leaf-1">🍃</div>
+          <div className="falling-leaf leaf-2">🍂</div>
+          <div className="falling-leaf leaf-3">🍃</div>
+          <div className="falling-leaf leaf-4">🌿</div>
         </div>
+
+        {/* ✨ Layer 4: Glowing Fireflies & Forest Pollen Motes */}
+        <div className="ambient-fireflies">
+          <div className="firefly firefly-1" />
+          <div className="firefly firefly-2" />
+          <div className="firefly firefly-3" />
+          <div className="firefly firefly-4" />
+        </div>
+
+        {/* 🌿 Layer 5: Foreground Foliage Vignette (Cinematic Depth) */}
+        <div className="foreground-bush bush-left" />
+        <div className="foreground-bush bush-right" />
+
+        {/* 🩸 Boss Encounter Crimson Pulse Vignette */}
+        {isBossFight && <div className="boss-vignette-pulse" />}
       </div>
 
-      {/* 🌲 Layer 4: Foreground Leaf Vignette (Camera Framing) */}
-      <div className="env-layer layer-foreground-vignette">
-        <div className="vine-leaf vine-top-left" />
-        <div className="vine-leaf vine-top-right" />
-      </div>
-
-      {/* Floating Damage Numbers Overlay */}
+      {/* Floating Damage Numbers */}
       <DamageNumbers damages={damages} />
 
       {/* ⚔️ Main Combat Arena Stage */}
       <div className="combat-arena-stage">
-        {/* Left Side: Player Adventurer & Companion Pet */}
-        <div className="hero-combat-slot">
+        {/* Left Side: Adventurer Knight & Companion Pet */}
+        <div className="combatant-slot hero-slot">
           <PlayerCharacter
             stats={stats}
             maxHp={maxHp}
@@ -108,18 +96,19 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           <PetCompanion pet={activePet} />
         </div>
 
-        {/* Center Divider: Boss Indicator */}
-        <div className="arena-center-zone">
-          {stage.stage === 10 && stage.inBossFight && (
-            <div className="boss-banner-stamp game-stroke">
-              <Skull size={16} color="#ffffff" />
-              <span>BOSS BATTLE</span>
+        {/* Center: Boss Encounter Alert Badge */}
+        {isBossFight && (
+          <div className="arena-center-banner">
+            <div className="boss-alert-badge">
+              <Skull size={15} color="#ef4444" />
+              <span>BOSS RAID</span>
+              <Flame size={15} color="#f97316" />
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Right Side: Monster Sprite */}
-        <div className="enemy-combat-slot">
+        <div className="combatant-slot enemy-slot">
           <EnemyCharacter
             monster={monster}
             isHit={isMonsterHit}
@@ -129,236 +118,291 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         </div>
       </div>
 
-      {/* Stage Bottom Action: Boss Challenge or Retreat Button */}
-      <div className="battle-action-overlay">
+      {/* Floating Bottom Status / Boss Trigger Overlay */}
+      <div className="battle-bottom-floating-bar">
         {stage.stage === 10 && !stage.inBossFight && (
-          <button className="btn-game btn-game-gold boss-summon-btn" onClick={onChallengeBoss}>
-            <Swords size={20} />
-            <span className="game-stroke">보스 소환 도전 (Boss Battle)</span>
+          <button className="floating-boss-btn" onClick={onChallengeBoss}>
+            <Skull size={17} color="#ffffff" />
+            <span>보스 소환 도전 (Boss Battle)</span>
           </button>
         )}
 
         {stage.stage === 10 && stage.inBossFight && (
-          <button className="btn-game btn-game-wood boss-retreat-btn" onClick={onRetreatToNormal}>
+          <button className="floating-retreat-btn" onClick={onRetreatToNormal}>
             <span>일반 사냥으로 후퇴</span>
           </button>
+        )}
+
+        {stage.stage < 10 && (
+          <div className="floating-auto-hunt-pill">
+            <span className="pulse-hunting-dot" />
+            <Swords size={12} color="#94a3b8" />
+            <span>자동 사냥 진행 중...</span>
+          </div>
         )}
       </div>
 
       <style>{`
         .battle-environment-root {
-          flex: 1;
           position: relative;
+          width: 100%;
+          height: 100%;
+          min-height: 500px;
           display: flex;
           flex-direction: column;
           justify-content: flex-end;
           overflow: hidden;
-          min-height: 380px;
           user-select: none;
         }
 
-        .env-layer {
+        .battle-bg-container {
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+          z-index: 1;
+        }
+
+        .battle-bg-image {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          object-position: center bottom;
+          transform: scale(1.03);
+          transition: filter 0.5s ease;
+        }
+
+        .boss-battle-mode .battle-bg-image {
+          filter: brightness(0.82) contrast(1.15) saturate(1.1);
+        }
+
+        /* ☀️ Sunlight Godrays */
+        .god-rays-overlay {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(135deg, rgba(254, 240, 138, 0.18) 0%, rgba(254, 240, 138, 0.05) 35%, transparent 60%);
+          pointer-events: none;
+        }
+
+        /* 🍃 Falling Leaves Animation */
+        .floating-leaves-container {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          overflow: hidden;
+        }
+
+        .falling-leaf {
+          position: absolute;
+          font-size: 14px;
+          opacity: 0.7;
+          filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+          animation: leafDrift linear infinite;
+        }
+
+        .leaf-1 { top: -20px; left: 15%; animation-duration: 7s; animation-delay: 0s; }
+        .leaf-2 { top: -20px; left: 45%; animation-duration: 9s; animation-delay: 2.5s; font-size: 12px; }
+        .leaf-3 { top: -20px; left: 75%; animation-duration: 8s; animation-delay: 4s; }
+        .leaf-4 { top: -20px; left: 90%; animation-duration: 10s; animation-delay: 1s; font-size: 11px; }
+
+        @keyframes leafDrift {
+          0% {
+            transform: translate(0, 0) rotate(0deg);
+            opacity: 0;
+          }
+          15% {
+            opacity: 0.8;
+          }
+          85% {
+            opacity: 0.7;
+          }
+          100% {
+            transform: translate(60px, 580px) rotate(360deg);
+            opacity: 0;
+          }
+        }
+
+        /* ✨ Fireflies */
+        .ambient-fireflies {
           position: absolute;
           inset: 0;
           pointer-events: none;
         }
 
-        /* Layer 0: Sky & God Rays */
-        .layer-sky {
-          z-index: 1;
-        }
-        .god-rays {
-          position: absolute;
-          top: -20px;
-          left: 10%;
-          width: 250px;
-          height: 300px;
-          background: linear-gradient(135deg, rgba(254, 240, 138, 0.28) 0%, transparent 60%);
-          transform: rotate(-15deg);
-          filter: blur(12px);
-          animation: godRaysPulse 6s ease-in-out infinite alternate;
-        }
-        @keyframes godRaysPulse {
-          0% { opacity: 0.5; transform: rotate(-15deg) scaleX(0.9); }
-          100% { opacity: 0.9; transform: rotate(-12deg) scaleX(1.15); }
-        }
-
-        .ambient-sun-orb {
-          position: absolute;
-          top: 15px;
-          right: 35px;
-          width: 80px;
-          height: 80px;
-          border-radius: 50%;
-          background: radial-gradient(circle, rgba(254, 240, 138, 0.7) 0%, transparent 70%);
-        }
-
-        /* Layer 1: Far Mountains */
-        .layer-far-mountains {
-          z-index: 2;
-          display: flex;
-          align-items: flex-end;
-        }
-        .mountains-svg {
-          width: 100%;
-          height: 90px;
-        }
-
-        /* Layer 2: Midground Canopy & Fireflies */
-        .layer-midground-forest {
-          z-index: 3;
-        }
-        .canopy-svg {
-          width: 100%;
-          height: 90px;
-        }
         .firefly {
           position: absolute;
-          width: 5px;
-          height: 5px;
+          width: 4px;
+          height: 4px;
           border-radius: 50%;
           background: #fef08a;
-          box-shadow: 0 0 8px #fef08a, 0 0 14px #86efac;
-          animation: fireflyAnim 4s ease-in-out infinite;
+          box-shadow: 0 0 8px 3px rgba(254, 240, 138, 0.85);
+          animation: fireflyFloat 4.5s ease-in-out infinite;
         }
-        .firefly-1 { top: 35%; left: 20%; animation-delay: 0s; }
-        .firefly-2 { top: 48%; left: 75%; animation-delay: 1.2s; }
-        .firefly-3 { top: 60%; left: 45%; animation-delay: 2.1s; }
-        .firefly-4 { top: 25%; left: 60%; animation-delay: 3s; }
 
-        @keyframes fireflyAnim {
+        .firefly-1 { top: 35%; left: 22%; animation-delay: 0s; }
+        .firefly-2 { top: 48%; left: 78%; animation-delay: 1.8s; }
+        .firefly-3 { top: 58%; left: 42%; animation-delay: 3s; }
+        .firefly-4 { top: 25%; left: 65%; animation-delay: 2.2s; }
+
+        @keyframes fireflyFloat {
           0%, 100% { transform: translate(0, 0); opacity: 0.3; }
-          50% { transform: translate(12px, -18px); opacity: 1; }
+          50% { transform: translate(10px, -14px); opacity: 0.95; }
         }
 
-        /* Layer 3: Ground Soil Base & Cobblestones */
-        .layer-ground-path {
-          z-index: 4;
-          display: flex;
-          align-items: flex-end;
-        }
-        .ground-soil-base {
-          width: 100%;
-          height: 75px;
-          background: linear-gradient(180deg, #446e3e 0%, #2b4a26 40%, #1c3319 100%);
-          border-top: 3.5px solid #6b9e5d;
-          position: relative;
-          box-shadow: inset 0 8px 16px rgba(0, 0, 0, 0.45);
-        }
-        .stone-pebble {
+        /* 🌿 Foreground Foliage Framing */
+        .foreground-bush {
           position: absolute;
-          background: #3b5037;
-          border-radius: 50%;
-          border: 1px solid #5a7554;
+          bottom: -10px;
+          width: 90px;
+          height: 60px;
+          border-radius: 50% 50% 0 0;
+          background: radial-gradient(ellipse at center, rgba(16, 44, 20, 0.65) 0%, transparent 80%);
+          filter: blur(4px);
+          pointer-events: none;
+          z-index: 8;
         }
-        .stone-1 { width: 14px; height: 7px; top: 18px; left: 15%; }
-        .stone-2 { width: 20px; height: 9px; top: 32px; left: 62%; }
-        .stone-3 { width: 16px; height: 8px; top: 44px; left: 38%; }
 
-        .grass-tuft {
+        .bush-left { left: -25px; }
+        .bush-right { right: -25px; }
+
+        /* Boss Vignette Pulse */
+        .boss-vignette-pulse {
           position: absolute;
-          width: 0;
-          height: 0;
-          border-left: 5px solid transparent;
-          border-right: 5px solid transparent;
-          border-bottom: 9px solid #86efac;
+          inset: 0;
+          box-shadow: inset 0 0 90px rgba(185, 28, 28, 0.5);
+          pointer-events: none;
+          animation: vignettePulse 2.5s ease-in-out infinite;
+          z-index: 3;
         }
-        .grass-1 { top: -9px; left: 28%; }
-        .grass-2 { top: -9px; left: 78%; }
 
-        /* Layer 4: Foreground Leaf Vignette */
-        .layer-foreground-vignette {
-          z-index: 25;
+        @keyframes vignettePulse {
+          0%, 100% { opacity: 0.65; }
+          50% { opacity: 1; }
         }
-        .vine-leaf {
-          position: absolute;
-          width: 70px;
-          height: 50px;
-          background: radial-gradient(circle at 0% 0%, #22421f 0%, #152b13 80%);
-          border-radius: 0 0 50px 0;
-          opacity: 0.85;
-          filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5));
-        }
-        .vine-top-left { top: 0; left: 0; }
-        .vine-top-right { top: 0; right: 0; transform: scaleX(-1); }
 
-        /* Combat Arena Stage */
+        /* ⚔️ Combat Arena Stage */
         .combat-arena-stage {
           position: relative;
-          z-index: 10;
+          z-index: 6;
           width: 100%;
           display: flex;
-          justify-content: space-around;
+          justify-content: space-between;
           align-items: flex-end;
-          padding: 0 16px 36px;
+          padding: 0 16px 26px 18px;
+          box-sizing: border-box;
         }
 
-        .hero-combat-slot {
+        .combatant-slot {
           position: relative;
-          display: flex;
-          justify-content: center;
-        }
-
-        .enemy-combat-slot {
-          position: relative;
-          display: flex;
-          justify-content: center;
-        }
-
-        .arena-center-zone {
           display: flex;
           flex-direction: column;
           align-items: center;
-          margin-bottom: 45px;
         }
 
-        .boss-banner-stamp {
-          background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
-          color: #ffffff;
-          font-size: 0.72rem;
-          font-weight: 900;
-          padding: 4px 10px;
-          border-radius: 20px;
-          border: 1.5px solid #fecaca;
+        .hero-slot {
+          align-self: flex-end;
+        }
+
+        .enemy-slot {
+          align-self: flex-end;
+        }
+
+        /* Center Boss Alert */
+        .arena-center-banner {
+          position: absolute;
+          top: 10px;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 10;
+        }
+
+        .boss-alert-badge {
           display: flex;
           align-items: center;
-          gap: 5px;
-          box-shadow: 0 0 16px rgba(239, 68, 68, 0.85);
-          animation: bossStampPulse 1.2s infinite;
+          gap: 6px;
+          padding: 4px 14px;
+          background: rgba(15, 23, 42, 0.88);
+          backdrop-filter: blur(8px);
+          border: 1px solid rgba(239, 68, 68, 0.6);
+          border-radius: 9999px;
+          box-shadow: 0 4px 16px rgba(239, 68, 68, 0.45);
+          color: #ffffff;
+          font-size: 11px;
+          font-weight: 900;
+          letter-spacing: 1px;
         }
 
-        @keyframes bossStampPulse {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.08); box-shadow: 0 0 24px rgba(239, 68, 68, 1); }
-        }
-
-        /* Action Buttons Over Battle */
-        .battle-action-overlay {
+        /* Floating Bottom Bar (Above Bottom Navigation) */
+        .battle-bottom-floating-bar {
           position: relative;
-          z-index: 30;
+          z-index: 10;
           display: flex;
           justify-content: center;
-          padding: 0 16px 8px;
+          align-items: center;
+          padding-bottom: 6px;
         }
 
-        .boss-summon-btn {
-          width: 100%;
-          max-width: 290px;
-          min-height: 48px;
-          font-size: 1.05rem;
-          box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5);
-          animation: summonBounce 2s infinite;
+        .floating-boss-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 7px 18px;
+          background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+          color: #ffffff;
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          border-radius: 9999px;
+          font-size: 12px;
+          font-weight: 800;
+          box-shadow: 0 4px 16px rgba(239, 68, 68, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+          cursor: pointer;
+          transition: transform 0.1s ease, filter 0.1s ease;
         }
 
-        @keyframes summonBounce {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-4px); }
+        .floating-boss-btn:active {
+          transform: scale(0.96);
+          filter: brightness(0.9);
         }
 
-        .boss-retreat-btn {
-          font-size: 0.85rem;
-          min-height: 38px;
-          padding: 6px 16px;
+        .floating-retreat-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 5px 14px;
+          background: rgba(15, 23, 42, 0.85);
+          backdrop-filter: blur(8px);
+          color: #94a3b8;
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          border-radius: 9999px;
+          font-size: 11px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .floating-auto-hunt-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 3px 12px;
+          background: rgba(15, 23, 42, 0.75);
+          backdrop-filter: blur(8px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 9999px;
+          color: #94a3b8;
+          font-size: 10px;
+          font-weight: 700;
+        }
+
+        .pulse-hunting-dot {
+          width: 5px;
+          height: 5px;
+          border-radius: 50%;
+          background: #10b981;
+          box-shadow: 0 0 6px #10b981;
+          animation: huntDotPulse 1.8s ease-in-out infinite;
+        }
+
+        @keyframes huntDotPulse {
+          0%, 100% { opacity: 0.4; transform: scale(0.8); }
+          50% { opacity: 1; transform: scale(1.2); }
         }
       `}</style>
     </div>

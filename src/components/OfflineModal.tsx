@@ -29,13 +29,13 @@ export const OfflineModal: React.FC<OfflineModalProps> = ({
     <div className="modal-backdrop">
       <div className="modal-content offline-modal-content">
         <div className="offline-header-icon">
-          <Moon size={36} color="#f59e0b" />
+          <Moon size={32} color="#f59e0b" />
         </div>
 
-        <h2 className="offline-title">WELCOME BACK!</h2>
+        <h2 className="offline-title">방치 보상 획득!</h2>
         <p className="offline-subtext">
-          자리를 비운 동안에도 작은 모험가가<br />
-          열심히 몬스터를 사냥하고 있었습니다!
+          자리를 비운 동안에도 기사단원이<br />
+          열심히 몬스터를 사냥했습니다!
         </p>
 
         <div className="offline-stats-card">
@@ -54,8 +54,8 @@ export const OfflineModal: React.FC<OfflineModalProps> = ({
           </div>
         </div>
 
-        <button className="cozy-btn cozy-btn-gold offline-claim-btn" onClick={onClaim}>
-          <Sparkles size={18} />
+        <button className="btn-game btn-game-gold offline-claim-btn" onClick={onClaim}>
+          <Sparkles size={16} />
           <span>보상 모두 받기</span>
         </button>
       </div>
@@ -66,74 +66,63 @@ export const OfflineModal: React.FC<OfflineModalProps> = ({
           display: flex;
           flex-direction: column;
           align-items: center;
+          gap: 10px;
         }
         .offline-header-icon {
-          width: 64px;
-          height: 64px;
+          width: 56px;
+          height: 56px;
           border-radius: 50%;
-          background: #fef3c7;
+          background: rgba(245, 158, 11, 0.15);
+          border: 1px solid rgba(245, 158, 11, 0.3);
           display: flex;
           align-items: center;
           justify-content: center;
-          margin-bottom: 12px;
-          box-shadow: 0 4px 14px rgba(245, 158, 11, 0.25);
+          box-shadow: 0 0 16px rgba(245, 158, 11, 0.25);
         }
         .offline-title {
-          font-family: var(--font-accent);
-          font-size: 1.8rem;
-          color: var(--cozy-brown);
-          letter-spacing: 1px;
+          font-size: 1.35rem;
+          font-weight: 900;
+          color: #fef08a;
+          letter-spacing: 0.5px;
         }
         .offline-subtext {
           font-size: 0.85rem;
-          color: var(--cozy-brown-light);
+          color: #94a3b8;
           line-height: 1.45;
-          margin: 6px 0 16px;
         }
         .offline-stats-card {
           width: 100%;
-          background: #ffffff;
-          border: 1.5px solid var(--border-soft);
-          border-radius: 16px;
-          padding: 14px 16px;
+          background: rgba(10, 15, 28, 0.7);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 14px;
+          padding: 12px 14px;
           display: flex;
           flex-direction: column;
-          gap: 10px;
-          margin-bottom: 20px;
+          gap: 8px;
         }
         .offline-stat-row {
           display: flex;
           justify-content: space-between;
           align-items: center;
-        }
-        .stat-divider {
-          height: 1px;
-          background: var(--border-soft);
-          margin: 2px 0;
+          font-size: 12px;
         }
         .stat-label {
-          font-size: 0.82rem;
-          font-weight: 700;
-          color: var(--cozy-brown-light);
+          color: #94a3b8;
+          font-weight: 600;
         }
         .stat-val {
-          font-size: 0.95rem;
-          font-weight: 900;
+          font-weight: 800;
         }
-        .time-val {
-          color: var(--sage-green-dark);
-        }
-        .gold-val {
-          color: #b45309;
-        }
-        .exp-val {
-          color: #0284c7;
+        .time-val { color: #f8fafc; }
+        .gold-val { color: #fef08a; }
+        .exp-val { color: #38bdf8; }
+        .stat-divider {
+          height: 1px;
+          background: rgba(255, 255, 255, 0.08);
         }
         .offline-claim-btn {
           width: 100%;
-          min-height: 48px;
-          font-size: 1.05rem;
-          box-shadow: 0 6px 18px rgba(245, 158, 11, 0.35);
+          margin-top: 6px;
         }
       `}</style>
     </div>

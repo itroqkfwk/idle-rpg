@@ -38,7 +38,10 @@ export const App: React.FC = () => {
     return data;
   });
 
-  const [activeTab, setActiveTab] = useState<ActiveTab>('adventure');
+  const [activeTab, setActiveTab] = useState<ActiveTab>(() => {
+    const urlTab = new URLSearchParams(window.location.search).get('tab') as ActiveTab | null;
+    return urlTab || 'adventure';
+  });
   const [offlineReward, setOfflineReward] = useState<{ seconds: number; gold: number; exp: number } | null>(null);
   const [revealedItem, setRevealedItem] = useState<Equipment | null>(null);
   const [showSettings, setShowSettings] = useState(false);

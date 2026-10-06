@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pet } from '../types/game';
 import { getPetBuffText } from '../data/pets';
-import { Check, Lock, ArrowUpRight, X } from 'lucide-react';
+import { Check, Lock, ArrowUpRight, X, Sparkles } from 'lucide-react';
 import { sound } from '../utils/audio';
 
 interface PetPageProps {
@@ -48,21 +48,51 @@ export const PetPage: React.FC<PetPageProps> = ({
     }
   };
 
+  const activePet = pets.find((p) => p.id === activePetId) || pets[0];
+
   return (
     <div className="half-sheet-drawer">
       {/* Drawer Header */}
       <div className="drawer-header">
         <div className="drawer-title">
-          <span>🐾 숲속 정령 펫 동반자</span>
+          <div className="drawer-title-icon">
+            <Sparkles size={18} color="#f59e0b" />
+          </div>
+          <span>숲속 정령 펫 동반자</span>
         </div>
         {onClose && (
-          <button className="drawer-close-btn" onClick={onClose}>
-            <X size={18} color="#fef08a" />
+          <button className="drawer-close-btn" onClick={onClose} title="닫기">
+            <X size={18} color="#94a3b8" />
           </button>
         )}
       </div>
 
       <div className="drawer-content">
+        {/* Active Pet Showcase Pedestal */}
+        {activePet && (
+          <div className="pet-showcase-pedestal">
+            <div className="pedestal-glow-ring" />
+            <div className="pedestal-sprite-container">
+              <img
+                src="/assets/pet_fox.png"
+                alt={activePet.name}
+                className="pedestal-pet-img"
+              />
+            </div>
+            <div className="pedestal-meta-info">
+              <div className="pedestal-title-row">
+                <span className="pedestal-pet-name">{activePet.name}</span>
+                {activePet.owned && <span className="pedestal-lvl-tag">Lv.{activePet.level}</span>}
+              </div>
+              <div className="pedestal-buff-badge">
+                <Sparkles size={13} color="#f59e0b" />
+                <span>{getPetBuffText(activePet)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Pet Roster List */}
         <div className="pet-roster-list">
           {pets.map((pet) => {
             const isActive = activePetId === pet.id;
@@ -79,16 +109,20 @@ export const PetPage: React.FC<PetPageProps> = ({
               >
                 <div className="pet-card-top-row">
                   {/* Avatar Frame */}
-                  <div className="pet-plush-avatar">
-                    <span className="pet-emoji-sprite">{pet.icon}</span>
+                  <div className="pet-avatar-frame">
+                    {pet.id === 'fox' || pet.name.includes('여우') ? (
+                      <img src="/assets/pet_fox.png" alt={pet.name} className="pet-thumb-img" />
+                    ) : (
+                      <span className="pet-emoji-sprite">{pet.icon}</span>
+                    )}
                     {!pet.owned && (
                       <div className="pet-lock-badge">
-                        <Lock size={14} color="#fff" />
+                        <Lock size={12} color="#fff" />
                       </div>
                     )}
                     {isActive && (
                       <div className="pet-active-crest">
-                        <Check size={11} color="#fff" />
+                        <Check size={10} color="#fff" />
                         <span>동행</span>
                       </div>
                     )}
@@ -99,7 +133,7 @@ export const PetPage: React.FC<PetPageProps> = ({
                       <span className="pet-title-name">{pet.name}</span>
                       {pet.owned && <span className="pet-badge-level">Lv.{pet.level}</span>}
                     </div>
-                    <div className="pet-buff-callout game-stroke-gold">
+                    <div className="pet-buff-callout">
                       ⚡ {getPetBuffText(pet)}
                     </div>
                     <div className="pet-lore-text">{pet.description}</div>
@@ -116,7 +150,7 @@ export const PetPage: React.FC<PetPageProps> = ({
                         onClick={() => handleUpgrade(pet)}
                       >
                         <ArrowUpRight size={14} />
-                        <span className="game-stroke">강화 (🪙 {upgradeCost.toLocaleString()})</span>
+                        <span>강화 (🪙 {upgradeCost.toLocaleString()})</span>
                       </button>
 
                       <button
@@ -124,16 +158,17 @@ export const PetPage: React.FC<PetPageProps> = ({
                         disabled={isActive}
                         onClick={() => handleSelect(pet)}
                       >
-                        <span className="game-stroke">{isActive ? '동행 중' : '동행 선택'}</span>
+                        <span>{isActive ? '동행 중' : '동행 선택'}</span>
                       </button>
                     </div>
                   ) : (
                     <button
-                      className="btn-game btn-game-gold pet-summon-btn"
+                      className="btn-game btn-game-gold pet-unlock-full-btn"
                       disabled={!canAffordUnlock}
                       onClick={() => handleUnlock(pet)}
                     >
-                      <span className="game-stroke">정령 계약 해제 (💎 {pet.costGems})</span>
+                      <Lock size={14} />
+                      <span>소환 해금 (💎 {pet.costGems.toLocaleString()})</span>
                     </button>
                   )}
                 </div>
@@ -144,85 +179,199 @@ export const PetPage: React.FC<PetPageProps> = ({
       </div>
 
       <style>{`
+        .drawer-title-icon {
+          width: 28px;
+          height: 28px;
+          border-radius: 8px;
+          background: rgba(245, 158, 11, 0.15);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .drawer-close-btn {
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+        }
+
+        /* Pedestal Showcase */
+        .pet-showcase-pedestal {
+          position: relative;
+          background: radial-gradient(circle at 50% 60%, rgba(245, 158, 11, 0.12) 0%, rgba(15, 23, 42, 0.8) 75%);
+          border: 1px solid rgba(245, 158, 11, 0.3);
+          border-radius: 20px;
+          padding: 16px 12px 12px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        }
+
+        .pedestal-glow-ring {
+          position: absolute;
+          bottom: 46px;
+          width: 90px;
+          height: 24px;
+          border-radius: 50%;
+          background: radial-gradient(ellipse at center, rgba(245, 158, 11, 0.4) 0%, transparent 70%);
+          border: 1px solid rgba(245, 158, 11, 0.4);
+          pointer-events: none;
+        }
+
+        .pedestal-sprite-container {
+          position: relative;
+          width: 84px;
+          height: 84px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          margin-bottom: 6px;
+        }
+
+        .pedestal-pet-img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 12px rgba(245, 158, 11, 0.4));
+          animation: showcasePetFloat 2.2s ease-in-out infinite;
+        }
+
+        @keyframes showcasePetFloat {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
+        }
+
+        .pedestal-meta-info {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .pedestal-title-row {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .pedestal-pet-name {
+          font-size: 14px;
+          font-weight: 800;
+          color: #f8fafc;
+        }
+
+        .pedestal-lvl-tag {
+          font-size: 10px;
+          font-weight: 800;
+          color: #fef08a;
+          background: rgba(245, 158, 11, 0.2);
+          padding: 1px 6px;
+          border-radius: 9999px;
+          border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .pedestal-buff-badge {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 11px;
+          font-weight: 700;
+          color: #fef08a;
+          background: rgba(15, 23, 42, 0.6);
+          padding: 3px 10px;
+          border-radius: 9999px;
+          border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
         .pet-roster-list {
           display: flex;
           flex-direction: column;
-          gap: 10px;
+          gap: 8px;
         }
 
         .pet-roster-card {
-          padding: 12px;
+          padding: 10px 12px;
           display: flex;
           flex-direction: column;
-          gap: 10px;
-          transition: all 0.15s ease;
+          gap: 8px;
         }
 
         .pet-card-active {
-          border-color: #f59e0b;
-          box-shadow: 0 0 16px rgba(245, 158, 11, 0.4), inset 0 0 10px rgba(245, 158, 11, 0.15);
+          border-color: rgba(16, 185, 129, 0.5);
+          box-shadow: 0 0 14px rgba(16, 185, 129, 0.2);
         }
 
         .pet-card-locked {
-          opacity: 0.8;
-          filter: grayscale(0.2);
+          opacity: 0.75;
         }
 
         .pet-card-top-row {
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: 10px;
         }
 
-        .pet-plush-avatar {
+        .pet-avatar-frame {
           position: relative;
-          width: 54px;
-          height: 54px;
-          border-radius: 16px;
-          background: #322013;
-          border: 2px solid #5d3f28;
+          width: 44px;
+          height: 44px;
+          border-radius: 12px;
+          background: rgba(15, 23, 42, 0.85);
+          border: 1.5px solid rgba(255, 255, 255, 0.12);
           display: flex;
-          align-items: center;
           justify-content: center;
+          align-items: center;
           flex-shrink: 0;
+          overflow: hidden;
+        }
+
+        .pet-thumb-img {
+          width: 90%;
+          height: 90%;
+          object-fit: contain;
         }
 
         .pet-emoji-sprite {
-          font-size: 2.3rem;
-          filter: drop-shadow(0 2px 5px rgba(0,0,0,0.5));
+          font-size: 1.6rem;
         }
 
         .pet-lock-badge {
           position: absolute;
           inset: 0;
-          border-radius: 14px;
-          background: rgba(0, 0, 0, 0.55);
+          background: rgba(0, 0, 0, 0.65);
           display: flex;
-          align-items: center;
           justify-content: center;
+          align-items: center;
         }
 
         .pet-active-crest {
           position: absolute;
-          top: -6px;
-          right: -6px;
-          background: #15803d;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          background: #10b981;
           color: #fff;
-          font-size: 0.58rem;
-          font-weight: 900;
-          padding: 1px 5px;
-          border-radius: 6px;
+          font-size: 8px;
+          font-weight: 800;
           display: flex;
+          justify-content: center;
           align-items: center;
           gap: 2px;
-          border: 1px solid #86efac;
+          padding: 1px 0;
         }
 
         .pet-info-col {
+          flex: 1;
           display: flex;
           flex-direction: column;
           gap: 2px;
-          flex: 1;
           min-width: 0;
         }
 
@@ -233,57 +382,65 @@ export const PetPage: React.FC<PetPageProps> = ({
         }
 
         .pet-title-name {
-          font-family: var(--font-game);
-          font-size: 0.95rem;
-          color: #382110;
+          font-size: 12px;
+          font-weight: 800;
+          color: #f8fafc;
         }
 
         .pet-badge-level {
-          background: #2e542e;
-          color: #86efac;
-          font-size: 0.65rem;
+          font-size: 10px;
           font-weight: 800;
-          padding: 1px 6px;
-          border-radius: 6px;
+          color: #10b981;
         }
 
         .pet-buff-callout {
-          font-size: 0.78rem;
-          color: #b45309;
+          font-size: 11px;
+          font-weight: 700;
+          color: #fef08a;
         }
 
         .pet-lore-text {
-          font-size: 0.7rem;
-          color: #785232;
-          line-height: 1.25;
+          font-size: 10px;
+          color: #94a3b8;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .pet-action-bottom {
+          display: flex;
         }
 
         .pet-dual-action-row {
+          width: 100%;
           display: flex;
-          gap: 8px;
+          gap: 6px;
         }
 
         .pet-lvlup-btn {
-          flex: 1.2;
-          min-height: 40px;
-          font-size: 0.8rem;
+          flex: 1;
+          min-height: 36px;
+          font-size: 11px;
+          padding: 4px 8px;
         }
 
         .pet-select-btn {
           flex: 1;
-          min-height: 40px;
-          font-size: 0.82rem;
+          min-height: 36px;
+          font-size: 11px;
+          padding: 4px 8px;
         }
 
         .active-companion-btn {
-          opacity: 0.85;
-          color: #86efac;
+          opacity: 0.6;
+          cursor: default;
         }
 
-        .pet-summon-btn {
+        .pet-unlock-full-btn {
           width: 100%;
-          min-height: 42px;
-          font-size: 0.85rem;
+          min-height: 36px;
+          font-size: 11px;
+          padding: 4px 8px;
         }
       `}</style>
     </div>

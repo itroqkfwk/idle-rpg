@@ -14,40 +14,34 @@ export const QuestWidget: React.FC<QuestWidgetProps> = ({ quest, onClaim }) => {
   const isReady = quest.currentCount >= quest.targetCount && !quest.claimed;
 
   return (
-    <div className={`quest-parchment-scroll ${isReady ? 'scroll-claim-ready' : ''}`}>
-      {/* Scroll Wooden End Left */}
-      <div className="scroll-roller scroll-roller-left" />
+    <div className={`floating-quest-card ${isReady ? 'quest-ready-glow' : ''}`}>
+      <div className="quest-content-row">
+        <div className="quest-icon-bubble">
+          <Scroll size={13} color="#f59e0b" />
+        </div>
 
-      {/* Main Parchment Canvas */}
-      <div className="parchment-canvas">
-        <div className="quest-meta-col">
-          <div className="quest-badge-row">
-            <span className="quest-emblem-icon">
-              <Scroll size={14} color="#78350f" />
+        <div className="quest-info-body">
+          <div className="quest-title-row">
+            <span className="quest-title-text" title={quest.title}>{quest.title}</span>
+            <span className="quest-count-tag">
+              {quest.currentCount}/{quest.targetCount}
             </span>
-            <span className="quest-text-heading">{quest.title}</span>
           </div>
 
-          {/* Wooden Texture Progress Track */}
-          <div className="quest-wooden-track">
-            <div className="quest-leaf-fill" style={{ width: `${percent}%` }} />
-            <span className="quest-step-label game-stroke">
-              {quest.currentCount} / {quest.targetCount}
-            </span>
+          <div className="quest-mini-progress">
+            <div className="quest-mini-fill" style={{ width: `${percent}%` }} />
           </div>
         </div>
 
-        {/* Wax Seal Action Button or Reward Preview */}
+        {/* Claim Button or Reward Preview */}
         <div className="quest-action-slot">
           {isReady ? (
-            <button className="wax-seal-btn" onClick={() => onClaim(quest.id)}>
-              <div className="wax-seal-core">
-                <Sparkles size={16} color="#fff" />
-                <span className="wax-seal-text">수령!</span>
-              </div>
+            <button className="quest-claim-pill-btn" onClick={() => onClaim(quest.id)}>
+              <Sparkles size={11} color="#ffffff" />
+              <span>보상 받기</span>
             </button>
           ) : (
-            <div className="quest-reward-preview game-stroke">
+            <div className="quest-reward-preview-pill">
               <span>🪙 +{quest.rewardGold}</span>
               <span>💎 +{quest.rewardGems}</span>
             </div>
@@ -55,163 +49,137 @@ export const QuestWidget: React.FC<QuestWidgetProps> = ({ quest, onClaim }) => {
         </div>
       </div>
 
-      {/* Scroll Wooden End Right */}
-      <div className="scroll-roller scroll-roller-right" />
-
       <style>{`
-        .quest-parchment-scroll {
-          position: relative;
-          margin: 0 12px 6px;
-          display: flex;
-          align-items: center;
-          filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.45));
-          z-index: 35;
+        .floating-quest-card {
+          position: absolute;
+          top: 68px;
+          left: 10px;
+          right: 10px;
+          z-index: 30;
+          background: rgba(15, 23, 42, 0.82);
+          backdrop-filter: blur(12px);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 14px;
+          padding: 6px 10px;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+          transition: border-color 0.2s ease, box-shadow 0.2s ease;
+          user-select: none;
+          box-sizing: border-box;
         }
 
-        .scroll-roller {
-          width: 12px;
-          height: 52px;
-          background: linear-gradient(180deg, #8c5b38 0%, #4a2f1b 50%, #2a180c 100%);
-          border: 1.5px solid #23160c;
-          border-radius: 4px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        .quest-ready-glow {
+          border-color: rgba(245, 158, 11, 0.6);
+          box-shadow: 0 0 16px rgba(245, 158, 11, 0.35), 0 4px 16px rgba(0, 0, 0, 0.5);
+          animation: questPulse 2s infinite alternate;
+        }
+
+        @keyframes questPulse {
+          from { border-color: rgba(245, 158, 11, 0.4); }
+          to { border-color: rgba(245, 158, 11, 0.9); }
+        }
+
+        .quest-content-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .quest-icon-bubble {
+          width: 26px;
+          height: 26px;
+          border-radius: 8px;
+          background: rgba(245, 158, 11, 0.15);
+          border: 1px solid rgba(245, 158, 11, 0.3);
+          display: flex;
+          justify-content: center;
+          align-items: center;
           flex-shrink: 0;
-          z-index: 2;
         }
 
-        .parchment-canvas {
+        .quest-info-body {
           flex: 1;
-          height: 46px;
-          background: linear-gradient(180deg, #fef8ee 0%, #f3e6cf 50%, #e6d3b4 100%);
-          border-top: 2px solid #caa882;
-          border-bottom: 2.5px solid #9c7b55;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 12px;
-          gap: 10px;
-          position: relative;
-          z-index: 1;
-        }
-
-        .scroll-claim-ready .parchment-canvas {
-          background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 50%, #fde68a 100%);
-          border-color: #f59e0b;
-        }
-
-        .quest-meta-col {
           display: flex;
           flex-direction: column;
           gap: 3px;
-          flex: 1;
           min-width: 0;
         }
 
-        .quest-badge-row {
+        .quest-title-row {
           display: flex;
+          justify-content: space-between;
           align-items: center;
           gap: 6px;
-          overflow: hidden;
         }
 
-        .quest-emblem-icon {
-          display: flex;
-          align-items: center;
-        }
-
-        .quest-text-heading {
-          font-family: var(--font-game);
-          font-size: 0.82rem;
-          color: #451a03;
+        .quest-title-text {
+          font-size: 11px;
+          font-weight: 700;
+          color: #f1f5f9;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
         }
 
-        .quest-wooden-track {
-          position: relative;
+        .quest-count-tag {
+          font-size: 10px;
+          font-weight: 800;
+          color: #94a3b8;
+          flex-shrink: 0;
+        }
+
+        .quest-mini-progress {
           width: 100%;
-          height: 10px;
-          background: #3a2212;
-          border-radius: 6px;
-          border: 1px solid #784c28;
+          height: 3px;
+          background: rgba(255, 255, 255, 0.12);
+          border-radius: 9999px;
           overflow: hidden;
-          display: flex;
-          align-items: center;
-          justify-content: center;
         }
 
-        .quest-leaf-fill {
-          position: absolute;
-          left: 0;
-          top: 0;
-          bottom: 0;
+        .quest-mini-fill {
+          height: 100%;
           background: linear-gradient(90deg, #f59e0b, #fbbf24);
-          border-radius: 4px;
+          border-radius: 9999px;
           transition: width 0.3s ease;
-        }
-
-        .quest-step-label {
-          position: relative;
-          font-size: 0.58rem;
-          color: #ffffff;
-          line-height: 1;
         }
 
         .quest-action-slot {
           flex-shrink: 0;
         }
 
-        /* 🔴 3D Wax Seal Button */
-        .wax-seal-btn {
-          width: 44px;
-          height: 44px;
-          border-radius: 50%;
-          background: radial-gradient(circle at 35% 35%, #f43f5e 0%, #e11d48 50%, #881337 100%);
-          border: 2px solid #ffe4e6;
-          border-bottom: 4px solid #4c0519;
-          box-shadow: 0 4px 10px rgba(225, 29, 72, 0.55);
-          display: flex;
+        .quest-claim-pill-btn {
+          display: inline-flex;
           align-items: center;
-          justify-content: center;
+          gap: 4px;
+          padding: 4px 8px;
+          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          border-radius: 9999px;
+          color: #ffffff;
+          font-size: 10px;
+          font-weight: 800;
           cursor: pointer;
-          transition: transform 0.08s ease;
-          animation: waxPulse 1.2s infinite;
+          box-shadow: 0 2px 8px rgba(245, 158, 11, 0.5);
+          transition: transform 0.1s ease;
+          animation: claimBounce 1.5s infinite;
         }
 
-        @keyframes waxPulse {
+        @keyframes claimBounce {
           0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.12); box-shadow: 0 0 16px rgba(244, 63, 94, 0.85); }
+          50% { transform: scale(1.06); }
         }
 
-        .wax-seal-btn:active {
-          transform: translateY(2px) scale(0.95);
-          border-bottom-width: 2px;
+        .quest-claim-pill-btn:active {
+          transform: scale(0.94);
         }
 
-        .wax-seal-core {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 1px;
-        }
-
-        .wax-seal-text {
-          font-family: var(--font-game);
-          font-size: 0.55rem;
-          color: #fff;
-          font-weight: 900;
-          line-height: 1;
-        }
-
-        .quest-reward-preview {
+        .quest-reward-preview-pill {
           display: flex;
           flex-direction: column;
           align-items: flex-end;
           gap: 1px;
-          font-size: 0.65rem;
-          color: #fef08a;
-          line-height: 1.1;
+          font-size: 9px;
+          font-weight: 700;
+          color: #cbd5e1;
         }
       `}</style>
     </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { GameSettings } from '../types/game';
-import { Volume2, VolumeX, Music, Trash2, X } from 'lucide-react';
+import { Volume2, VolumeX, Music, Trash2, X, Settings } from 'lucide-react';
 
 interface SettingsModalProps {
   settings: GameSettings;
@@ -19,9 +19,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     <div className="modal-backdrop">
       <div className="modal-content settings-modal-content">
         <div className="settings-header">
-          <h3 className="settings-title">⚙️ 게임 설정</h3>
-          <button className="settings-close-icon-btn" onClick={onClose}>
-            <X size={20} />
+          <div className="settings-title-row">
+            <Settings size={18} color="#f59e0b" />
+            <h3 className="settings-title">게임 설정</h3>
+          </div>
+          <button className="settings-close-icon-btn" onClick={onClose} title="닫기">
+            <X size={18} color="#94a3b8" />
           </button>
         </div>
 
@@ -29,14 +32,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* BGM Toggle */}
           <div className="settings-option-item">
             <div className="option-info">
-              <Music size={18} color="var(--sage-green-dark)" />
+              <Music size={18} color="#38bdf8" />
               <div className="option-texts">
                 <span className="option-name">배경음악 (BGM)</span>
-                <span className="option-desc">힐링 멜로디 루프</span>
+                <span className="option-desc">판타지 배경 멜로디 루프</span>
               </div>
             </div>
             <button
-              className={`cozy-toggle-btn ${settings.bgmEnabled ? 'active' : ''}`}
+              className={`modern-toggle-btn ${settings.bgmEnabled ? 'active' : ''}`}
               onClick={() => onUpdateSettings({ bgmEnabled: !settings.bgmEnabled })}
             >
               {settings.bgmEnabled ? 'ON' : 'OFF'}
@@ -46,14 +49,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* SFX Toggle */}
           <div className="settings-option-item">
             <div className="option-info">
-              {settings.sfxEnabled ? <Volume2 size={18} color="var(--sage-green-dark)" /> : <VolumeX size={18} color="#94a3b8" />}
+              {settings.sfxEnabled ? <Volume2 size={18} color="#10b981" /> : <VolumeX size={18} color="#94a3b8" />}
               <div className="option-texts">
                 <span className="option-name">효과음 (SFX)</span>
                 <span className="option-desc">타격, 코인, 레벨업 사운드</span>
               </div>
             </div>
             <button
-              className={`cozy-toggle-btn ${settings.sfxEnabled ? 'active' : ''}`}
+              className={`modern-toggle-btn ${settings.sfxEnabled ? 'active' : ''}`}
               onClick={() => onUpdateSettings({ sfxEnabled: !settings.sfxEnabled })}
             >
               {settings.sfxEnabled ? 'ON' : 'OFF'}
@@ -65,12 +68,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="option-info">
               <span style={{ fontSize: '1.1rem' }}>💥</span>
               <div className="option-texts">
-                <span className="option-name">데미지 숫자 표시</span>
-                <span className="option-desc">전투 시 플로팅 텍스트</span>
+                <span className="option-name">데미지 텍스트</span>
+                <span className="option-desc">전투 시 플로팅 데미지 표시</span>
               </div>
             </div>
             <button
-              className={`cozy-toggle-btn ${settings.damageNumbers ? 'active' : ''}`}
+              className={`modern-toggle-btn ${settings.damageNumbers ? 'active' : ''}`}
               onClick={() => onUpdateSettings({ damageNumbers: !settings.damageNumbers })}
             >
               {settings.damageNumbers ? 'ON' : 'OFF'}
@@ -80,15 +83,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Reset Data Danger Zone */}
         <div className="settings-danger-box">
-          <button className="cozy-btn cozy-btn-outline reset-data-btn" onClick={onResetData}>
-            <Trash2 size={16} color="var(--accent-red)" />
-            <span style={{ color: 'var(--accent-red)' }}>게임 데이터 초기화</span>
+          <button className="reset-data-btn" onClick={onResetData}>
+            <Trash2 size={15} color="#ef4444" />
+            <span>게임 데이터 초기화</span>
           </button>
         </div>
 
         <div className="settings-footer">
-          <span>포근한 숲속 모험단 v1.0.0</span>
-          <span>Designed for Mobile & PC</span>
+          <span>기사단 모험기 v2.0.0</span>
+          <span>Commercial 2D Mobile Idle RPG</span>
         </div>
       </div>
 
@@ -96,97 +99,132 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         .settings-modal-content {
           display: flex;
           flex-direction: column;
-          gap: 16px;
+          gap: 14px;
         }
+
         .settings-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
+          padding-bottom: 8px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
+
+        .settings-title-row {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
         .settings-title {
-          font-size: 1.15rem;
-          font-weight: 900;
-          color: var(--cozy-brown);
+          font-size: 1.1rem;
+          font-weight: 800;
+          color: #f8fafc;
         }
+
         .settings-close-icon-btn {
-          width: 32px;
-          height: 32px;
+          width: 28px;
+          height: 28px;
           border-radius: 50%;
-          background: #ffffff;
-          border: 1px solid var(--border-soft);
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.12);
           display: flex;
           align-items: center;
           justify-content: center;
           cursor: pointer;
-          color: var(--cozy-brown-light);
         }
+
         .settings-options-list {
           display: flex;
           flex-direction: column;
-          gap: 10px;
+          gap: 8px;
         }
+
         .settings-option-item {
-          background: #ffffff;
-          border: 1px solid var(--border-soft);
-          border-radius: 14px;
-          padding: 12px 14px;
           display: flex;
           justify-content: space-between;
           align-items: center;
+          background: rgba(10, 15, 28, 0.6);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 12px;
+          padding: 10px 12px;
         }
+
         .option-info {
           display: flex;
           align-items: center;
           gap: 10px;
         }
+
         .option-texts {
           display: flex;
           flex-direction: column;
-          gap: 2px;
+          gap: 1px;
         }
+
         .option-name {
-          font-size: 0.85rem;
+          font-size: 12px;
           font-weight: 800;
-          color: var(--cozy-brown);
+          color: #f8fafc;
         }
+
         .option-desc {
-          font-size: 0.7rem;
-          color: var(--cozy-brown-light);
-        }
-        .cozy-toggle-btn {
-          min-width: 58px;
-          height: 32px;
-          border-radius: 16px;
-          border: 1.5px solid var(--border-soft);
-          background: #f1f5f9;
+          font-size: 10px;
           color: #94a3b8;
-          font-weight: 900;
-          font-size: 0.75rem;
+        }
+
+        .modern-toggle-btn {
+          min-width: 48px;
+          height: 26px;
+          border-radius: 9999px;
+          background: rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          color: #94a3b8;
+          font-size: 11px;
+          font-weight: 800;
           cursor: pointer;
-          transition: all 0.15s ease;
+          transition: background 0.15s ease, color 0.15s ease;
         }
-        .cozy-toggle-btn.active {
-          background: var(--sage-green-dark);
+
+        .modern-toggle-btn.active {
+          background: #10b981;
+          border-color: #34d399;
           color: #ffffff;
-          border-color: var(--sage-green-dark);
         }
+
         .settings-danger-box {
-          margin-top: 6px;
+          margin-top: 4px;
         }
+
         .reset-data-btn {
           width: 100%;
-          min-height: 40px;
-          border-color: rgba(244, 63, 94, 0.3);
-          font-size: 0.82rem;
+          min-height: 38px;
+          background: rgba(239, 68, 68, 0.1);
+          border: 1px solid rgba(239, 68, 68, 0.25);
+          border-radius: 12px;
+          color: #f87171;
+          font-size: 11px;
+          font-weight: 800;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          cursor: pointer;
+          transition: background 0.15s ease;
         }
+
+        .reset-data-btn:active {
+          background: rgba(239, 68, 68, 0.2);
+        }
+
         .settings-footer {
           display: flex;
           flex-direction: column;
           align-items: center;
           gap: 2px;
-          font-size: 0.68rem;
-          color: var(--cozy-brown-light);
-          margin-top: 4px;
+          font-size: 10px;
+          color: #64748b;
+          padding-top: 6px;
         }
       `}</style>
     </div>

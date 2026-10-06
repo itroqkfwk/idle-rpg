@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Equipment, EquipmentSlot } from '../types/game';
 import { RARITY_CONFIGS } from '../data/equipment';
-import { Zap, Sparkles, Check, ArrowUpRight, X } from 'lucide-react';
+import { Zap, Sparkles, Check, ArrowUpRight, X, Shield } from 'lucide-react';
 import { sound } from '../utils/audio';
 
 interface EquipmentPageProps {
@@ -77,18 +77,21 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
       {/* Drawer Header */}
       <div className="drawer-header">
         <div className="drawer-title">
-          <span>🎒 장비 관리 & 인벤토리</span>
+          <div className="drawer-title-icon">
+            <Shield size={18} color="#38bdf8" />
+          </div>
+          <span>장비 관리 & 인벤토리</span>
         </div>
         {onClose && (
-          <button className="drawer-close-btn" onClick={onClose}>
-            <X size={18} color="#fef08a" />
+          <button className="drawer-close-btn" onClick={onClose} title="닫기">
+            <X size={18} color="#94a3b8" />
           </button>
         )}
       </div>
 
       <div className="drawer-content">
         {/* Equipped Paper Doll 4 Slots Row */}
-        <div className="parchment-panel paperdoll-slots-panel">
+        <div className="paperdoll-container">
           <div className="paperdoll-grid">
             {slots.map(({ slot, label, placeholderIcon }) => {
               const item = equipped[slot];
@@ -102,7 +105,6 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
                     rarity
                       ? {
                           borderColor: rarity.borderColor,
-                          background: `radial-gradient(circle, ${rarity.bgColor} 0%, #1e140d 100%)`,
                           boxShadow: `0 0 12px ${rarity.glowColor}`,
                         }
                       : {}
@@ -129,13 +131,13 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
         {/* Auto Equip & Combat Power Bar */}
         <div className="auto-equip-action-bar">
           <div className="power-stat-box">
-            <Sparkles size={16} color="#f59e0b" />
+            <Sparkles size={15} color="#f59e0b" />
             <span className="power-stat-label">전투력:</span>
-            <strong className="power-stat-val game-stroke-gold">{combatPower.toLocaleString()}</strong>
+            <strong className="power-stat-val">{combatPower.toLocaleString()}</strong>
           </div>
           <button className="btn-game btn-game-gold auto-equip-press-btn" onClick={onAutoEquip}>
-            <Zap size={16} />
-            <span className="game-stroke">최고 장비 일괄 장착</span>
+            <Zap size={15} />
+            <span>최고 장비 일괄 장착</span>
           </button>
         </div>
 
@@ -145,7 +147,7 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
           <span className="inventory-guide-tip">터치하여 상세 정보 / 강화</span>
         </div>
 
-        {/* Inventory Grid with Velvet Cushions */}
+        {/* Inventory Grid */}
         <div className="inventory-tiles-grid">
           {inventory.length === 0 ? (
             <div className="empty-backpack-box">
@@ -198,7 +200,7 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
               >
                 {RARITY_CONFIGS[selectedItem.rarity].label}
               </span>
-              <h3 className="detail-item-title game-stroke" style={{ color: RARITY_CONFIGS[selectedItem.rarity].color }}>
+              <h3 className="detail-item-title" style={{ color: RARITY_CONFIGS[selectedItem.rarity].color }}>
                 {selectedItem.name}
               </h3>
               <span className="detail-slot-badge">{selectedItem.slot.toUpperCase()} Lv.{selectedItem.level}</span>
@@ -242,7 +244,7 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
                 onClick={() => handleUpgradeAction(selectedItem)}
               >
                 <ArrowUpRight size={16} />
-                <span className="game-stroke">장비 강화 (🪙 {getUpgradeCost(selectedItem).toLocaleString()})</span>
+                <span>장비 강화 (🪙 {getUpgradeCost(selectedItem).toLocaleString()})</span>
               </button>
 
               {equipped[selectedItem.slot]?.id === selectedItem.id ? (
@@ -250,18 +252,19 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
                   className="btn-game btn-game-wood detail-modal-btn"
                   onClick={() => handleUnequipAction(selectedItem.slot)}
                 >
-                  <span className="game-stroke">장비 해제</span>
+                  <span>장비 해제</span>
                 </button>
               ) : (
                 <button
                   className="btn-game btn-game-green detail-modal-btn"
                   onClick={() => handleEquipAction(selectedItem)}
                 >
-                  <span className="game-stroke">장비 장착</span>
+                  <Check size={16} />
+                  <span>장비 장착</span>
                 </button>
               )}
 
-              <button className="btn-game btn-game-wood detail-modal-btn" onClick={() => setSelectedItem(null)}>
+              <button className="detail-cancel-btn" onClick={() => setSelectedItem(null)}>
                 닫기
               </button>
             </div>
@@ -270,7 +273,32 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
       )}
 
       <style>{`
-        .paperdoll-slots-panel {
+        .drawer-title-icon {
+          width: 28px;
+          height: 28px;
+          border-radius: 8px;
+          background: rgba(56, 189, 248, 0.15);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .drawer-close-btn {
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+        }
+
+        .paperdoll-container {
+          background: rgba(15, 23, 42, 0.7);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 16px;
           padding: 10px;
         }
 
@@ -281,161 +309,155 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
         }
 
         .paperdoll-slot {
-          background: #24160d;
-          border: 2px solid #5a3820;
-          border-radius: 14px;
-          padding: 6px 4px;
+          background: rgba(15, 23, 42, 0.85);
+          border: 1.5px solid rgba(255, 255, 255, 0.12);
+          border-radius: 12px;
+          padding: 8px 4px;
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 2px;
+          gap: 3px;
           cursor: pointer;
-          transition: transform 0.08s ease;
+          transition: transform 0.1s ease, border-color 0.15s ease;
         }
+
         .paperdoll-slot:active {
           transform: scale(0.95);
         }
 
         .paperdoll-slot-label {
-          font-family: var(--font-game);
-          font-size: 0.65rem;
-          color: #d4bda8;
+          font-size: 10px;
+          font-weight: 700;
+          color: #94a3b8;
         }
 
         .paperdoll-slot-icon {
-          font-size: 1.8rem;
-          filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
-          width: 40px;
-          height: 40px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          font-size: 1.5rem;
+          margin: 2px 0;
         }
 
         .paperdoll-slot-lvl {
-          font-family: var(--font-game);
-          font-size: 0.65rem;
-          font-weight: 900;
+          font-size: 10px;
+          font-weight: 800;
         }
 
         .paperdoll-empty-tag {
-          font-size: 0.6rem;
-          color: #785232;
+          font-size: 9px;
+          color: #64748b;
         }
 
         .auto-equip-action-bar {
-          background: #322013;
-          border: 1.5px solid #5d3f28;
-          border-radius: 14px;
-          padding: 8px 12px;
           display: flex;
           justify-content: space-between;
           align-items: center;
+          gap: 10px;
+          padding: 2px 4px;
         }
 
         .power-stat-box {
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 5px;
         }
 
         .power-stat-label {
-          font-family: var(--font-game);
-          font-size: 0.8rem;
-          color: #d4bda8;
+          font-size: 11px;
+          font-weight: 700;
+          color: #94a3b8;
         }
 
         .power-stat-val {
-          font-size: 0.95rem;
+          font-size: 13px;
+          font-weight: 800;
+          color: #fef08a;
         }
 
         .auto-equip-press-btn {
-          min-height: 38px;
-          padding: 6px 12px;
-          font-size: 0.8rem;
+          min-height: 36px;
+          padding: 6px 14px;
+          font-size: 11px;
+          border-radius: 10px;
         }
 
         .inventory-status-bar {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 0 4px;
+          padding: 4px 4px 0;
         }
 
         .inventory-count-text {
-          font-family: var(--font-game);
-          font-size: 0.9rem;
-          color: #fef08a;
+          font-size: 12px;
+          font-weight: 800;
+          color: #f8fafc;
         }
 
         .inventory-guide-tip {
-          font-size: 0.7rem;
-          color: #a8927e;
+          font-size: 10px;
+          color: #64748b;
         }
 
         .inventory-tiles-grid {
           display: grid;
-          grid-template-columns: repeat(3, 1fr);
+          grid-template-columns: repeat(4, 1fr);
           gap: 8px;
         }
 
         .empty-backpack-box {
           grid-column: 1 / -1;
-          background: #24160d;
-          border: 1.5px dashed #5d3f28;
-          border-radius: 16px;
-          padding: 28px 16px;
-          text-align: center;
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 8px;
-          color: #a8927e;
-          font-size: 0.82rem;
-          line-height: 1.4;
+          justify-content: center;
+          padding: 32px 16px;
+          text-align: center;
+          color: #64748b;
+          font-size: 12px;
+          line-height: 1.5;
         }
 
         .inv-tile-card {
           position: relative;
-          background: #24160d;
-          border: 2px solid;
-          border-radius: 14px;
-          padding: 10px 4px 6px;
+          background: rgba(15, 23, 42, 0.85);
+          border: 1.5px solid rgba(255, 255, 255, 0.12);
+          border-radius: 12px;
+          padding: 8px 4px;
           display: flex;
           flex-direction: column;
           align-items: center;
           gap: 2px;
           cursor: pointer;
-          transition: transform 0.08s ease;
+          transition: transform 0.1s ease;
         }
+
         .inv-tile-card:active {
           transform: scale(0.95);
         }
 
         .equipped-ribbon-tag {
           position: absolute;
-          top: -6px;
-          right: 4px;
-          background: #15803d;
+          top: -4px;
+          right: -4px;
+          background: #10b981;
           color: #fff;
-          font-size: 0.58rem;
-          font-weight: 900;
-          padding: 1px 5px;
-          border-radius: 6px;
+          font-size: 8px;
+          font-weight: 800;
+          padding: 1px 4px;
+          border-radius: 9999px;
           display: flex;
           align-items: center;
           gap: 2px;
-          border: 1px solid #86efac;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
         }
 
         .inv-tile-icon {
-          font-size: 2.2rem;
-          filter: drop-shadow(0 3px 5px rgba(0,0,0,0.5));
+          font-size: 1.5rem;
+          margin: 2px 0;
         }
 
         .inv-tile-name {
-          font-family: var(--font-game);
-          font-size: 0.72rem;
+          font-size: 10px;
+          font-weight: 800;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -443,59 +465,57 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
         }
 
         .inv-tile-level {
-          font-size: 0.65rem;
-          color: #a8927e;
+          font-size: 9px;
+          color: #94a3b8;
           font-weight: 700;
         }
 
+        /* Detail Modal */
         .item-detail-modal-beveled {
-          background: linear-gradient(180deg, #422d1d 0%, #2b1d12 100%);
-          border: 3px solid #f59e0b;
-          border-radius: 20px;
-          padding: 20px 16px;
+          text-align: center;
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 10px;
-          box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+          gap: 12px;
         }
 
         .detail-header-row {
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 3px;
+          gap: 4px;
         }
 
         .detail-rarity-badge {
-          font-family: var(--font-game);
-          font-size: 0.75rem;
-          padding: 2px 10px;
-          border-radius: 12px;
-          border: 1.5px solid;
+          font-size: 10px;
+          font-weight: 800;
+          padding: 2px 8px;
+          border-radius: 9999px;
+          border: 1px solid;
         }
 
         .detail-item-title {
-          font-size: 1.2rem;
-        }
-
-        .detail-slot-badge {
-          font-size: 0.72rem;
-          color: #d4bda8;
+          font-size: 1.15rem;
           font-weight: 800;
         }
 
+        .detail-slot-badge {
+          font-size: 11px;
+          color: #94a3b8;
+          font-weight: 700;
+        }
+
         .detail-icon-stage {
-          font-size: 3.8rem;
-          filter: drop-shadow(0 6px 12px rgba(0,0,0,0.5));
+          font-size: 2.8rem;
+          padding: 8px;
         }
 
         .detail-stats-box {
           width: 100%;
-          background: #1e130b;
-          border: 1.5px solid #5d3f28;
+          background: rgba(10, 15, 28, 0.6);
+          border: 1px solid rgba(255, 255, 255, 0.08);
           border-radius: 12px;
-          padding: 10px 12px;
+          padding: 8px 12px;
           display: flex;
           flex-direction: column;
           gap: 4px;
@@ -504,28 +524,34 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
         .stat-comparison-row {
           display: flex;
           justify-content: space-between;
-          align-items: center;
-          font-size: 0.82rem;
-          color: #d4bda8;
+          font-size: 12px;
+          color: #94a3b8;
         }
 
         .stat-highlight {
-          color: #fef08a;
-          font-family: var(--font-game);
-          font-size: 0.95rem;
+          color: #38bdf8;
+          font-weight: 800;
         }
 
         .detail-action-column {
           width: 100%;
           display: flex;
           flex-direction: column;
-          gap: 8px;
-          margin-top: 4px;
+          gap: 6px;
         }
 
         .detail-modal-btn {
           width: 100%;
-          min-height: 42px;
+        }
+
+        .detail-cancel-btn {
+          background: transparent;
+          border: none;
+          color: #64748b;
+          font-size: 12px;
+          font-weight: 700;
+          padding: 6px;
+          cursor: pointer;
         }
       `}</style>
     </div>

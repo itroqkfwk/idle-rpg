@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Equipment } from '../types/game';
 import { RARITY_CONFIGS } from '../data/equipment';
 import confetti from 'canvas-confetti';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Check } from 'lucide-react';
 
 interface GachaModalProps {
   item: Equipment;
@@ -14,7 +14,6 @@ export const GachaModal: React.FC<GachaModalProps> = ({ item, onEquip, onClose }
   const rarity = RARITY_CONFIGS[item.rarity];
 
   useEffect(() => {
-    // Fire confetti for epic, legendary, mythic
     if (item.rarity === 'epic' || item.rarity === 'legendary' || item.rarity === 'mythic') {
       confetti({
         particleCount: 50,
@@ -27,7 +26,10 @@ export const GachaModal: React.FC<GachaModalProps> = ({ item, onEquip, onClose }
   return (
     <div className="modal-backdrop">
       <div className="modal-content gacha-modal-content">
-        <div className="gacha-title-badge" style={{ background: rarity.bgColor, color: rarity.color, borderColor: rarity.borderColor }}>
+        <div
+          className="gacha-title-badge"
+          style={{ background: rarity.bgColor, color: rarity.color, borderColor: rarity.borderColor }}
+        >
           <Sparkles size={14} />
           <span>{rarity.label} 획득!</span>
         </div>
@@ -38,7 +40,7 @@ export const GachaModal: React.FC<GachaModalProps> = ({ item, onEquip, onClose }
           style={{
             borderColor: rarity.borderColor,
             boxShadow: `0 8px 30px ${rarity.glowColor}`,
-            background: `radial-gradient(circle at 50% 30%, #ffffff 0%, ${rarity.bgColor} 100%)`,
+            background: `radial-gradient(circle at 50% 30%, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%)`,
           }}
         >
           <div className="gacha-item-icon">{item.icon}</div>
@@ -61,10 +63,11 @@ export const GachaModal: React.FC<GachaModalProps> = ({ item, onEquip, onClose }
         </div>
 
         <div className="gacha-actions">
-          <button className="cozy-btn cozy-btn-gold gacha-equip-btn" onClick={() => onEquip(item)}>
+          <button className="btn-game btn-game-gold gacha-equip-btn" onClick={() => onEquip(item)}>
+            <Check size={16} />
             <span>즉시 장착하기</span>
           </button>
-          <button className="cozy-btn cozy-btn-outline gacha-close-btn" onClick={onClose}>
+          <button className="btn-game btn-game-wood gacha-close-btn" onClick={onClose}>
             <span>가방에 보관</span>
           </button>
         </div>
@@ -78,45 +81,51 @@ export const GachaModal: React.FC<GachaModalProps> = ({ item, onEquip, onClose }
           align-items: center;
           gap: 14px;
         }
+
         .gacha-title-badge {
           display: inline-flex;
           align-items: center;
           gap: 5px;
-          font-size: 0.85rem;
+          font-size: 11px;
           font-weight: 800;
           padding: 4px 12px;
-          border-radius: 20px;
-          border: 1.5px solid;
+          border-radius: 9999px;
+          border: 1px solid;
         }
+
         .gacha-card {
           width: 100%;
-          border: 2px solid;
+          border: 1.5px solid;
           border-radius: 20px;
-          padding: 24px 16px;
+          padding: 20px 14px;
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
         }
+
         .gacha-item-icon {
-          font-size: 4.2rem;
-          filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.2));
+          font-size: 3.5rem;
+          filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.4));
           animation: itemBounce 1.5s ease-in-out infinite;
         }
+
         @keyframes itemBounce {
           0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-8px); }
+          50% { transform: translateY(-6px); }
         }
+
         .gacha-item-name {
-          font-size: 1.25rem;
+          font-size: 1.2rem;
           font-weight: 900;
         }
+
         .gacha-item-slot {
-          font-size: 0.72rem;
-          font-weight: 800;
-          color: var(--cozy-brown-light);
-          letter-spacing: 0.5px;
+          font-size: 11px;
+          font-weight: 700;
+          color: #94a3b8;
         }
+
         .gacha-stats-grid {
           display: flex;
           flex-wrap: wrap;
@@ -124,29 +133,37 @@ export const GachaModal: React.FC<GachaModalProps> = ({ item, onEquip, onClose }
           gap: 6px;
           margin-top: 6px;
         }
+
         .stat-chip {
-          font-size: 0.75rem;
+          font-size: 11px;
           font-weight: 800;
           padding: 3px 8px;
-          border-radius: 8px;
-          background: #ffffff;
-          border: 1px solid var(--border-soft);
-          color: var(--cozy-brown);
+          border-radius: 6px;
+          background: rgba(10, 15, 28, 0.8);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #f1f5f9;
         }
+
+        .atk-chip { color: #f87171; }
+        .hp-chip { color: #34d399; }
+        .def-chip { color: #60a5fa; }
+        .crit-chip { color: #fbbf24; }
+
         .gacha-actions {
           width: 100%;
           display: flex;
           flex-direction: column;
-          gap: 8px;
-          margin-top: 4px;
+          gap: 6px;
         }
+
         .gacha-equip-btn {
           width: 100%;
-          min-height: 48px;
+          min-height: 42px;
         }
+
         .gacha-close-btn {
           width: 100%;
-          min-height: 42px;
+          min-height: 38px;
         }
       `}</style>
     </div>

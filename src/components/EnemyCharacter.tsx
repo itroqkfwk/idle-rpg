@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Monster } from '../types/game';
+import { Skull } from 'lucide-react';
 
 interface EnemyCharacterProps {
   monster: Monster;
@@ -24,305 +25,357 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
     return () => clearTimeout(timer);
   }, [hpPercent]);
 
-  // Render distinct 2D Vector Monster Sprite depending on monster ID or element
-  const renderMonsterGraphic = () => {
-    if (monster.id.includes('slime') || monster.name.includes('슬라임') || monster.name.includes('정령')) {
-      // 🟢 2D Vector Slime (Squash & Stretch with cute highlights)
-      return (
-        <svg viewBox="0 0 100 100" className="monster-vector-svg">
-          <defs>
-            <radialGradient id="slime-grad" cx="40%" cy="35%" r="65%">
-              <stop offset="0%" stopColor="#bbf7d0" />
-              <stop offset="55%" stopColor="#4ade80" />
-              <stop offset="100%" stopColor="#15803d" />
-            </radialGradient>
-          </defs>
-          {/* Slime Jelly Body */}
-          <path
-            d="M50 16 C68 16 88 38 88 64 C88 84 74 88 50 88 C26 88 12 84 12 64 C12 38 32 16 50 16 Z"
-            fill="url(#slime-grad)"
-            stroke="#14532d"
-            strokeWidth="3.5"
-            strokeLinejoin="round"
-          />
-          {/* Glossy Highlights */}
-          <ellipse cx="38" cy="34" rx="10" ry="5" fill="#ffffff" opacity="0.75" transform="rotate(-20 38 34)" />
-          <circle cx="30" cy="45" r="3" fill="#ffffff" opacity="0.6" />
+  const isBoss = monster.isBoss || monster.id.includes('boss');
 
-          {/* Cute Mischievous Eyes */}
-          <circle cx="42" cy="54" r="5" fill="#14532d" />
-          <circle cx="43.5" cy="52.5" r="1.8" fill="#ffffff" />
-          <circle cx="64" cy="54" r="5" fill="#14532d" />
-          <circle cx="65.5" cy="52.5" r="1.8" fill="#ffffff" />
-
-          {/* Mouth */}
-          <path d="M49 64 Q53 69 57 64" stroke="#14532d" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-        </svg>
-      );
+  // Determine monster sprite & idle animation type
+  const getMonsterType = () => {
+    if (isBoss) return { sprite: '/assets/boss_golem.png', idleClass: 'boss-act-idle', sizeClass: 'boss-size' };
+    if (monster.id.includes('m2') || monster.name.includes('버섯')) {
+      return { sprite: '/assets/monster_mushroom.png', idleClass: 'mushroom-act-idle', sizeClass: 'medium-size' };
     }
-
-    if (monster.id.includes('boss') || monster.isBoss) {
-      // 👑 2D Vector Boss (Ancient Mushroom Elder / Dragon Guardian)
-      return (
-        <svg viewBox="0 0 130 130" className="monster-vector-svg boss-svg">
-          <defs>
-            <radialGradient id="boss-cap-grad" cx="50%" cy="30%" r="70%">
-              <stop offset="0%" stopColor="#fca5a5" />
-              <stop offset="45%" stopColor="#ef4444" />
-              <stop offset="100%" stopColor="#7f1d1d" />
-            </radialGradient>
-            <radialGradient id="crown-gold" cx="40%" cy="30%" r="60%">
-              <stop offset="0%" stopColor="#fef08a" />
-              <stop offset="60%" stopColor="#f59e0b" />
-              <stop offset="100%" stopColor="#78350f" />
-            </radialGradient>
-          </defs>
-
-          {/* Imperial Boss Crown */}
-          <path
-            d="M45 28 L52 14 L65 24 L78 14 L85 28 Z"
-            fill="url(#crown-gold)"
-            stroke="#451a03"
-            strokeWidth="2.5"
-            strokeLinejoin="round"
-          />
-          <circle cx="52" cy="14" r="2.5" fill="#ef4444" stroke="#451a03" strokeWidth="1" />
-          <circle cx="65" cy="24" r="3" fill="#38bdf8" stroke="#451a03" strokeWidth="1" />
-          <circle cx="78" cy="14" r="2.5" fill="#ef4444" stroke="#451a03" strokeWidth="1" />
-
-          {/* Huge Boss Mushroom Cap */}
-          <path
-            d="M20 62 C20 32 110 32 110 62 C110 68 20 68 20 62 Z"
-            fill="url(#boss-cap-grad)"
-            stroke="#450a0a"
-            strokeWidth="3.5"
-            strokeLinejoin="round"
-          />
-          {/* Polka Dots */}
-          <circle cx="45" cy="46" r="7" fill="#ffffff" opacity="0.85" />
-          <circle cx="75" cy="44" r="9" fill="#ffffff" opacity="0.85" />
-          <circle cx="95" cy="54" r="5" fill="#ffffff" opacity="0.85" />
-
-          {/* Sturdy Trunk Body */}
-          <path
-            d="M38 64 C36 94 40 108 44 114 C56 116 74 116 86 114 C90 108 94 94 92 64 Z"
-            fill="#faeedd"
-            stroke="#451a03"
-            strokeWidth="3.5"
-          />
-
-          {/* Wise Boss Beard & Grumpy Brows */}
-          <path d="M48 76 L58 82 M82 76 L72 82" stroke="#451a03" strokeWidth="3" strokeLinecap="round" />
-          {/* Fierce Glowing Eyes */}
-          <circle cx="53" cy="84" r="5" fill="#ef4444" stroke="#451a03" strokeWidth="2" />
-          <circle cx="77" cy="84" r="5" fill="#ef4444" stroke="#451a03" strokeWidth="2" />
-          <circle cx="54" cy="83" r="1.5" fill="#fff" />
-          <circle cx="78" cy="83" r="1.5" fill="#fff" />
-
-          {/* Long Elder Beard */}
-          <path d="M56 94 Q65 110 74 94 Q65 104 56 94" fill="#ffffff" stroke="#451a03" strokeWidth="2" />
-        </svg>
-      );
+    if (monster.id.includes('m3') || monster.name.includes('벌') || monster.name.includes('다람쥐')) {
+      return { sprite: '/assets/monster_bee.png', idleClass: 'bee-act-idle', sizeClass: 'medium-size' };
     }
-
-    // 🍄 Default 2D Mushroom / Forest Creature
-    return (
-      <svg viewBox="0 0 100 100" className="monster-vector-svg">
-        <defs>
-          <radialGradient id="mush-cap" cx="45%" cy="30%" r="65%">
-            <stop offset="0%" stopColor="#fca5a5" />
-            <stop offset="60%" stopColor="#ef4444" />
-            <stop offset="100%" stopColor="#991b1b" />
-          </radialGradient>
-        </defs>
-        {/* Cap */}
-        <path
-          d="M16 52 C16 26 84 26 84 52 C84 58 16 58 16 52 Z"
-          fill="url(#mush-cap)"
-          stroke="#450a0a"
-          strokeWidth="3"
-        />
-        <circle cx="36" cy="38" r="5" fill="#fff" opacity="0.85" />
-        <circle cx="60" cy="36" r="6.5" fill="#fff" opacity="0.85" />
-
-        {/* Stem */}
-        <path
-          d="M32 54 C30 76 34 88 38 92 C46 94 54 94 62 92 C66 88 70 76 68 54 Z"
-          fill="#fbf0e0"
-          stroke="#382110"
-          strokeWidth="3"
-        />
-
-        {/* Angry / Cute Face */}
-        <line x1="39" y1="64" x2="47" y2="68" stroke="#382110" strokeWidth="2.5" strokeLinecap="round" />
-        <line x1="61" y1="64" x2="53" y2="68" stroke="#382110" strokeWidth="2.5" strokeLinecap="round" />
-        <circle cx="44" cy="72" r="3.5" fill="#1f140a" />
-        <circle cx="56" cy="72" r="3.5" fill="#1f140a" />
-        <circle cx="45" cy="71" r="1.2" fill="#fff" />
-        <circle cx="57" cy="71" r="1.2" fill="#fff" />
-      </svg>
-    );
+    if (monster.id.includes('m4') || monster.name.includes('요정') || monster.name.includes('정령')) {
+      return { sprite: '/assets/monster_spirit.png', idleClass: 'spirit-act-idle', sizeClass: 'medium-size' };
+    }
+    return { sprite: '/assets/monster_slime.png', idleClass: 'slime-act-idle', sizeClass: 'slime-size' };
   };
 
+  const monsterConfig = getMonsterType();
+
   return (
-    <div className="monster-character-box">
-      {/* 2-Layer Overhead HP Bar with Ghost Lag */}
-      <div className={`monster-hp-gauge-container ${monster.isBoss ? 'boss-gauge-width' : ''}`}>
-        <div className="monster-name-tag game-stroke">
-          <span>{monster.name}</span>
-          <span className="monster-hp-nums">{monster.currentHp} / {monster.maxHp}</span>
+    <div className={`enemy-character-box ${isBoss ? 'is-boss-combatant' : ''}`}>
+      {/* Overhead Enemy HP Cluster */}
+      <div className="combatant-hp-cluster">
+        <div className="combatant-name-tag">
+          {isBoss ? (
+            <span className="boss-lvl-badge">
+              <Skull size={10} /> BOSS
+            </span>
+          ) : (
+            <span className="enemy-lvl-badge">MONSTER</span>
+          )}
+          <span className="enemy-name-text">{monster.name}</span>
         </div>
-        <div className="hp-track-beveled monster-hp-track">
-          <div className="hp-bar-ghost" style={{ width: `${ghostHpPercent}%` }} />
+
+        <div className={`combatant-hp-track ${isBoss ? 'boss-hp-track' : ''}`}>
+          <div className="combatant-hp-ghost" style={{ width: `${ghostHpPercent}%` }} />
           <div
-            className={`hp-bar-main ${monster.isBoss ? 'hp-fill-boss' : 'hp-fill-monster'}`}
+            className={`combatant-hp-fill ${isBoss ? 'boss-hp-fill' : 'enemy-hp-fill'}`}
             style={{ width: `${hpPercent}%` }}
           />
         </div>
+
+        <div className="combatant-hp-val">
+          {monster.currentHp} / {monster.maxHp}
+        </div>
       </div>
 
-      {/* Monster Sprite Stage */}
+      {/* 2D Sprite Body Stage */}
       <div
-        className={`monster-sprite-stage ${
-          isDefeated ? 'monster-defeat-anim' : isHit ? 'hit-flash-white' : isAttacking ? 'monster-lunge-anim' : 'monster-squash-idle'
-        } ${monster.isBoss ? 'boss-scale-box' : ''}`}
+        className={`enemy-sprite-wrapper ${
+          isDefeated
+            ? 'enemy-act-defeat'
+            : isHit
+            ? 'enemy-act-hit'
+            : isAttacking
+            ? 'enemy-act-attack'
+            : monsterConfig.idleClass
+        }`}
       >
-        {/* Boss Ground Magik Aura */}
-        {monster.isBoss && <div className="boss-magic-ring" />}
+        {/* Soft Ground Contact Shadow */}
+        <div className={`character-ground-shadow ${isBoss ? 'boss-ground-shadow' : 'normal-ground-shadow'}`} />
 
-        {/* Ground Contact Shadow */}
-        <div className="monster-ground-shadow" />
+        {/* 2D Monster Sprite */}
+        <img
+          src={monsterConfig.sprite}
+          alt={monster.name}
+          className={`monster-2d-sprite ${monsterConfig.sizeClass}`}
+          draggable={false}
+        />
 
-        {/* 2D Vector Sprite */}
-        {renderMonsterGraphic()}
+        {/* Impact Hit Starburst VFX */}
+        {isHit && (
+          <div className="enemy-hit-burst-vfx">
+            <div className="star-sparkle spark-1">✦</div>
+            <div className="star-sparkle spark-2">✦</div>
+          </div>
+        )}
       </div>
 
       <style>{`
-        .monster-character-box {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
+        .enemy-character-box {
           position: relative;
-          z-index: 15;
-        }
-
-        .monster-hp-gauge-container {
-          width: 95px;
           display: flex;
           flex-direction: column;
-          gap: 2px;
-          margin-bottom: 4px;
-        }
-
-        .boss-gauge-width {
-          width: 140px;
-        }
-
-        .monster-name-tag {
-          display: flex;
-          justify-content: space-between;
           align-items: center;
-          font-size: 0.65rem;
+          user-select: none;
+        }
+
+        .combatant-hp-cluster {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          margin-bottom: 6px;
+          z-index: 10;
+        }
+
+        .combatant-name-tag {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          margin-bottom: 3px;
+        }
+
+        .enemy-lvl-badge {
+          background: rgba(30, 41, 59, 0.85);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          color: #94a3b8;
+          font-size: 9px;
+          font-weight: 800;
+          padding: 1px 5px;
+          border-radius: 9999px;
+          letter-spacing: 0.5px;
+        }
+
+        .boss-lvl-badge {
+          background: linear-gradient(135deg, #ef4444, #991b1b);
           color: #ffffff;
-          line-height: 1.1;
-        }
-
-        .monster-hp-nums {
-          color: var(--gold-highlight);
-          font-size: 0.62rem;
-        }
-
-        .monster-hp-track {
-          width: 100%;
-          height: 10px;
-        }
-
-        .monster-sprite-stage {
-          position: relative;
-          width: 110px;
-          height: 115px;
-          display: flex;
+          font-size: 10px;
+          font-weight: 900;
+          padding: 1px 6px;
+          border-radius: 9999px;
+          display: inline-flex;
           align-items: center;
-          justify-content: center;
-          transition: transform 0.08s ease;
+          gap: 3px;
+          box-shadow: 0 0 10px rgba(239, 68, 68, 0.7);
         }
 
-        .boss-scale-box {
-          width: 155px;
-          height: 155px;
+        .enemy-name-text {
+          font-size: 11px;
+          font-weight: 800;
+          color: #f8fafc;
+          text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 2px #000;
         }
 
-        .monster-vector-svg {
-          width: 100%;
+        .combatant-hp-track {
+          position: relative;
+          width: 95px;
+          height: 7px;
+          background: rgba(15, 23, 42, 0.85);
+          border-radius: 9999px;
+          overflow: hidden;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .boss-hp-track {
+          width: 130px;
+          height: 9px;
+          border-color: rgba(239, 68, 68, 0.6);
+        }
+
+        .combatant-hp-ghost {
+          position: absolute;
+          top: 0;
+          left: 0;
           height: 100%;
-          filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.45));
+          background: #fef08a;
+          border-radius: 9999px;
+          transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .monster-ground-shadow {
+        .combatant-hp-fill {
+          position: absolute;
+          top: 0;
+          left: 0;
+          height: 100%;
+          border-radius: 9999px;
+          transition: width 0.15s ease-out;
+        }
+
+        .enemy-hp-fill {
+          background: linear-gradient(90deg, #ea580c 0%, #f97316 70%, #fdba74 100%);
+          box-shadow: 0 0 8px rgba(249, 115, 22, 0.6);
+        }
+
+        .boss-hp-fill {
+          background: linear-gradient(90deg, #b91c1c 0%, #ef4444 60%, #f87171 100%);
+          box-shadow: 0 0 12px rgba(239, 68, 68, 0.85);
+        }
+
+        .combatant-hp-val {
+          font-size: 9px;
+          font-weight: 800;
+          color: #cbd5e1;
+          text-shadow: 0 1px 2px #000;
+          margin-top: 2px;
+        }
+
+        .enemy-sprite-wrapper {
+          position: relative;
+          display: flex;
+          justify-content: center;
+          align-items: flex-end;
+          transform-origin: bottom center;
+        }
+
+        /* Sprite Dimensions (Prominent & Clear) */
+        .slime-size {
+          width: 140px;
+          height: 140px;
+        }
+
+        .medium-size {
+          width: 145px;
+          height: 145px;
+        }
+
+        .boss-size {
+          width: 185px;
+          height: 185px;
+        }
+
+        .character-ground-shadow {
           position: absolute;
           bottom: 4px;
-          width: 65px;
-          height: 15px;
+          background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.65) 0%, rgba(0, 0, 0, 0.2) 50%, transparent 75%);
           border-radius: 50%;
-          background: radial-gradient(ellipse at center, rgba(16, 26, 16, 0.65) 0%, transparent 75%);
-          z-index: -1;
+          pointer-events: none;
+          z-index: 1;
         }
 
-        /* 🟢 Squash & Stretch Idle Animation */
-        .monster-squash-idle {
-          animation: monsterJellyBreathe 1.8s ease-in-out infinite;
+        .normal-ground-shadow {
+          width: 100px;
+          height: 18px;
         }
 
-        @keyframes monsterJellyBreathe {
-          0%, 100% {
-            transform: scale(1, 1) translateY(0);
-          }
-          40% {
-            transform: scale(1.08, 0.92) translateY(3px);
-          }
-          70% {
-            transform: scale(0.94, 1.06) translateY(-6px);
-          }
+        .boss-ground-shadow {
+          width: 155px;
+          height: 24px;
         }
 
-        /* Monster Attack Lunge */
-        .monster-lunge-anim {
-          animation: monsterLungeAction 0.26s ease-in-out;
+        .monster-2d-sprite {
+          position: relative;
+          max-width: 100%;
+          max-height: 100%;
+          object-fit: contain;
+          filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.45));
+          z-index: 2;
+          pointer-events: none;
         }
 
-        @keyframes monsterLungeAction {
+        /* 💥 Impact Starburst */
+        .enemy-hit-burst-vfx {
+          position: absolute;
+          top: 35%;
+          left: 40%;
+          pointer-events: none;
+          z-index: 12;
+        }
+
+        .star-sparkle {
+          position: absolute;
+          font-size: 22px;
+          color: #fef08a;
+          text-shadow: 0 0 8px #ff0055, 0 0 14px #ffffff;
+          animation: sparkPop 0.25s ease-out forwards;
+        }
+
+        .spark-1 {
+          transform: translate(-10px, -15px);
+        }
+        .spark-2 {
+          transform: translate(15px, 5px);
+          animation-delay: 0.05s;
+        }
+
+        @keyframes sparkPop {
+          0% { transform: scale(0.3) rotate(0deg); opacity: 1; }
+          100% { transform: scale(1.4) rotate(45deg); opacity: 0; }
+        }
+
+        /* Idle Animations by Monster Archetype */
+        .slime-act-idle {
+          animation: slimeSquash 1.6s ease-in-out infinite;
+        }
+
+        @keyframes slimeSquash {
+          0%, 100% { transform: scale(1, 1); }
+          45% { transform: scale(1.08, 0.92) translateY(2px); }
+          70% { transform: scale(0.95, 1.05) translateY(-4px); }
+        }
+
+        .mushroom-act-idle {
+          animation: mushroomBob 1.8s ease-in-out infinite;
+        }
+
+        @keyframes mushroomBob {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-5px) rotate(1.5deg); }
+        }
+
+        .bee-act-idle {
+          animation: beeHover 1.2s ease-in-out infinite;
+        }
+
+        @keyframes beeHover {
+          0%, 100% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(-8px) scale(1.02); }
+        }
+
+        .spirit-act-idle {
+          animation: spiritFloat 2.2s ease-in-out infinite;
+        }
+
+        @keyframes spiritFloat {
+          0%, 100% { transform: translateY(0) rotate(-1deg); }
+          50% { transform: translateY(-7px) rotate(1deg); filter: drop-shadow(0 0 16px rgba(52, 211, 153, 0.8)); }
+        }
+
+        .boss-act-idle {
+          animation: bossRumble 2.4s ease-in-out infinite;
+        }
+
+        @keyframes bossRumble {
+          0%, 100% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(-5px) scale(1.02, 0.98); }
+        }
+
+        /* Attack Lunge */
+        .enemy-act-attack {
+          animation: enemyLungeAnim 0.22s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+        }
+
+        @keyframes enemyLungeAnim {
           0% { transform: translateX(0); }
-          50% { transform: translateX(-28px) scale(1.1, 0.95); }
+          40% { transform: translateX(-34px) scale(1.06); }
           100% { transform: translateX(0); }
         }
 
-        /* Monster Defeat Poof */
-        .monster-defeat-anim {
-          animation: monsterPoofFade 0.4s ease-out forwards;
+        /* Hit Shake & Brightness Flash */
+        .enemy-act-hit {
+          animation: enemyHitShake 0.24s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+          filter: brightness(2.2) drop-shadow(0 0 18px rgba(255, 255, 255, 0.95));
         }
 
-        @keyframes monsterPoofFade {
-          0% { transform: scale(1) translateY(0); opacity: 1; }
-          40% { transform: scale(1.3) translateY(-10px); opacity: 0.8; filter: brightness(2); }
-          100% { transform: scale(0.2) translateY(20px); opacity: 0; filter: blur(6px); }
+        @keyframes enemyHitShake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(12px); }
+          50% { transform: translateX(-8px); }
+          75% { transform: translateX(4px); }
         }
 
-        /* Boss Magic Circle */
-        .boss-magic-ring {
-          position: absolute;
-          bottom: -4px;
-          width: 120px;
-          height: 35px;
-          border-radius: 50%;
-          border: 2px dashed rgba(244, 63, 94, 0.8);
-          box-shadow: 0 0 15px rgba(244, 63, 94, 0.6);
-          animation: rotateMagicRing 8s linear infinite;
-          z-index: -1;
+        /* Defeat Fade & Scale Down */
+        .enemy-act-defeat {
+          animation: enemyDefeatDissolve 0.38s ease-in forwards;
         }
 
-        @keyframes rotateMagicRing {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
+        @keyframes enemyDefeatDissolve {
+          0% { opacity: 1; transform: scale(1); filter: brightness(2); }
+          50% { opacity: 0.6; transform: scale(1.1) translateY(-6px); filter: brightness(3) drop-shadow(0 0 20px #f59e0b); }
+          100% { opacity: 0; transform: scale(0.3) translateY(16px); filter: brightness(1); }
         }
       `}</style>
     </div>
