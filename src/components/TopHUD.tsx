@@ -35,7 +35,7 @@ export const TopHUD: React.FC<TopHUDProps> = ({
       <div className="profile-capsule-btn" onClick={onOpenProfile} title="영웅 프로필">
         <div className="profile-avatar-thumb">
           <img
-            src="/assets/hero_knight.png"
+            src="./assets/hero_knight.png"
             alt="Hero Avatar"
             className="avatar-img-crop"
           />

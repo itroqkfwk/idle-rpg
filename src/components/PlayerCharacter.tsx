@@ -78,7 +78,7 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
 
         {/* Real 2D Anime Knight Sprite */}
         <img
-          src="/assets/hero_knight.png"
+          src="./assets/hero_knight.png"
           alt="Hero Knight"
           className="hero-2d-sprite"
           draggable={false}

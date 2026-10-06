@@ -9,9 +9,9 @@ export const PetCompanion: React.FC<PetCompanionProps> = ({ pet }) => {
   if (!pet) return null;
 
   const getPetSprite = (p: Pet) => {
-    if (p.id.includes('fox') || p.name.includes('여우')) return '/assets/pet_fox.png';
-    if (p.id.includes('fairy') || p.name.includes('요정')) return '/assets/monster_spirit.png';
-    return '/assets/pet_fox.png';
+    if (p.id.includes('fox') || p.name.includes('여우')) return './assets/pet_fox.png';
+    if (p.id.includes('fairy') || p.name.includes('요정')) return './assets/monster_spirit.png';
+    return './assets/pet_fox.png';
   };
 
   return (

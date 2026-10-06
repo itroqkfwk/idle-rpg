@@ -101,7 +101,7 @@ export const HeroPage: React.FC<HeroPageProps> = ({
         {/* Hero Showcase & Combat Power Banner */}
         <div className="combat-power-banner">
           <div className="hero-mini-avatar-box">
-            <img src="/assets/hero_knight.png" alt="Hero" className="hero-mini-avatar-img" />
+            <img src="./assets/hero_knight.png" alt="Hero" className="hero-mini-avatar-img" />
           </div>
           <div className="power-banner-center">
             <span className="power-banner-label">종합 전투력</span>

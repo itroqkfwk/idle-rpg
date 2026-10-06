@@ -33,17 +33,17 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
 
   // Determine monster sprite & idle animation type
   const getMonsterType = () => {
-    if (isBoss) return { sprite: '/assets/boss_golem.png', idleClass: 'boss-act-idle', sizeClass: 'boss-size' };
+    if (isBoss) return { sprite: './assets/boss_golem.png', idleClass: 'boss-act-idle', sizeClass: 'boss-size' };
     if (monster.id.includes('m2') || monster.name.includes('버섯')) {
-      return { sprite: '/assets/monster_mushroom.png', idleClass: 'mushroom-act-idle', sizeClass: 'medium-size' };
+      return { sprite: './assets/monster_mushroom.png', idleClass: 'mushroom-act-idle', sizeClass: 'medium-size' };
     }
     if (monster.id.includes('m3') || monster.name.includes('벌') || monster.name.includes('다람쥐')) {
-      return { sprite: '/assets/monster_bee.png', idleClass: 'bee-act-idle', sizeClass: 'medium-size' };
+      return { sprite: './assets/monster_bee.png', idleClass: 'bee-act-idle', sizeClass: 'medium-size' };
     }
     if (monster.id.includes('m4') || monster.name.includes('요정') || monster.name.includes('정령')) {
-      return { sprite: '/assets/monster_spirit.png', idleClass: 'spirit-act-idle', sizeClass: 'medium-size' };
+      return { sprite: './assets/monster_spirit.png', idleClass: 'spirit-act-idle', sizeClass: 'medium-size' };
     }
-    return { sprite: '/assets/monster_slime.png', idleClass: 'slime-act-idle', sizeClass: 'slime-size' };
+    return { sprite: './assets/monster_slime.png', idleClass: 'slime-act-idle', sizeClass: 'slime-size' };
   };
 
   const monsterConfig = getMonsterType();

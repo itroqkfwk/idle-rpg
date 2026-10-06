@@ -69,7 +69,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
       {/* 🌲 Layer 1: High-Res 2D Painted Forest Panorama Backdrop */}
       <div className="battle-bg-container">
         <img
-          src="/assets/forest_bg.jpg"
+          src="./assets/forest_bg.jpg"
           alt="Battle Forest Background"
           className="battle-bg-image"
           draggable={false}
