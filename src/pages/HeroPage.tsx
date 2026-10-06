@@ -68,9 +68,15 @@ export const HeroPage: React.FC<HeroPageProps> = ({
   const hpInfo = calculateUpgradeInfo('hp');
   const defInfo = calculateUpgradeInfo('def');
 
+  const [bumpStat, setBumpStat] = useState<{ stat: 'atk' | 'hp' | 'def'; amount: number; id: number } | null>(null);
+
   const handleUpgrade = (stat: 'atk' | 'hp' | 'def', count: number) => {
     sound.playUpgrade();
+    setBumpStat({ stat, amount: count, id: Date.now() });
     onUpgradeStat(stat, count);
+    setTimeout(() => {
+      setBumpStat((prev) => (prev?.stat === stat ? null : prev));
+    }, 900);
   };
 
   return (
@@ -183,7 +189,12 @@ export const HeroPage: React.FC<HeroPageProps> = ({
                 <Swords size={20} color="#f87171" />
               </div>
               <div className="upgrade-name-col">
-                <span className="upgrade-stat-title">공격력 강화</span>
+                <div className="upgrade-name-title-row">
+                  <span className="upgrade-stat-title">공격력 강화</span>
+                  {bumpStat?.stat === 'atk' && (
+                    <span className="stat-bump-badge">▲ +{bumpStat.amount}</span>
+                  )}
+                </div>
                 <span className="upgrade-stat-level">Lv.{stats.atkLevel} → {atkInfo.nextLvl}</span>
                 <span className="upgrade-stat-gain">기본 ATK +{atkInfo.count * 4}</span>
               </div>
@@ -205,7 +216,12 @@ export const HeroPage: React.FC<HeroPageProps> = ({
                 <Heart size={20} color="#34d399" />
               </div>
               <div className="upgrade-name-col">
-                <span className="upgrade-stat-title">체력 강화</span>
+                <div className="upgrade-name-title-row">
+                  <span className="upgrade-stat-title">체력 강화</span>
+                  {bumpStat?.stat === 'hp' && (
+                    <span className="stat-bump-badge">▲ +{bumpStat.amount}</span>
+                  )}
+                </div>
                 <span className="upgrade-stat-level">Lv.{stats.hpLevel} → {hpInfo.nextLvl}</span>
                 <span className="upgrade-stat-gain">기본 HP +{hpInfo.count * 35}</span>
               </div>
@@ -227,7 +243,12 @@ export const HeroPage: React.FC<HeroPageProps> = ({
                 <Shield size={20} color="#60a5fa" />
               </div>
               <div className="upgrade-name-col">
-                <span className="upgrade-stat-title">방어력 강화</span>
+                <div className="upgrade-name-title-row">
+                  <span className="upgrade-stat-title">방어력 강화</span>
+                  {bumpStat?.stat === 'def' && (
+                    <span className="stat-bump-badge">▲ +{bumpStat.amount}</span>
+                  )}
+                </div>
                 <span className="upgrade-stat-level">Lv.{stats.defLevel} → {defInfo.nextLvl}</span>
                 <span className="upgrade-stat-gain">기본 DEF +{defInfo.count * 2}</span>
               </div>
@@ -467,6 +488,32 @@ export const HeroPage: React.FC<HeroPageProps> = ({
           display: flex;
           flex-direction: column;
           gap: 1px;
+        }
+
+        .upgrade-name-title-row {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .stat-bump-badge {
+          display: inline-flex;
+          align-items: center;
+          font-size: 10px;
+          font-weight: 800;
+          color: #22c55e;
+          background: rgba(34, 197, 94, 0.15);
+          border: 1px solid rgba(34, 197, 94, 0.4);
+          padding: 1px 5px;
+          border-radius: 9999px;
+          animation: floatBump 0.85s ease-out forwards;
+        }
+
+        @keyframes floatBump {
+          0% { transform: translateY(3px) scale(0.9); opacity: 0; }
+          30% { transform: translateY(-2px) scale(1.15); opacity: 1; }
+          80% { transform: translateY(-4px) scale(1); opacity: 0.9; }
+          100% { transform: translateY(-7px) scale(0.95); opacity: 0; }
         }
 
         .upgrade-stat-title {

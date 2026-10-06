@@ -1,10 +1,21 @@
 import React from 'react';
 import { CharacterStats, Equipment, Monster, Pet, StageState, DamageNumberData } from '../types/game';
+import { RARITY_CONFIGS } from '../data/equipment';
 import { PlayerCharacter } from './PlayerCharacter';
 import { EnemyCharacter } from './EnemyCharacter';
 import { PetCompanion } from './PetCompanion';
 import { DamageNumbers } from './DamageNumbers';
 import { Swords, Skull, Flame } from 'lucide-react';
+
+export interface FloatingGoldDrop {
+  id: string;
+  gold: number;
+}
+
+export interface LootAlertData {
+  id: string;
+  item: Equipment;
+}
 
 interface BattleSceneProps {
   stats: CharacterStats;
@@ -21,6 +32,10 @@ interface BattleSceneProps {
   damages: DamageNumberData[];
   onChallengeBoss: () => void;
   onRetreatToNormal: () => void;
+  floatingGold?: FloatingGoldDrop[];
+  lootAlert?: LootAlertData | null;
+  stageNotice?: string | null;
+  cpDelta?: { value: number; delta: number } | null;
 }
 
 export const BattleScene: React.FC<BattleSceneProps> = ({
@@ -38,6 +53,10 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
   damages,
   onChallengeBoss,
   onRetreatToNormal,
+  floatingGold,
+  lootAlert,
+  stageNotice,
+  cpDelta,
 }) => {
   const isBossFight = stage.stage === 10 && stage.inBossFight;
 
@@ -82,6 +101,39 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
       {/* Floating Damage Numbers */}
       <DamageNumbers damages={damages} />
 
+      {/* ⚡ Combat Power Growth Chip */}
+      {cpDelta && (
+        <div className="battle-cp-delta-chip">
+          <span className="cp-chip-icon">⚡</span>
+          <span className="cp-chip-label">전투력</span>
+          <span className="cp-chip-val">{cpDelta.value.toLocaleString()}</span>
+          <span className="cp-chip-up">▲ +{cpDelta.delta.toLocaleString()}</span>
+        </div>
+      )}
+
+      {/* 🌟 Stage/Chapter Transition Notice */}
+      {stageNotice && (
+        <div className="battle-stage-notice-banner">
+          <span>{stageNotice}</span>
+        </div>
+      )}
+
+      {/* ⚔️ Loot Drop Alert Banner */}
+      {lootAlert && (
+        <div
+          className="battle-loot-alert-banner"
+          style={{
+            borderColor: RARITY_CONFIGS[lootAlert.item.rarity].borderColor,
+            boxShadow: `0 4px 16px ${RARITY_CONFIGS[lootAlert.item.rarity].glowColor}`,
+          }}
+        >
+          <span className="loot-sparkle">✨</span>
+          <span className="loot-text" style={{ color: RARITY_CONFIGS[lootAlert.item.rarity].color }}>
+            [{lootAlert.item.icon} {lootAlert.item.name}] 획득!
+          </span>
+        </div>
+      )}
+
       {/* ⚔️ Main Combat Arena Stage */}
       <div className="combat-arena-stage">
         {/* Left Side: Adventurer Knight & Companion Pet */}
@@ -108,8 +160,13 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           </div>
         )}
 
-        {/* Right Side: Monster Sprite */}
+        {/* Right Side: Monster Sprite & Floating Gold Drops */}
         <div className="combatant-slot enemy-slot">
+          {floatingGold && floatingGold.map((drop) => (
+            <div key={drop.id} className="floating-gold-drop">
+              +{drop.gold.toLocaleString()} <span className="gold-coin-glyph">🪙</span>
+            </div>
+          ))}
           <EnemyCharacter
             monster={monster}
             isHit={isMonsterHit}
@@ -413,6 +470,164 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           0%, 100% { opacity: 0.4; transform: scale(0.8); }
           50% { opacity: 1; transform: scale(1.2); }
         }
+
+        /* 🪙 Floating Gold Drops */
+        .floating-gold-drop {
+          position: absolute;
+          top: 10px;
+          left: 50%;
+          transform: translateX(-50%);
+          color: #fde047;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          font-size: 15px;
+          font-weight: 900;
+          text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9), 0 0 10px rgba(234, 179, 8, 0.6);
+          pointer-events: none;
+          z-index: 25;
+          display: flex;
+          align-items: center;
+          gap: 3px;
+          animation: goldFloatUp 0.85s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+
+        @keyframes goldFloatUp {
+          0% {
+            opacity: 0;
+            transform: translate(-50%, 20px) scale(0.8);
+          }
+          20% {
+            opacity: 1;
+            transform: translate(-50%, -10px) scale(1.15);
+          }
+          70% {
+            opacity: 1;
+            transform: translate(-50%, -35px) scale(1.05);
+          }
+          100% {
+            opacity: 0;
+            transform: translate(-50%, -55px) scale(0.95);
+          }
+        }
+
+        .gold-coin-glyph {
+          font-size: 13px;
+          filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
+        }
+
+        /* ⚔️ Dropped Item Loot Alert */
+        .battle-loot-alert-banner {
+          position: absolute;
+          top: 70px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: rgba(15, 23, 42, 0.92);
+          border: 1.5px solid #f59e0b;
+          border-radius: 9999px;
+          padding: 6px 14px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          z-index: 30;
+          pointer-events: none;
+          animation: lootPopIn 1.6s ease-out forwards;
+        }
+
+        @keyframes lootPopIn {
+          0% {
+            opacity: 0;
+            transform: translate(-50%, -12px) scale(0.85);
+          }
+          15% {
+            opacity: 1;
+            transform: translate(-50%, 0) scale(1.06);
+          }
+          30% {
+            transform: translate(-50%, 0) scale(1);
+          }
+          80% {
+            opacity: 1;
+            transform: translate(-50%, 0) scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: translate(-50%, -10px) scale(0.92);
+          }
+        }
+
+        .loot-text {
+          font-size: 12px;
+          font-weight: 800;
+          letter-spacing: -0.2px;
+        }
+
+        /* 🌟 Stage Notice Banner */
+        .battle-stage-notice-banner {
+          position: absolute;
+          top: 32px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%);
+          border: 1.5px solid rgba(245, 158, 11, 0.6);
+          color: #fef08a;
+          padding: 6px 16px;
+          border-radius: 20px;
+          font-size: 13px;
+          font-weight: 800;
+          text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), 0 0 12px rgba(245, 158, 11, 0.3);
+          z-index: 30;
+          pointer-events: none;
+          animation: stageNoticeAnim 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes stageNoticeAnim {
+          0% {
+            opacity: 0;
+            transform: translate(-50%, -20px) scale(0.85);
+          }
+          20% {
+            opacity: 1;
+            transform: translate(-50%, 0) scale(1.04);
+          }
+          80% {
+            opacity: 1;
+            transform: translate(-50%, 0) scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: translate(-50%, -10px) scale(0.95);
+          }
+        }
+
+        /* ⚡ CP Delta Chip */
+        .battle-cp-delta-chip {
+          position: absolute;
+          top: 16px;
+          left: 16px;
+          background: rgba(15, 23, 42, 0.88);
+          border: 1.5px solid rgba(245, 158, 11, 0.5);
+          padding: 4px 10px;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          z-index: 30;
+          pointer-events: none;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4), 0 0 10px rgba(245, 158, 11, 0.2);
+          animation: cpDeltaAnim 1.4s ease-out forwards;
+        }
+
+        @keyframes cpDeltaAnim {
+          0% { opacity: 0; transform: translateY(-8px) scale(0.9); }
+          20% { opacity: 1; transform: translateY(0) scale(1.05); }
+          80% { opacity: 1; transform: translateY(0) scale(1); }
+          100% { opacity: 0; transform: translateY(-6px) scale(0.95); }
+        }
+
+        .cp-chip-icon { font-size: 11px; }
+        .cp-chip-label { font-size: 10px; font-weight: 700; color: #94a3b8; }
+        .cp-chip-val { font-size: 11px; font-weight: 800; color: #f8fafc; }
+        .cp-chip-up { font-size: 11px; font-weight: 800; color: #22c55e; }
       `}</style>
     </div>
   );

@@ -158,6 +158,9 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
             inventory.map((item) => {
               const rarity = RARITY_CONFIGS[item.rarity];
               const isEquipped = Object.values(equipped).some((eq) => eq?.id === item.id);
+              const curSlotItem = equipped[item.slot];
+              const score = (i: Equipment) => i.atk * 4 + i.hp * 0.5 + i.def * 3 + (i.critRate || 0) * 400;
+              const isBetter = !isEquipped && (!curSlotItem || score(item) > score(curSlotItem));
 
               return (
                 <div
@@ -169,12 +172,17 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
                   }}
                   onClick={() => handleItemClick(item)}
                 >
-                  {isEquipped && (
+                  {isEquipped ? (
                     <div className="equipped-ribbon-tag">
                       <Check size={10} color="#fff" />
                       <span>장착</span>
                     </div>
-                  )}
+                  ) : isBetter ? (
+                    <div className="better-badge-tag">
+                      <ArrowUpRight size={10} color="#fff" />
+                      <span>UP</span>
+                    </div>
+                  ) : null}
                   <span className="inv-tile-icon">{item.icon}</span>
                   <span className="inv-tile-name" style={{ color: rarity.color }}>{item.name}</span>
                   <span className="inv-tile-level">Lv.{item.level}</span>
@@ -448,6 +456,28 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
           align-items: center;
           gap: 2px;
           box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+        }
+
+        .better-badge-tag {
+          position: absolute;
+          top: -4px;
+          right: -4px;
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          color: #fff;
+          font-size: 8px;
+          font-weight: 800;
+          padding: 1px 5px;
+          border-radius: 9999px;
+          display: flex;
+          align-items: center;
+          gap: 1px;
+          box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+          animation: pulseBetter 1.8s infinite ease-in-out;
+        }
+
+        @keyframes pulseBetter {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.08); box-shadow: 0 0 12px rgba(16, 185, 129, 0.9); }
         }
 
         .inv-tile-icon {

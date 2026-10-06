@@ -44,8 +44,8 @@ export const CHAPTERS_DATA: ChapterTheme[] = [
       },
       {
         id: 'c1_m3',
-        name: '도토리 다람쥐',
-        icon: '🐿️',
+        name: '숲속 꿀벌',
+        icon: '🐝',
         maxHp: 120,
         atk: 10,
         def: 3,
@@ -69,8 +69,8 @@ export const CHAPTERS_DATA: ChapterTheme[] = [
     ],
     boss: {
       id: 'c1_boss',
-      name: '고대 버섯 장로 [BOSS]',
-      icon: '👑🍄',
+      name: '고대 바위 골렘 [BOSS]',
+      icon: '🗿',
       maxHp: 1200,
       atk: 32,
       def: 12,
@@ -203,7 +203,14 @@ export function getMonsterForStage(chapter: number, stage: number): Monster {
   }
 
   const normalList = chData.monsters;
-  const template = normalList[(stage - 1) % normalList.length];
+  // Stage bracket mapping for stages 1 to 9:
+  // Stages 1-2: index 0 (Slime)
+  // Stages 3-4: index 1 (Mushroom)
+  // Stages 5-6: index 2 (Bee)
+  // Stages 7-9: index 3 (Spirit)
+  const stageBracketMap = [0, 0, 1, 1, 2, 2, 3, 3, 3];
+  const bracketIndex = stageBracketMap[Math.min(Math.max(1, stage), 9) - 1] ?? 0;
+  const template = normalList[bracketIndex % normalList.length];
   const hp = Math.floor(template.maxHp * scale);
 
   return {

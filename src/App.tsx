@@ -76,6 +76,12 @@ export const App: React.FC = () => {
   const [isMonsterDefeated, setIsMonsterDefeated] = useState(false);
   const [damages, setDamages] = useState<DamageNumberData[]>([]);
 
+  // Reward Feedback & Combat Power FX States
+  const [floatingGold, setFloatingGold] = useState<{ id: string; gold: number }[]>([]);
+  const [lootAlert, setLootAlert] = useState<{ id: string; item: Equipment } | null>(null);
+  const [stageNotice, setStageNotice] = useState<string | null>(null);
+  const [cpDelta, setCpDelta] = useState<{ value: number; delta: number } | null>(null);
+
   // Sound Engine Sync
   useEffect(() => {
     sound.sfxEnabled = settings.sfxEnabled;
@@ -93,13 +99,18 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // Auto-Save every 3 seconds
+  // Optimized Auto-Save: single interval on mount with fresh ref to eliminate GC churn
+  const saveDataRef = useRef(saveData);
+  useEffect(() => {
+    saveDataRef.current = saveData;
+  }, [saveData]);
+
   useEffect(() => {
     const timer = setInterval(() => {
-      saveGameData(saveData);
+      saveGameData(saveDataRef.current);
     }, 3000);
     return () => clearInterval(timer);
-  }, [saveData]);
+  }, []);
 
   // --- Compute Total Combat Stats with Gear & Pet Buffs ---
   const combatCalculations = useMemo(() => {
@@ -161,6 +172,28 @@ export const App: React.FC = () => {
     };
   }, [stats, equipped, activePet]);
 
+  // Combat Power Growth Tracking & Floating Chip
+  const prevCpRef = useRef(combatCalculations.combatPower);
+  const cpInitializedRef = useRef(false);
+  useEffect(() => {
+    if (!cpInitializedRef.current) {
+      cpInitializedRef.current = true;
+      prevCpRef.current = combatCalculations.combatPower;
+      return;
+    }
+    if (combatCalculations.combatPower > prevCpRef.current) {
+      const delta = combatCalculations.combatPower - prevCpRef.current;
+      setCpDelta({ value: combatCalculations.combatPower, delta });
+      const timer = setTimeout(() => {
+        setCpDelta(null);
+      }, 1400);
+      prevCpRef.current = combatCalculations.combatPower;
+      return () => clearTimeout(timer);
+    } else {
+      prevCpRef.current = combatCalculations.combatPower;
+    }
+  }, [combatCalculations.combatPower]);
+
   // Keep player current HP bounded by totalMaxHp
   useEffect(() => {
     if (stats.currentHp > combatCalculations.totalMaxHp) {
@@ -221,10 +254,39 @@ export const App: React.FC = () => {
     const earnedGold = Math.floor(currentMonster.goldReward * (1 + petGoldMult));
     const earnedExp = currentMonster.expReward;
 
+    // 🪙 Trigger Floating Gold Drop FX on Monster defeat
+    const dropId = `gold_${Date.now()}`;
+    setFloatingGold((prev) => [...prev.slice(-3), { id: dropId, gold: earnedGold }]);
+    setTimeout(() => {
+      setFloatingGold((prev) => prev.filter((d) => d.id !== dropId));
+    }, 900);
+
     // 18% Chance to drop random equipment
     let droppedItem: Equipment | null = null;
     if (Math.random() < 0.18 || currentMonster.isBoss) {
       droppedItem = generateRandomEquipment(currentMonster.isBoss ? 'rare' : undefined);
+      // ⚔️ Trigger Dropped Item Alert
+      const lootId = `loot_${Date.now()}`;
+      setLootAlert({ id: lootId, item: droppedItem });
+      setTimeout(() => {
+        setLootAlert((prev) => (prev?.id === lootId ? null : prev));
+      }, 1600);
+    }
+
+    // Determine next stage progression
+    let nextChapter = stage.chapter;
+    let nextStageNum = stage.stage;
+    if (stage.stage === 10 && stage.inBossFight) {
+      nextChapter = stage.chapter + 1;
+      nextStageNum = 1;
+      setStageNotice(`🎉 챕터 ${nextChapter} 돌파!`);
+      setTimeout(() => setStageNotice(null), 1600);
+    } else if (stage.stage < 10) {
+      if (stage.killCount + 1 >= stage.killsRequired) {
+        nextStageNum = stage.stage + 1;
+        setStageNotice(`⚔️ 스테이지 ${nextChapter}-${nextStageNum} 진입!`);
+        setTimeout(() => setStageNotice(null), 1500);
+      }
     }
 
     setTimeout(() => {
@@ -286,7 +348,7 @@ export const App: React.FC = () => {
         };
       });
 
-      const nextMon = getMonsterForStage(stage.chapter, stage.stage);
+      const nextMon = getMonsterForStage(nextChapter, nextStageNum);
       setCurrentMonster(nextMon);
       setIsMonsterDefeated(false);
     }, 380);
@@ -624,6 +686,30 @@ export const App: React.FC = () => {
   // --- Handlers: Quests ---
   const activeQuest = quests.find((q) => !q.claimed) || null;
 
+  // Ensure cyclical repeating quest if all existing quests were claimed
+  useEffect(() => {
+    if (quests.length > 0 && quests.every((q) => q.claimed)) {
+      setSaveData((prev) => {
+        if (!prev.quests.every((q) => q.claimed)) return prev;
+        const newQuest: Quest = {
+          id: `q_repeat_${Date.now()}`,
+          title: '[반복] 숲의 정화 (몬스터 7마리 처치)',
+          type: 'kill_monster',
+          targetCount: 7,
+          currentCount: 0,
+          rewardGold: 400,
+          rewardGems: 25,
+          completed: false,
+          claimed: false,
+        };
+        return {
+          ...prev,
+          quests: [...prev.quests, newQuest],
+        };
+      });
+    }
+  }, [quests]);
+
   const handleClaimQuest = (questId: string) => {
     sound.playFanfare();
     confetti({ particleCount: 35, spread: 55, origin: { y: 0.7 } });
@@ -632,9 +718,47 @@ export const App: React.FC = () => {
       const q = prev.quests.find((item) => item.id === questId);
       if (!q || !q.completed || q.claimed) return prev;
 
-      const updated = prev.quests.map((item) =>
+      let updated = prev.quests.map((item) =>
         item.id === questId ? { ...item, claimed: true } : item
       );
+
+      // Cyclical repeating quest generator: never leave the player without a goal
+      const unclaimedCount = updated.filter((item) => !item.claimed).length;
+      if (unclaimedCount === 0) {
+        const cycle = Math.floor(updated.length / 3) + 1;
+        const repeatTemplates: Omit<Quest, 'id' | 'completed' | 'claimed' | 'currentCount'>[] = [
+          {
+            title: `[반복] 숲의 정화 (몬스터 ${5 + cycle * 2}마리 처치)`,
+            type: 'kill_monster',
+            targetCount: 5 + cycle * 2,
+            rewardGold: 300 + cycle * 100,
+            rewardGems: 20 + cycle * 5,
+          },
+          {
+            title: `[반복] 한계 돌파! 공격력 ${2 + cycle}회 강화`,
+            type: 'upgrade_atk',
+            targetCount: 2 + cycle,
+            rewardGold: 400 + cycle * 120,
+            rewardGems: 25 + cycle * 5,
+          },
+          {
+            title: `[반복] 보스 격파 및 수호`,
+            type: 'defeat_boss',
+            targetCount: 1,
+            rewardGold: 1000 + cycle * 300,
+            rewardGems: 50 + cycle * 10,
+          },
+        ];
+        const nextTemplate = repeatTemplates[updated.length % repeatTemplates.length];
+        const newQuest: Quest = {
+          id: `q_repeat_${Date.now()}`,
+          ...nextTemplate,
+          currentCount: 0,
+          completed: false,
+          claimed: false,
+        };
+        updated.push(newQuest);
+      }
 
       return {
         ...prev,
@@ -728,6 +852,10 @@ export const App: React.FC = () => {
           damages={damages}
           onChallengeBoss={handleChallengeBoss}
           onRetreatToNormal={handleRetreatToNormal}
+          floatingGold={floatingGold}
+          lootAlert={lootAlert}
+          stageNotice={stageNotice}
+          cpDelta={cpDelta}
         />
 
         {/* Quest Parchment Ribbon (Displayed only in main Adventure tab) */}
