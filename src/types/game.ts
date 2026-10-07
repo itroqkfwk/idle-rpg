@@ -6,12 +6,23 @@ export interface Equipment {
   id: string;
   name: string;
   slot: EquipmentSlot;
+  type?: EquipmentSlot;
   rarity: EquipmentRarity;
   level: number;
-  atk: number;
-  hp: number;
-  def: number;
-  critRate?: number;
+  pieces: number;
+  piecesRequired: number;
+  ownedCount: number;
+  owned: boolean;
+  equipped?: boolean;
+  atk: number; // Equipped effect
+  hp: number;  // Equipped effect
+  def: number; // Equipped effect
+  critRate?: number; // Equipped effect
+  critDmg?: number;  // Equipped effect
+  ownedAtk: number;  // Owned collection effect
+  ownedHp: number;   // Owned collection effect
+  ownedDef: number;  // Owned collection effect
+  ownedCritRate?: number; // Owned collection effect
   icon: string;
   description: string;
 }
@@ -25,11 +36,15 @@ export interface Pet {
   description: string;
   buffType: PetBuffType;
   baseBuffValue: number; // e.g. 0.05 for +5%
+  atkBonus?: number;
+  hpBonus?: number;
+  defBonus?: number;
   level: number;
   owned: boolean;
   costGems: number;
   personality: string;
 }
+
 
 export interface Monster {
   id: string;
@@ -92,6 +107,8 @@ export interface Quest {
   type: QuestType;
   targetCount: number;
   currentCount: number;
+  progress?: number;
+  maxProgress?: number;
   rewardGold: number;
   rewardGems: number;
   completed: boolean;
@@ -113,7 +130,8 @@ export interface DamageNumberData {
 
 export type CharacterClassId = 'warrior' | 'mage';
 
-export type PromotionId = 'none' | 'sword_master' | 'archmage';
+export type PromotionId = 'none' | 'sword_master' | 'archmage' | 'gladiator';
+
 
 export type SkillEffectType =
   | 'power_slash'
@@ -152,6 +170,11 @@ export interface Skill {
   isAwakening?: boolean;
   hits?: number;
   icon: string;
+  // Owned Collection Effects
+  ownedAtk?: number;
+  ownedHp?: number;
+  ownedDef?: number;
+  ownedCritDmg?: number;
 }
 
 export interface SkillSlotState {
@@ -167,6 +190,10 @@ export interface GameSettings {
   sfxEnabled: boolean;
   damageNumbers: boolean;
   autoBossRetry: boolean;
+  autoUpgradeEquip: boolean;
+  autoUpgradeSkills: boolean;
+  autoEquipGear: boolean;
+  autoEquipSkills: boolean;
 }
 
 export interface GameSaveData {
@@ -180,7 +207,9 @@ export interface GameSaveData {
   stats: CharacterStats;
   equipped: Partial<Record<EquipmentSlot, Equipment>>;
   inventory: Equipment[];
+  equipmentCatalog?: Equipment[];
   pets: Pet[];
+
   activePetId: string | null;
   stage: StageState;
   quests: Quest[];
@@ -189,5 +218,8 @@ export interface GameSaveData {
   freeChestLastOpened: number;
   settings: GameSettings;
   hasSelectedClass?: boolean;
+  cheatUsed?: boolean;
+  isTestAccount?: boolean;
 }
+
 

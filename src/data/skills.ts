@@ -20,6 +20,10 @@ export const INITIAL_SKILLS: Skill[] = [
     effectType: 'power_slash',
     hits: 1,
     icon: '⚔️',
+    ownedAtk: 15,
+    ownedHp: 100,
+    ownedDef: 5,
+    ownedCritDmg: 0,
   },
   {
     id: 'double_slash',
@@ -37,6 +41,10 @@ export const INITIAL_SKILLS: Skill[] = [
     effectType: 'double_slash',
     hits: 2,
     icon: '🗡️',
+    ownedAtk: 20,
+    ownedHp: 60,
+    ownedDef: 0,
+    ownedCritDmg: 2,
   },
   {
     id: 'sword_wave',
@@ -54,6 +62,10 @@ export const INITIAL_SKILLS: Skill[] = [
     effectType: 'sword_wave',
     hits: 1,
     icon: '🌊',
+    ownedAtk: 35,
+    ownedHp: 220,
+    ownedDef: 10,
+    ownedCritDmg: 2,
   },
   {
     id: 'whirlwind',
@@ -71,6 +83,10 @@ export const INITIAL_SKILLS: Skill[] = [
     effectType: 'whirlwind',
     hits: 4,
     icon: '🌀',
+    ownedAtk: 45,
+    ownedHp: 150,
+    ownedDef: 18,
+    ownedCritDmg: 3,
   },
   {
     id: 'shield_bash',
@@ -88,6 +104,10 @@ export const INITIAL_SKILLS: Skill[] = [
     effectType: 'shield_bash',
     hits: 1,
     icon: '🛡️',
+    ownedAtk: 60,
+    ownedHp: 480,
+    ownedDef: 35,
+    ownedCritDmg: 0,
   },
   {
     id: 'blade_storm',
@@ -106,6 +126,10 @@ export const INITIAL_SKILLS: Skill[] = [
     bossPriority: true,
     hits: 6,
     icon: '🌪️',
+    ownedAtk: 120,
+    ownedHp: 650,
+    ownedDef: 30,
+    ownedCritDmg: 6,
   },
   {
     id: 'heavenly_blade',
@@ -124,6 +148,10 @@ export const INITIAL_SKILLS: Skill[] = [
     effectType: 'heavenly_blade',
     hits: 3,
     icon: '👑⚡',
+    ownedAtk: 260,
+    ownedHp: 1600,
+    ownedDef: 60,
+    ownedCritDmg: 12,
   },
 
   // ==============================
@@ -145,6 +173,10 @@ export const INITIAL_SKILLS: Skill[] = [
     effectType: 'magic_missile',
     hits: 3,
     icon: '🔮',
+    ownedAtk: 18,
+    ownedHp: 70,
+    ownedDef: 3,
+    ownedCritDmg: 2,
   },
   {
     id: 'fireball',
@@ -162,6 +194,10 @@ export const INITIAL_SKILLS: Skill[] = [
     effectType: 'fireball',
     hits: 1,
     icon: '🔥',
+    ownedAtk: 24,
+    ownedHp: 90,
+    ownedDef: 4,
+    ownedCritDmg: 2,
   },
   {
     id: 'ice_spear',
@@ -179,6 +215,10 @@ export const INITIAL_SKILLS: Skill[] = [
     effectType: 'ice_spear',
     hits: 1,
     icon: '❄️',
+    ownedAtk: 38,
+    ownedHp: 180,
+    ownedDef: 12,
+    ownedCritDmg: 3,
   },
   {
     id: 'chain_lightning',
@@ -196,6 +236,10 @@ export const INITIAL_SKILLS: Skill[] = [
     effectType: 'chain_lightning',
     hits: 3,
     icon: '⚡',
+    ownedAtk: 48,
+    ownedHp: 160,
+    ownedDef: 10,
+    ownedCritDmg: 4,
   },
   {
     id: 'meteor',
@@ -214,6 +258,10 @@ export const INITIAL_SKILLS: Skill[] = [
     bossPriority: true,
     hits: 1,
     icon: '☄️',
+    ownedAtk: 85,
+    ownedHp: 320,
+    ownedDef: 20,
+    ownedCritDmg: 6,
   },
   {
     id: 'arcane_storm',
@@ -231,6 +279,10 @@ export const INITIAL_SKILLS: Skill[] = [
     effectType: 'arcane_storm',
     hits: 5,
     icon: '🌌',
+    ownedAtk: 135,
+    ownedHp: 520,
+    ownedDef: 25,
+    ownedCritDmg: 8,
   },
   {
     id: 'astral_cataclysm',
@@ -249,6 +301,10 @@ export const INITIAL_SKILLS: Skill[] = [
     effectType: 'astral_cataclysm',
     hits: 5,
     icon: '✨🌌',
+    ownedAtk: 280,
+    ownedHp: 1350,
+    ownedDef: 50,
+    ownedCritDmg: 14,
   },
 
   // Legacy mappings for backward compatibility
@@ -267,6 +323,10 @@ export const INITIAL_SKILLS: Skill[] = [
     owned: true,
     effectType: 'sword_wave',
     icon: '🌪️',
+    ownedAtk: 30,
+    ownedHp: 140,
+    ownedDef: 8,
+    ownedCritDmg: 2,
   },
   {
     id: 'meteor_slash',
@@ -284,6 +344,10 @@ export const INITIAL_SKILLS: Skill[] = [
     effectType: 'blade_storm',
     bossPriority: true,
     icon: '☄️',
+    ownedAtk: 105,
+    ownedHp: 580,
+    ownedDef: 25,
+    ownedCritDmg: 6,
   },
 ];
 
@@ -302,3 +366,77 @@ export const STARTER_EQUIPPED_SKILLS_MAGE: (string | null)[] = [
 ];
 
 export const STARTER_EQUIPPED_SKILLS = STARTER_EQUIPPED_SKILLS_WARRIOR;
+
+export function getSkillPiecesRequired(skill: Skill): number {
+  const baseReq = skill.rarity === 'mythic' ? 10 : skill.rarity === 'legendary' ? 5 : skill.rarity === 'epic' ? 4 : skill.rarity === 'rare' ? 3 : 2;
+  const growthRate = skill.rarity === 'mythic' ? 8 : skill.rarity === 'legendary' ? 5 : skill.rarity === 'epic' ? 4 : skill.rarity === 'rare' ? 3 : 2;
+  return baseReq + (skill.level - 1) * growthRate;
+}
+
+export function getSkillUpgradeGoldCost(skill: Skill): number {
+  const baseCost = skill.rarity === 'mythic' ? 10000 : skill.rarity === 'legendary' ? 5000 : skill.rarity === 'epic' ? 2500 : skill.rarity === 'rare' ? 1000 : 400;
+  return baseCost * skill.level;
+}
+
+export function calculateSkillOwnedStats(skill: Skill): {
+  ownedAtk: number;
+  ownedHp: number;
+  ownedDef: number;
+  ownedCritDmg: number;
+} {
+  if (!skill.owned) {
+    return { ownedAtk: 0, ownedHp: 0, ownedDef: 0, ownedCritDmg: 0 };
+  }
+  const levelMult = 1 + (skill.level - 1) * 0.15;
+  return {
+    ownedAtk: Math.floor((skill.ownedAtk || 0) * levelMult),
+    ownedHp: Math.floor((skill.ownedHp || 0) * levelMult),
+    ownedDef: Math.floor((skill.ownedDef || 0) * levelMult),
+    ownedCritDmg: Number(((skill.ownedCritDmg || 0) * levelMult).toFixed(1)),
+  };
+}
+
+export function calculateTotalSkillOwnedBonus(skills: Skill[]): {
+  ownedAtk: number;
+  ownedHp: number;
+  ownedDef: number;
+  ownedCritDmg: number;
+} {
+  let totalAtk = 0;
+  let totalHp = 0;
+  let totalDef = 0;
+  let totalCritDmg = 0;
+
+  for (const skill of skills) {
+    if (skill.owned) {
+      const stats = calculateSkillOwnedStats(skill);
+      totalAtk += stats.ownedAtk;
+      totalHp += stats.ownedHp;
+      totalDef += stats.ownedDef;
+      totalCritDmg += stats.ownedCritDmg;
+    }
+  }
+
+  return {
+    ownedAtk: totalAtk,
+    ownedHp: totalHp,
+    ownedDef: totalDef,
+    ownedCritDmg: Number(totalCritDmg.toFixed(1)),
+  };
+}
+
+/**
+ * Calculates Expected DPS / combat rating for a skill to drive Smart Auto-Equip.
+ */
+export function calculateSkillPowerScore(skill: Skill): number {
+  if (skill.isAwakening) return 999999;
+  const currentMult = skill.baseDamageMult + (skill.level - 1) * skill.damageMultPerLevel;
+  const hits = skill.hits || 1;
+  const totalMult = currentMult * hits;
+  const cd = Math.max(skill.cooldown, 1);
+  const dpsWeight = (totalMult / cd) * 100;
+  const bossBonus = skill.bossPriority ? 30 : 0;
+  const rarityBonus = skill.rarity === 'mythic' ? 50 : skill.rarity === 'legendary' ? 35 : skill.rarity === 'epic' ? 20 : skill.rarity === 'rare' ? 10 : 0;
+  return Math.round(dpsWeight + bossBonus + rarityBonus + skill.level * 5);
+}
+

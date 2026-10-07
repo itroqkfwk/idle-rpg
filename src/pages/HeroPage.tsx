@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { CharacterStats, Equipment, Pet, Skill, CharacterClassId, PromotionId, StageState } from '../types/game';
-import { Sparkles, Shield, Zap, Heart, Swords, X, Wand2, Plus, Check, Crown, ArrowRight, BookOpen } from 'lucide-react';
+import { Sparkles, Shield, Zap, Heart, Swords, X, Wand2, Plus, Check, Crown, ArrowRight, BookOpen, Layers, ChevronsUp, Info, HelpCircle } from 'lucide-react';
 import { CLASS_CONFIGS, PROMOTION_REQUIREMENTS } from '../data/classes';
+import { calculateSkillOwnedStats, calculateTotalSkillOwnedBonus, getSkillPiecesRequired } from '../data/skills';
 import { sound } from '../utils/audio';
 
 interface HeroPageProps {
@@ -18,6 +19,10 @@ interface HeroPageProps {
   equippedSkillIds?: (string | null)[];
   onEquipSkill?: (slotIndex: number, skillId: string | null) => void;
   onUpgradeSkill?: (skillId: string) => void;
+  onBatchUpgradeSkills?: () => void;
+  onAutoEquipSkills?: () => void;
+  equipmentOwnedBonus?: { ownedAtk: number; ownedHp: number; ownedDef: number; ownedCritRate: number };
+  skillOwnedBonus?: { ownedAtk: number; ownedHp: number; ownedDef: number; ownedCritDmg: number };
   classId?: CharacterClassId;
   promotion?: PromotionId;
   awakeningUnlocked?: boolean;
@@ -33,12 +38,18 @@ export const HeroPage: React.FC<HeroPageProps> = ({
   totalHp,
   totalDef,
   combatPower,
+  equipped = {},
+  activePet,
   onUpgradeStat,
   onClose,
   skills = [],
   equippedSkillIds = [null, null, null, null],
   onEquipSkill,
   onUpgradeSkill,
+  onBatchUpgradeSkills,
+  onAutoEquipSkills,
+  equipmentOwnedBonus = { ownedAtk: 0, ownedHp: 0, ownedDef: 0, ownedCritRate: 0 },
+  skillOwnedBonus = { ownedAtk: 0, ownedHp: 0, ownedDef: 0, ownedCritDmg: 0 },
   classId = 'warrior',
   promotion = 'none',
   awakeningUnlocked = false,
@@ -50,6 +61,7 @@ export const HeroPage: React.FC<HeroPageProps> = ({
   const [subTab, setSubTab] = useState<'stats' | 'skills' | 'promotion'>('stats');
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number>(0);
   const [multiplier, setMultiplier] = useState<1 | 10 | 'max'>(1);
+  const [breakdownStat, setBreakdownStat] = useState<'atk' | 'hp' | 'def' | null>(null);
 
   const currentClassConfig = CLASS_CONFIGS[classId];
   const isMage = classId === 'mage';
@@ -202,34 +214,64 @@ export const HeroPage: React.FC<HeroPageProps> = ({
               </div>
             </div>
 
-            {/* 4 Core Stats Grid */}
+            {/* 4 Core Stats Grid (Interactive Breakdown) */}
             <div className="core-stats-deck">
-              <div className="stat-card-glass">
+              <div
+                className="stat-card-glass stat-card-interactive"
+                onClick={() => {
+                  sound.playTap();
+                  setBreakdownStat('atk');
+                }}
+                title="공격력 상세 기여도 보기"
+              >
                 <div className="stat-icon-wrapper atk-tint">
                   <Swords size={15} color="#ef4444" />
                 </div>
                 <div className="stat-texts">
-                  <span className="stat-name">공격력 (ATK)</span>
+                  <div className="stat-name-row">
+                    <span className="stat-name">공격력 (ATK)</span>
+                    <span className="stat-info-pill">분석</span>
+                  </div>
                   <span className="stat-value">{totalAtk.toLocaleString()}</span>
                 </div>
               </div>
 
-              <div className="stat-card-glass">
+              <div
+                className="stat-card-glass stat-card-interactive"
+                onClick={() => {
+                  sound.playTap();
+                  setBreakdownStat('hp');
+                }}
+                title="체력 상세 기여도 보기"
+              >
                 <div className="stat-icon-wrapper hp-tint">
                   <Heart size={15} color="#10b981" />
                 </div>
                 <div className="stat-texts">
-                  <span className="stat-name">최대 체력 (HP)</span>
+                  <div className="stat-name-row">
+                    <span className="stat-name">최대 체력 (HP)</span>
+                    <span className="stat-info-pill">분석</span>
+                  </div>
                   <span className="stat-value">{totalHp.toLocaleString()}</span>
                 </div>
               </div>
 
-              <div className="stat-card-glass">
+              <div
+                className="stat-card-glass stat-card-interactive"
+                onClick={() => {
+                  sound.playTap();
+                  setBreakdownStat('def');
+                }}
+                title="방어력 상세 기여도 보기"
+              >
                 <div className="stat-icon-wrapper def-tint">
                   <Shield size={15} color="#38bdf8" />
                 </div>
                 <div className="stat-texts">
-                  <span className="stat-name">방어력 (DEF)</span>
+                  <div className="stat-name-row">
+                    <span className="stat-name">방어력 (DEF)</span>
+                    <span className="stat-info-pill">분석</span>
+                  </div>
                   <span className="stat-value">{totalDef.toLocaleString()}</span>
                 </div>
               </div>
@@ -244,6 +286,7 @@ export const HeroPage: React.FC<HeroPageProps> = ({
                 </div>
               </div>
             </div>
+
 
             {/* Multiplier Row */}
             <div className="upgrade-multiplier-row">
@@ -362,146 +405,242 @@ export const HeroPage: React.FC<HeroPageProps> = ({
         {/* ========================================================
             TAB 2: SKILL LOADOUT & COLLECTION (Active Class Only)
            ======================================================== */}
-        {subTab === 'skills' && (
-          <div className="skills-subtab-container">
-            {/* 4 Skill Slots Deck */}
-            <div className="parchment-panel skill-slots-deck-panel">
-              <div className="slots-deck-header">
-                <span className="slots-deck-title">⚡ 자동 발동 스킬 슬롯 (1 ~ 4)</span>
-                <span className="slots-deck-desc">슬롯을 선택한 후 아래 보유 스킬을 장착하세요</span>
+        {subTab === 'skills' && (() => {
+          const totalSkillBonus = calculateTotalSkillOwnedBonus(skills);
+          const ownedSkillsCount = skills.filter((s) => s.owned).length;
+          const totalSkillsCount = skills.length;
+          const upgradeableSkills = classSkills.filter((s) => s.owned && s.pieces >= s.piecesRequired);
+
+          return (
+            <div className="skills-subtab-container">
+              {/* Skill Collection Power Summary Card */}
+              <div className="collection-summary-card">
+                <div className="collection-card-header">
+                  <div className="collection-title-row">
+                    <Layers size={16} color="#fbbf24" />
+                    <strong className="collection-card-title">스킬 수집 & 보유 효과 (계정 상시 적용)</strong>
+                  </div>
+                  <div className="collection-badge">
+                    수집 {ownedSkillsCount} / {totalSkillsCount}
+                  </div>
+                </div>
+                <div className="collection-stats-grid">
+                  <div className="collection-stat-chip">
+                    <span className="stat-name">보유 ATK</span>
+                    <strong className="stat-val text-red">+{totalSkillBonus.ownedAtk.toLocaleString()}</strong>
+                  </div>
+                  <div className="collection-stat-chip">
+                    <span className="stat-name">보유 HP</span>
+                    <strong className="stat-val text-green">+{totalSkillBonus.ownedHp.toLocaleString()}</strong>
+                  </div>
+                  <div className="collection-stat-chip">
+                    <span className="stat-name">보유 DEF</span>
+                    <strong className="stat-val text-blue">+{totalSkillBonus.ownedDef.toLocaleString()}</strong>
+                  </div>
+                  <div className="collection-stat-chip">
+                    <span className="stat-name">치명타 피해</span>
+                    <strong className="stat-val text-yellow">+{totalSkillBonus.ownedCritDmg}%</strong>
+                  </div>
+                </div>
               </div>
 
-              <div className="equipped-slots-grid">
-                {[0, 1, 2, 3].map((slotIdx) => {
-                  const skillId = equippedSkillIds[slotIdx];
-                  const eqSkill = skillId ? skills.find((s) => s.id === skillId) : null;
-                  const isSelected = selectedSlotIndex === slotIdx;
+              {/* Skills Action Bar: Batch Upgrade & Auto Equip */}
+              <div className="equip-control-action-bar">
+                <span className="slots-deck-desc" style={{ fontSize: '11px', color: '#94a3b8' }}>
+                  스킬 레벨 상승 시 계정 전체 스탯 추가 강화
+                </span>
+                <div className="equip-action-btns">
+                  <button
+                    className="btn-game btn-game-gold equip-batch-btn"
+                    disabled={upgradeableSkills.length === 0}
+                    onClick={() => {
+                      if (onBatchUpgradeSkills) {
+                        sound.playUpgrade();
+                        onBatchUpgradeSkills();
+                      }
+                    }}
+                    title="강화 가능한 모든 직업 스킬 일괄 강화"
+                  >
+                    <ChevronsUp size={15} />
+                    <span>일괄 강화 ({upgradeableSkills.length})</span>
+                  </button>
+                  <button
+                    className="btn-game btn-game-blue equip-auto-btn"
+                    onClick={() => {
+                      if (onAutoEquipSkills) {
+                        sound.playFanfare();
+                        onAutoEquipSkills();
+                      }
+                    }}
+                    title="현재 직업 최적 DPS 스킬 자동 편성"
+                  >
+                    <Zap size={15} />
+                    <span>자동 장착</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 4 Skill Slots Deck */}
+              <div className="parchment-panel skill-slots-deck-panel">
+                <div className="slots-deck-header">
+                  <span className="slots-deck-title">⚡ 자동 발동 스킬 슬롯 (1 ~ 4)</span>
+                  <span className="slots-deck-desc">슬롯을 선택한 후 아래 보유 스킬을 장착하세요</span>
+                </div>
+
+                <div className="equipped-slots-grid">
+                  {[0, 1, 2, 3].map((slotIdx) => {
+                    const skillId = equippedSkillIds[slotIdx];
+                    const eqSkill = skillId ? skills.find((s) => s.id === skillId) : null;
+                    const isSelected = selectedSlotIndex === slotIdx;
+
+                    return (
+                      <div
+                        key={slotIdx}
+                        className={`hero-skill-slot-card ${isSelected ? 'slot-card-selected' : ''}`}
+                        onClick={() => {
+                          sound.playTap();
+                          setSelectedSlotIndex(slotIdx);
+                        }}
+                      >
+                        <div className="slot-index-pip">슬롯 {slotIdx + 1}</div>
+                        {eqSkill ? (
+                          <div className="slot-card-body">
+                            <span className="slot-skill-glyph">{eqSkill.icon}</span>
+                            <span className="slot-skill-name">{eqSkill.name}</span>
+                            <span className="slot-skill-lvl">Lv.{eqSkill.level}</span>
+                          </div>
+                        ) : (
+                          <div className="slot-empty-body">
+                            <Plus size={16} color="#64748b" />
+                            <span className="empty-txt">비어있음</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Owned Class Skills List */}
+              <div className="skills-collection-header">
+                <span className="collection-title">
+                  {currentClassConfig.name} 스킬 보관함 ({classSkills.length})
+                </span>
+                <span className="collection-hint">비급서를 모아 레벨업하면 보유 효과도 상승!</span>
+              </div>
+
+              <div className="skills-collection-list">
+                {classSkills.map((skill) => {
+                  const isEquippedInSlot = equippedSkillIds.indexOf(skill.id);
+                  const isEquipped = isEquippedInSlot !== -1;
+                  const reqPieces = skill.piecesRequired || getSkillPiecesRequired(skill);
+                  const canLevelUp = skill.owned && skill.pieces >= reqPieces;
+                  const ownedStats = calculateSkillOwnedStats(skill);
 
                   return (
-                    <div
-                      key={slotIdx}
-                      className={`hero-skill-slot-card ${isSelected ? 'slot-card-selected' : ''}`}
-                      onClick={() => {
-                        sound.playTap();
-                        setSelectedSlotIndex(slotIdx);
-                      }}
-                    >
-                      <div className="slot-index-pip">슬롯 {slotIdx + 1}</div>
-                      {eqSkill ? (
-                        <div className="slot-card-body">
-                          <span className="slot-skill-glyph">{eqSkill.icon}</span>
-                          <span className="slot-skill-name">{eqSkill.name}</span>
-                          <span className="slot-skill-lvl">Lv.{eqSkill.level}</span>
+                    <div key={skill.id} className="parchment-panel skill-card-row">
+                      <div className="skill-card-main">
+                        <div className="skill-icon-frame">
+                          <span className="skill-frame-glyph">{skill.icon}</span>
+                          <span className="skill-lvl-badge">Lv.{skill.level}</span>
+                          {canLevelUp && (
+                            <div className="skill-up-badge">UP</div>
+                          )}
                         </div>
-                      ) : (
-                        <div className="slot-empty-body">
-                          <Plus size={16} color="#64748b" />
-                          <span className="empty-txt">비어있음</span>
+                        <div className="skill-info-col">
+                          <div className="skill-name-row">
+                            <span className="skill-name-txt">{skill.name}</span>
+                            <span className="skill-cooldown-badge">쿨타임 {skill.cooldown}초</span>
+                          </div>
+                          <div className="skill-desc-txt">{skill.description}</div>
+
+                          {/* Skill Owned Effect Preview */}
+                          {skill.owned && (
+                            <div className="skill-owned-effect-badge">
+                              <span style={{ color: '#fbbf24', fontWeight: 800 }}>👑 상시 보유 효과:</span>{' '}
+                              {ownedStats.ownedAtk > 0 && <span className="text-red">ATK +{ownedStats.ownedAtk} </span>}
+                              {ownedStats.ownedHp > 0 && <span className="text-green">HP +{ownedStats.ownedHp} </span>}
+                              {ownedStats.ownedDef > 0 && <span className="text-blue">DEF +{ownedStats.ownedDef} </span>}
+                              {ownedStats.ownedCritDmg > 0 && <span className="text-yellow">치명피해 +{ownedStats.ownedCritDmg}% </span>}
+                            </div>
+                          )}
+
+                          {/* Piece progress bar */}
+                          {skill.owned && (
+                            <div className="skill-piece-progress-box">
+                              <div className="piece-text-row">
+                                <span className="piece-label">스킬 조각</span>
+                                <span className="piece-val">
+                                  {skill.pieces} / {reqPieces}
+                                </span>
+                              </div>
+                              <div className="piece-track">
+                                <div
+                                  className="piece-fill"
+                                  style={{
+                                    width: `${Math.min(100, Math.round((skill.pieces / reqPieces) * 100))}%`,
+                                    backgroundColor: skill.pieces >= reqPieces ? '#22c55e' : '#38bdf8',
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      )}
+                      </div>
+
+                      <div className="skill-actions-row">
+                        {/* Level Up Button */}
+                        <button
+                          className="btn-game btn-game-gold skill-action-btn"
+                          disabled={!canLevelUp}
+                          onClick={() => {
+                            if (canLevelUp && onUpgradeSkill) {
+                              sound.playFanfare();
+                              onUpgradeSkill(skill.id);
+                            }
+                          }}
+                        >
+                          <Sparkles size={12} />
+                          <span>레벨업</span>
+                        </button>
+
+                        {/* Equip / Unequip Button */}
+                        {isEquipped ? (
+                          <button
+                            className="btn-game btn-game-wood skill-action-btn"
+                            onClick={() => {
+                              if (onEquipSkill) {
+                                sound.playTap();
+                                onEquipSkill(isEquippedInSlot, null);
+                              }
+                            }}
+                          >
+                            <Check size={12} color="#10b981" />
+                            <span>슬롯 {isEquippedInSlot + 1} 해제</span>
+                          </button>
+                        ) : (
+                          <button
+                            className="btn-game btn-game-ruby skill-action-btn"
+                            disabled={!skill.owned}
+                            onClick={() => {
+                              if (skill.owned && onEquipSkill) {
+                                sound.playTap();
+                                onEquipSkill(selectedSlotIndex, skill.id);
+                              }
+                            }}
+                          >
+                            <span>슬롯 {selectedSlotIndex + 1} 장착</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
               </div>
             </div>
+          );
+        })()}
 
-            {/* Owned Class Skills List */}
-            <div className="skills-collection-header">
-              <span className="collection-title">
-                {currentClassConfig.name} 스킬 보관함 ({classSkills.length})
-              </span>
-              <span className="collection-hint">잡화점에서 비급서를 모아 스킬 레벨업!</span>
-            </div>
-
-            <div className="skills-collection-list">
-              {classSkills.map((skill) => {
-                const isEquippedInSlot = equippedSkillIds.indexOf(skill.id);
-                const isEquipped = isEquippedInSlot !== -1;
-                const canLevelUp = skill.pieces >= skill.piecesRequired;
-
-                return (
-                  <div key={skill.id} className="parchment-panel skill-card-row">
-                    <div className="skill-card-main">
-                      <div className="skill-icon-frame">
-                        <span className="skill-frame-glyph">{skill.icon}</span>
-                        <span className="skill-lvl-badge">Lv.{skill.level}</span>
-                      </div>
-                      <div className="skill-info-col">
-                        <div className="skill-name-row">
-                          <span className="skill-name-txt">{skill.name}</span>
-                          <span className="skill-cooldown-badge">쿨타임 {skill.cooldown}초</span>
-                        </div>
-                        <div className="skill-desc-txt">{skill.description}</div>
-                        {/* Piece progress bar */}
-                        <div className="skill-piece-progress-box">
-                          <div className="piece-text-row">
-                            <span className="piece-label">스킬 조각</span>
-                            <span className="piece-val">
-                              {skill.pieces} / {skill.piecesRequired}
-                            </span>
-                          </div>
-                          <div className="piece-track">
-                            <div
-                              className="piece-fill"
-                              style={{
-                                width: `${Math.min(100, Math.round((skill.pieces / skill.piecesRequired) * 100))}%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="skill-actions-row">
-                      {/* Level Up Button */}
-                      <button
-                        className="btn-game btn-game-gold skill-action-btn"
-                        disabled={!canLevelUp}
-                        onClick={() => {
-                          if (canLevelUp && onUpgradeSkill) {
-                            sound.playFanfare();
-                            onUpgradeSkill(skill.id);
-                          }
-                        }}
-                      >
-                        <Sparkles size={12} />
-                        <span>레벨업</span>
-                      </button>
-
-                      {/* Equip / Unequip Button */}
-                      {isEquipped ? (
-                        <button
-                          className="btn-game btn-game-wood skill-action-btn"
-                          onClick={() => {
-                            if (onEquipSkill) {
-                              sound.playTap();
-                              onEquipSkill(isEquippedInSlot, null);
-                            }
-                          }}
-                        >
-                          <Check size={12} color="#10b981" />
-                          <span>슬롯 {isEquippedInSlot + 1} 해제</span>
-                        </button>
-                      ) : (
-                        <button
-                          className="btn-game btn-game-ruby skill-action-btn"
-                          onClick={() => {
-                            if (onEquipSkill) {
-                              sound.playTap();
-                              onEquipSkill(selectedSlotIndex, skill.id);
-                            }
-                          }}
-                        >
-                          <span>슬롯 {selectedSlotIndex + 1} 장착</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* ========================================================
             TAB 3: PROMOTION & AWAKENING SYSTEM
@@ -646,7 +785,306 @@ export const HeroPage: React.FC<HeroPageProps> = ({
         )}
       </div>
 
+      {/* Stat Breakdown Modal */}
+      {breakdownStat && (
+        <div className="modal-backdrop" onClick={() => setBreakdownStat(null)}>
+          <div className="modal-content stat-breakdown-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="breakdown-header">
+              <div className="breakdown-title-row">
+                {breakdownStat === 'atk' ? (
+                  <Swords size={18} color="#ef4444" />
+                ) : breakdownStat === 'hp' ? (
+                  <Heart size={18} color="#10b981" />
+                ) : (
+                  <Shield size={18} color="#38bdf8" />
+                )}
+                <h3 className="breakdown-title">
+                  {breakdownStat === 'atk'
+                    ? '공격력 (ATK) 기여도 분석'
+                    : breakdownStat === 'hp'
+                    ? '체력 (HP) 기여도 분석'
+                    : '방어력 (DEF) 기여도 분석'}
+                </h3>
+              </div>
+              <button className="breakdown-close-btn" onClick={() => setBreakdownStat(null)}>
+                ✕
+              </button>
+            </div>
+
+            {/* Total Result Showcase */}
+            <div className="breakdown-total-card">
+              <span className="total-label">최종 적용 능력치</span>
+              <span className="total-val">
+                {breakdownStat === 'atk'
+                  ? totalAtk.toLocaleString()
+                  : breakdownStat === 'hp'
+                  ? totalHp.toLocaleString()
+                  : totalDef.toLocaleString()}
+              </span>
+            </div>
+
+            {/* Step-by-Step Layered Calculation */}
+            <div className="breakdown-sources-list">
+              <div className="source-row">
+                <span className="source-name">1. 캐릭터 기본 성장치</span>
+                <strong className="source-val text-white">
+                  {breakdownStat === 'atk'
+                    ? (stats.baseAtk + (stats.atkLevel - 1) * 4).toLocaleString()
+                    : breakdownStat === 'hp'
+                    ? (stats.baseHp + (stats.hpLevel - 1) * 35).toLocaleString()
+                    : (stats.baseDef + (stats.defLevel - 1) * 2).toLocaleString()}
+                </strong>
+              </div>
+              <div className="source-sub-desc">
+                기본 스탯 + 골드 레벨업 Lv.{breakdownStat === 'atk' ? stats.atkLevel : breakdownStat === 'hp' ? stats.hpLevel : stats.defLevel}
+              </div>
+
+              {(() => {
+                const eqStatVal = Object.values(equipped).reduce((sum, item) => {
+                  if (!item) return sum;
+                  return sum + (breakdownStat === 'atk' ? item.atk || 0 : breakdownStat === 'hp' ? item.hp || 0 : item.def || 0);
+                }, 0);
+                return (
+                  <>
+                    <div className="source-row">
+                      <span className="source-name">2. 장착 장비 효과 (착용 4슬롯)</span>
+                      <strong className="source-val text-white">+{eqStatVal.toLocaleString()}</strong>
+                    </div>
+                    <div className="source-sub-desc">현재 장착된 장비들의 착용 능력치 합산</div>
+                  </>
+                );
+              })()}
+
+              <div className="source-row">
+                <span className="source-name">3. 장비 도감 보유 효과 (계정 상시)</span>
+                <strong className="source-val text-green">
+                  +{breakdownStat === 'atk'
+                    ? equipmentOwnedBonus.ownedAtk.toLocaleString()
+                    : breakdownStat === 'hp'
+                    ? equipmentOwnedBonus.ownedHp.toLocaleString()
+                    : equipmentOwnedBonus.ownedDef.toLocaleString()}
+                </strong>
+              </div>
+              <div className="source-sub-desc">수집한 모든 장비 레벨에 따른 영구 계정 패시브 합산</div>
+
+              <div className="source-row">
+                <span className="source-name">4. 스킬 도감 보유 효과 (계정 상시)</span>
+                <strong className="source-val text-yellow">
+                  +{breakdownStat === 'atk'
+                    ? skillOwnedBonus.ownedAtk.toLocaleString()
+                    : breakdownStat === 'hp'
+                    ? skillOwnedBonus.ownedHp.toLocaleString()
+                    : skillOwnedBonus.ownedDef.toLocaleString()}
+                </strong>
+              </div>
+              <div className="source-sub-desc">수집한 전사/마법사 스킬 레벨에 따른 영구 계정 패시브 합산</div>
+
+              <div className="breakdown-divider" />
+
+              <div className="source-row">
+                <span className="source-name">5. 직업 기본 보정 배율</span>
+                <strong className="source-val text-blue">
+                  x{breakdownStat === 'atk'
+                    ? currentClassConfig.statBuffs.atkMult
+                    : breakdownStat === 'hp'
+                    ? currentClassConfig.statBuffs.hpMult
+                    : currentClassConfig.statBuffs.defMult}
+                </strong>
+              </div>
+
+              {activePet && (
+                <div className="source-row">
+                  <span className="source-name">6. 동행 펫 ({activePet.name}) 버프</span>
+                  <strong className="source-val text-blue">
+                    +{breakdownStat === 'atk' && activePet.buffType === 'atk'
+                      ? Math.round(activePet.baseBuffValue * (1 + (activePet.level - 1) * 0.2) * 100)
+                      : 0}%
+                  </strong>
+                </div>
+              )}
+
+
+              {isPromoted && (
+                <div className="source-row">
+                  <span className="source-name">7. 승급 보너스</span>
+                  <strong className="source-val text-yellow">
+                    +{breakdownStat === 'atk' ? Math.round(currentClassConfig.promotionBuffs.skillDamageBonus * 100) : 0}%
+                  </strong>
+                </div>
+              )}
+            </div>
+
+            <div className="breakdown-footer-tip">
+              💡 모든 장비와 스킬을 수집하고 강화할수록 보유 효과가 영구 누적되어 캐릭터가 더욱 강해집니다!
+            </div>
+          </div>
+        </div>
+      )}
+
       <style>{`
+        .stat-card-interactive {
+          cursor: pointer;
+          transition: transform 0.15s ease, border-color 0.15s ease;
+        }
+
+        .stat-card-interactive:hover {
+          transform: translateY(-2px);
+          border-color: rgba(245, 158, 11, 0.4);
+        }
+
+        .stat-name-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          width: 100%;
+        }
+
+        .stat-info-pill {
+          font-size: 8px;
+          color: #fde047;
+          background: rgba(245, 158, 11, 0.2);
+          border: 1px solid rgba(245, 158, 11, 0.35);
+          padding: 1px 4px;
+          border-radius: 4px;
+          font-weight: 800;
+        }
+
+        .skill-up-badge {
+          position: absolute;
+          top: -3px;
+          right: -3px;
+          background: #10b981;
+          color: #ffffff;
+          font-size: 8px;
+          font-weight: 800;
+          padding: 1px 4px;
+          border-radius: 4px;
+          box-shadow: 0 0 6px rgba(16, 185, 129, 0.8);
+        }
+
+        .skill-owned-effect-badge {
+          font-size: 10px;
+          background: rgba(15, 23, 42, 0.8);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 6px;
+          padding: 3px 6px;
+          margin: 3px 0;
+          line-height: 1.4;
+        }
+
+        .stat-breakdown-modal {
+          background: linear-gradient(135deg, #0f172a, #1e1b4b);
+          border: 1.5px solid #f59e0b;
+          border-radius: 16px;
+          padding: 16px;
+          max-width: 440px;
+          width: 92%;
+          color: #f8fafc;
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+        }
+
+        .breakdown-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 12px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+          padding-bottom: 8px;
+        }
+
+        .breakdown-title-row {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .breakdown-title {
+          font-size: 1.05rem;
+          font-weight: 800;
+          color: #fde68a;
+        }
+
+        .breakdown-close-btn {
+          background: rgba(255, 255, 255, 0.1);
+          border: none;
+          color: #94a3b8;
+          width: 26px;
+          height: 26px;
+          border-radius: 50%;
+          cursor: pointer;
+          font-weight: 800;
+        }
+
+        .breakdown-total-card {
+          background: rgba(0, 0, 0, 0.4);
+          border: 1px solid rgba(245, 158, 11, 0.3);
+          border-radius: 10px;
+          padding: 10px 14px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 12px;
+        }
+
+        .total-label {
+          font-size: 11px;
+          color: #94a3b8;
+          font-weight: 700;
+        }
+
+        .total-val {
+          font-size: 1.3rem;
+          font-weight: 900;
+          color: #fbbf24;
+        }
+
+        .breakdown-sources-list {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          background: rgba(15, 23, 42, 0.6);
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          border-radius: 10px;
+          padding: 10px 12px;
+        }
+
+        .source-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 11px;
+          font-weight: 700;
+        }
+
+        .source-name {
+          color: #cbd5e1;
+        }
+
+        .source-sub-desc {
+          font-size: 9px;
+          color: #64748b;
+          margin-top: -3px;
+          margin-bottom: 4px;
+          padding-left: 2px;
+        }
+
+        .breakdown-divider {
+          height: 1px;
+          background: rgba(255, 255, 255, 0.08);
+          margin: 4px 0;
+        }
+
+        .breakdown-footer-tip {
+          font-size: 10px;
+          color: #fbbf24;
+          background: rgba(245, 158, 11, 0.1);
+          border: 1px dashed rgba(245, 158, 11, 0.3);
+          border-radius: 8px;
+          padding: 8px 10px;
+          margin-top: 10px;
+          line-height: 1.4;
+        }
+
         .drawer-title-icon {
           width: 28px;
           height: 28px;

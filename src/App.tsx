@@ -18,8 +18,26 @@ import {
 } from './types/game';
 import { loadGameData, saveGameData, getDefaultSaveData } from './utils/storage';
 import { getMonsterForStage } from './data/monsters';
-import { generateRandomEquipment } from './data/equipment';
-import { INITIAL_SKILLS, STARTER_EQUIPPED_SKILLS, STARTER_EQUIPPED_SKILLS_WARRIOR, STARTER_EQUIPPED_SKILLS_MAGE } from './data/skills';
+import {
+  generateRandomEquipment,
+  createDefaultEquipmentCatalog,
+  getEquipmentPiecesRequired,
+  getEquipmentUpgradeGoldCost,
+  calculateEquipmentEquippedStats,
+  calculateEquipmentOwnedStats,
+  calculateTotalEquipmentOwnedBonus,
+} from './data/equipment';
+import {
+  INITIAL_SKILLS,
+  STARTER_EQUIPPED_SKILLS,
+  STARTER_EQUIPPED_SKILLS_WARRIOR,
+  STARTER_EQUIPPED_SKILLS_MAGE,
+  calculateSkillOwnedStats,
+  calculateTotalSkillOwnedBonus,
+  calculateSkillPowerScore,
+  getSkillPiecesRequired,
+  getSkillUpgradeGoldCost,
+} from './data/skills';
 import { CLASS_CONFIGS, PROMOTION_REQUIREMENTS } from './data/classes';
 import { sound } from './utils/audio';
 
@@ -30,6 +48,7 @@ import { BottomNavigation } from './components/BottomNavigation';
 import { OfflineModal } from './components/OfflineModal';
 import { GachaModal } from './components/GachaModal';
 import { SettingsModal } from './components/SettingsModal';
+import { DeveloperTestModal } from './components/DeveloperTestModal';
 import { ClassSelectScreen } from './components/ClassSelectScreen';
 
 import { HeroPage } from './pages/HeroPage';
@@ -52,12 +71,14 @@ export const App: React.FC = () => {
   const [offlineReward, setOfflineReward] = useState<{ seconds: number; gold: number; exp: number } | null>(null);
   const [revealedItem, setRevealedItem] = useState<Equipment | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showDevModal, setShowDevModal] = useState(false);
   const [screenShake, setScreenShake] = useState<'none' | 'normal' | 'crit' | 'boss'>('none');
   const [isHitStop, setIsHitStop] = useState(false);
 
   // Unpack state variables
   const stats = saveData.stats;
   const stage = saveData.stage;
+
   const equipped = saveData.equipped;
   const inventory = saveData.inventory;
   const pets = saveData.pets;
@@ -142,6 +163,12 @@ export const App: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
+  const equipmentCatalog = useMemo(() => {
+    return saveData.equipmentCatalog && saveData.equipmentCatalog.length > 0
+      ? saveData.equipmentCatalog
+      : createDefaultEquipmentCatalog();
+  }, [saveData.equipmentCatalog]);
+
   // --- Compute Total Combat Stats with Gear, Class Multipliers & Pet Buffs ---
   const combatCalculations = useMemo(() => {
     let equipAtk = 0;
@@ -151,12 +178,15 @@ export const App: React.FC = () => {
 
     Object.values(equipped).forEach((item) => {
       if (item) {
-        equipAtk += item.atk;
-        equipHp += item.hp;
-        equipDef += item.def;
+        equipAtk += item.atk || 0;
+        equipHp += item.hp || 0;
+        equipDef += item.def || 0;
         equipCritRate += item.critRate || 0;
       }
     });
+
+    const equipOwnedBonus = calculateTotalEquipmentOwnedBonus(equipmentCatalog);
+    const skillOwnedBonus = calculateTotalSkillOwnedBonus(skills);
 
     let petAtkMult = 0;
     let petGoldMult = 0;
@@ -176,10 +206,14 @@ export const App: React.FC = () => {
     const classConf = CLASS_CONFIGS[classId];
     const isPromoted = promotion !== 'none';
 
-    // Base stat adjustments by class
-    const baseClassHp = (stats.baseHp + (stats.hpLevel - 1) * 35 + equipHp) * classConf.statBuffs.hpMult;
-    const baseClassDef = (stats.baseDef + (stats.defLevel - 1) * 2 + equipDef) * classConf.statBuffs.defMult;
-    const baseClassAtk = (stats.baseAtk + (stats.atkLevel - 1) * 4 + equipAtk) * classConf.statBuffs.atkMult;
+    // Layered Base stat adjustments by class (Zero double counting)
+    const rawHpBase = stats.baseHp + (stats.hpLevel - 1) * 35 + equipHp + equipOwnedBonus.ownedHp + skillOwnedBonus.ownedHp;
+    const rawDefBase = stats.baseDef + (stats.defLevel - 1) * 2 + equipDef + equipOwnedBonus.ownedDef + skillOwnedBonus.ownedDef;
+    const rawAtkBase = stats.baseAtk + (stats.atkLevel - 1) * 4 + equipAtk + equipOwnedBonus.ownedAtk + skillOwnedBonus.ownedAtk;
+
+    const baseClassHp = rawHpBase * classConf.statBuffs.hpMult;
+    const baseClassDef = rawDefBase * classConf.statBuffs.defMult;
+    const baseClassAtk = rawAtkBase * classConf.statBuffs.atkMult;
 
     // Promotion passive bonuses
     const promoAtkSpeed = isPromoted ? classConf.promotionBuffs.atkSpeedBonus : 0;
@@ -192,13 +226,13 @@ export const App: React.FC = () => {
     const totalDef = Math.floor(baseClassDef);
     const totalCritRate = Math.min(
       0.85,
-      stats.critRate + equipCritRate + petCritRateMult + classConf.statBuffs.critRateBonus + promoCritRate
+      stats.critRate + equipCritRate + (equipOwnedBonus.ownedCritRate / 100) + petCritRateMult + classConf.statBuffs.critRateBonus + promoCritRate
     );
-    const totalCritDmg = stats.critDmg + petCritDmgMult;
+    const totalCritDmg = stats.critDmg + (skillOwnedBonus.ownedCritDmg / 100) + petCritDmgMult;
     const totalAtkSpeed = stats.atkSpeed * (1 + petAtkSpeedMult + promoAtkSpeed);
 
     const combatPower = Math.floor(
-      totalAtk * 4.0 + totalMaxHp * 0.5 + totalDef * 3.0 + totalCritRate * 500
+      totalAtk * 4.0 + totalMaxHp * 0.5 + totalDef * 3.0 + totalCritRate * 500 + (totalCritDmg - 1.5) * 300
     );
 
     return {
@@ -212,8 +246,11 @@ export const App: React.FC = () => {
       petGoldMult,
       promoSkillDmg,
       promoCdReduction,
+      equipOwnedBonus,
+      skillOwnedBonus,
     };
-  }, [stats, equipped, activePet, classId, promotion]);
+  }, [stats, equipped, equipmentCatalog, skills, activePet, classId, promotion]);
+
 
   // Combat Power Growth Tracking & Floating Chip
   const prevCpRef = useRef(combatCalculations.combatPower);
@@ -370,7 +407,15 @@ export const App: React.FC = () => {
           newStage.highestStage = Math.max(newStage.highestStage, newStage.stage);
         }
 
-        const newInventory = droppedItem ? [droppedItem, ...prev.inventory] : prev.inventory;
+        let currentCatalog = prev.equipmentCatalog;
+        let currentEquipped = prev.equipped;
+        let goldSpentOnAuto = 0;
+        if (droppedItem) {
+          const res = processEquipmentAcquisition(droppedItem, prev);
+          currentCatalog = res.equipmentCatalog;
+          currentEquipped = res.equipped;
+          goldSpentOnAuto = res.goldSpent;
+        }
 
         // Charge Awakening Gauge on monster kill (+10%)
         const nextAwakening = prev.awakeningUnlocked ? Math.min(100, Math.round(((prev.awakeningGauge ?? 0) + 10) * 10) / 10) : 0;
@@ -378,17 +423,20 @@ export const App: React.FC = () => {
         return {
           ...prev,
           awakeningGauge: nextAwakening,
+          equipmentCatalog: currentCatalog,
+          equipped: currentEquipped,
           stats: {
             ...prev.stats,
-            gold: prev.stats.gold + earnedGold,
+            gold: prev.stats.gold + earnedGold - goldSpentOnAuto,
             exp: newExp,
             level: newLevel,
             maxExp: newMaxExp,
             currentHp: combatCalculations.totalMaxHp,
           },
-          inventory: newInventory,
+          inventory: prev.inventory,
           stage: newStage,
         };
+
       });
 
       const nextMon = getMonsterForStage(nextChapter, nextStageNum);
@@ -806,70 +854,224 @@ export const App: React.FC = () => {
     });
   };
 
+  // --- Unified Equipment Acquisition & Piece Processing ---
+  const processEquipmentAcquisition = (
+    item: Equipment,
+    prevData: GameSaveData
+  ): {
+    equipmentCatalog: Equipment[];
+    equipped: Partial<Record<EquipmentSlot, Equipment>>;
+    goldSpent: number;
+    toastMsg: string;
+    acquiredItem: Equipment;
+  } => {
+    let catalog = [
+      ...(prevData.equipmentCatalog && prevData.equipmentCatalog.length > 0
+        ? prevData.equipmentCatalog
+        : createDefaultEquipmentCatalog()),
+    ];
+    let newEquipped = { ...prevData.equipped };
+    let currentGold = prevData.stats.gold;
+    let goldSpent = 0;
+    let toast = '';
+
+    const targetIdx = catalog.findIndex((c) => c.type === item.type && c.rarity === item.rarity);
+    if (targetIdx !== -1) {
+      let catItem = { ...catalog[targetIdx] };
+      const pieceGain =
+        catItem.rarity === 'mythic' ? 1 : catItem.rarity === 'legendary' ? 2 : catItem.rarity === 'epic' ? 3 : 5;
+
+      if (!catItem.owned) {
+        catItem.owned = true;
+        catItem.pieces = 0;
+        toast = `✨ 신규 장비 [${catItem.name}] 획득! 도감 효과 해금!`;
+      } else {
+        catItem.pieces = (catItem.pieces || 0) + pieceGain;
+        toast = `🧩 [${catItem.name}] 조각 +${pieceGain}개 누적!`;
+      }
+
+      // Auto Upgrade Equip if toggle is ON
+      if (prevData.settings?.autoUpgradeEquip) {
+        let req = getEquipmentPiecesRequired(catItem.level, catItem.rarity);
+        let cost = getEquipmentUpgradeGoldCost(catItem.level, catItem.rarity);
+        let upgraded = false;
+        while (catItem.pieces >= req && currentGold >= cost) {
+          catItem.pieces -= req;
+          currentGold -= cost;
+          goldSpent += cost;
+          catItem.level += 1;
+          req = getEquipmentPiecesRequired(catItem.level, catItem.rarity);
+          cost = getEquipmentUpgradeGoldCost(catItem.level, catItem.rarity);
+          upgraded = true;
+        }
+        if (upgraded) {
+          catItem.piecesRequired = req;
+          toast += ` (Lv.${catItem.level} 자동 강화!)`;
+        }
+      }
+
+      // Smart Auto Equip if toggle is ON
+      if (prevData.settings?.autoEquipGear) {
+        const curEquipped = newEquipped[catItem.slot];
+        const score = (i: Equipment | undefined) => {
+          if (!i) return 0;
+          const eqStats = calculateEquipmentEquippedStats(i);
+          return eqStats.atk * 4 + eqStats.hp * 0.5 + eqStats.def * 3 + (eqStats.critRate || 0) * 400 + i.level * 10;
+        };
+
+        if (!curEquipped || score(catItem) > score(curEquipped)) {
+          catalog = catalog.map((c) => (c.slot === catItem.slot ? { ...c, equipped: false } : c));
+          catItem.equipped = true;
+          newEquipped[catItem.slot] = catItem;
+          toast += ` [자동 장착]`;
+        }
+      }
+
+      catalog[targetIdx] = catItem;
+      return {
+        equipmentCatalog: catalog,
+        equipped: newEquipped,
+        goldSpent,
+        toastMsg: toast,
+        acquiredItem: catItem,
+      };
+    }
+
+    return {
+      equipmentCatalog: catalog,
+      equipped: newEquipped,
+      goldSpent: 0,
+      toastMsg: `장비 획득: ${item.name}`,
+      acquiredItem: item,
+    };
+  };
+
   // --- Handlers: Equipment ---
   const handleEquip = (item: Equipment) => {
     setSaveData((prev) => {
-      const prevEquipped = prev.equipped[item.slot];
-      const newInventory = prev.inventory.filter((i) => i.id !== item.id);
-      if (prevEquipped) {
-        newInventory.unshift(prevEquipped);
-      }
+      const catalog = [
+        ...(prev.equipmentCatalog && prev.equipmentCatalog.length > 0
+          ? prev.equipmentCatalog
+          : createDefaultEquipmentCatalog()),
+      ].map((c) => {
+        if (c.slot === item.slot) {
+          return { ...c, equipped: c.id === item.id };
+        }
+        return c;
+      });
+
+      const updatedItem = catalog.find((c) => c.id === item.id) || { ...item, equipped: true };
 
       progressQuest('equip_item', 1);
 
       return {
         ...prev,
+        equipmentCatalog: catalog,
         equipped: {
           ...prev.equipped,
-          [item.slot]: item,
+          [item.slot]: updatedItem,
         },
-        inventory: newInventory,
       };
     });
   };
 
   const handleUnequip = (slot: EquipmentSlot) => {
     setSaveData((prev) => {
-      const item = prev.equipped[slot];
-      if (!item) return prev;
+      const catalog = (prev.equipmentCatalog || createDefaultEquipmentCatalog()).map((c) =>
+        c.slot === slot ? { ...c, equipped: false } : c
+      );
       return {
         ...prev,
+        equipmentCatalog: catalog,
         equipped: {
           ...prev.equipped,
           [slot]: undefined,
         },
-        inventory: [item, ...prev.inventory],
       };
     });
   };
 
-  const handleUpgradeItem = (itemId: string, cost: number) => {
+  const handleUpgradeItem = (itemId: string) => {
     setSaveData((prev) => {
-      if (prev.stats.gold < cost) return prev;
+      const catalog = [...(prev.equipmentCatalog || createDefaultEquipmentCatalog())];
+      const idx = catalog.findIndex((i) => i.id === itemId);
+      if (idx === -1) return prev;
 
-      const upgradeFn = (item: Equipment) => ({
-        ...item,
-        level: item.level + 1,
-        atk: item.atk > 0 ? Math.floor(item.atk * 1.15) + 2 : 0,
-        hp: item.hp > 0 ? Math.floor(item.hp * 1.15) + 15 : 0,
-        def: item.def > 0 ? Math.floor(item.def * 1.15) + 2 : 0,
-      });
+      const item = { ...catalog[idx] };
+      const req = getEquipmentPiecesRequired(item.level, item.rarity);
+      const cost = getEquipmentUpgradeGoldCost(item.level, item.rarity);
+
+      if (item.pieces < req || prev.stats.gold < cost) return prev;
+
+      item.pieces -= req;
+      item.level += 1;
+      item.piecesRequired = getEquipmentPiecesRequired(item.level, item.rarity);
+      catalog[idx] = item;
 
       const newEquipped = { ...prev.equipped };
-      for (const slot of ['weapon', 'helmet', 'armor', 'accessory'] as EquipmentSlot[]) {
-        if (newEquipped[slot]?.id === itemId) {
-          newEquipped[slot] = upgradeFn(newEquipped[slot]!);
-        }
+      if (item.equipped) {
+        newEquipped[item.slot] = item;
       }
-
-      const newInv = prev.inventory.map((item) => (item.id === itemId ? upgradeFn(item) : item));
 
       return {
         ...prev,
         stats: { ...prev.stats, gold: prev.stats.gold - cost },
+        equipmentCatalog: catalog,
         equipped: newEquipped,
-        inventory: newInv,
       };
+    });
+  };
+
+
+  const handleBatchUpgradeEquip = () => {
+    sound.playFanfare();
+    confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+
+    setSaveData((prev) => {
+      let catalog = [...(prev.equipmentCatalog || createDefaultEquipmentCatalog())];
+      let currentGold = prev.stats.gold;
+      let totalUpgrades = 0;
+
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (let i = 0; i < catalog.length; i++) {
+          const item = catalog[i];
+          if (!item.owned) continue;
+          const req = getEquipmentPiecesRequired(item.level, item.rarity);
+          const cost = getEquipmentUpgradeGoldCost(item.level, item.rarity);
+          if (item.pieces >= req && currentGold >= cost) {
+            catalog[i] = {
+              ...item,
+              level: item.level + 1,
+              pieces: item.pieces - req,
+              piecesRequired: getEquipmentPiecesRequired(item.level + 1, item.rarity),
+            };
+            currentGold -= cost;
+            totalUpgrades++;
+            changed = true;
+          }
+        }
+      }
+
+      if (totalUpgrades > 0) {
+        const newEquipped = { ...prev.equipped };
+        (['weapon', 'helmet', 'armor', 'accessory'] as EquipmentSlot[]).forEach((slot) => {
+          const eqItem = catalog.find((c) => c.type === slot && c.equipped);
+          if (eqItem) newEquipped[slot] = eqItem;
+        });
+
+        setStageNotice(`⚔️ 장비 일괄 강화 완료! 총 ${totalUpgrades}회 레벨업`);
+        setTimeout(() => setStageNotice(null), 1600);
+
+        return {
+          ...prev,
+          stats: { ...prev.stats, gold: currentGold },
+          equipmentCatalog: catalog,
+          equipped: newEquipped,
+        };
+      }
+      return prev;
     });
   };
 
@@ -878,32 +1080,33 @@ export const App: React.FC = () => {
     confetti({ particleCount: 40, spread: 55, origin: { y: 0.6 } });
 
     setSaveData((prev) => {
-      const slots: EquipmentSlot[] = ['weapon', 'helmet', 'armor', 'accessory'];
+      let catalog = [...(prev.equipmentCatalog || createDefaultEquipmentCatalog())];
       const newEquipped = { ...prev.equipped };
-      let newInventory = [...prev.inventory];
+      const slots: EquipmentSlot[] = ['weapon', 'helmet', 'armor', 'accessory'];
 
       slots.forEach((slot) => {
-        const candidates = newInventory.filter((i) => i.slot === slot);
-        if (candidates.length === 0) return;
+        const ownedItems = catalog.filter((item) => item.type === slot && item.owned);
+        if (ownedItems.length === 0) return;
 
-        const score = (i: Equipment) => i.atk * 4 + i.hp * 0.5 + i.def * 3 + (i.critRate || 0) * 400;
-        candidates.sort((a, b) => score(b) - score(a));
-        const bestItem = candidates[0];
+        const score = (i: Equipment) => {
+          const stats = calculateEquipmentEquippedStats(i);
+          return stats.atk * 4 + stats.hp * 0.5 + stats.def * 3 + (stats.critRate || 0) * 400 + i.level * 10;
+        };
 
-        const currentSlotItem = newEquipped[slot];
-        if (!currentSlotItem || score(bestItem) > score(currentSlotItem)) {
-          newInventory = newInventory.filter((i) => i.id !== bestItem.id);
-          if (currentSlotItem) {
-            newInventory.push(currentSlotItem);
-          }
-          newEquipped[slot] = bestItem;
-        }
+        ownedItems.sort((a, b) => score(b) - score(a));
+        const best = ownedItems[0];
+
+        catalog = catalog.map((c) => (c.type === slot ? { ...c, equipped: c.id === best.id } : c));
+        newEquipped[slot] = { ...best, equipped: true };
       });
+
+      setStageNotice('⚔️ 최고 장비 일괄 장착 완료!');
+      setTimeout(() => setStageNotice(null), 1600);
 
       return {
         ...prev,
+        equipmentCatalog: catalog,
         equipped: newEquipped,
-        inventory: newInventory,
       };
     });
   };
@@ -945,33 +1148,73 @@ export const App: React.FC = () => {
 
   // --- Handlers: Shop Chests ---
   const handleOpenFreeChest = () => {
-    const item = generateRandomEquipment('common');
-    setRevealedItem(item);
-    setSaveData((prev) => ({
-      ...prev,
-      freeChestLastOpened: Date.now(),
-      inventory: [item, ...prev.inventory],
-    }));
+    const rawItem = generateRandomEquipment('common');
+    setSaveData((prev) => {
+      const res = processEquipmentAcquisition(rawItem, prev);
+      setRevealedItem(res.acquiredItem);
+      if (res.toastMsg) {
+        setStageNotice(res.toastMsg);
+        setTimeout(() => setStageNotice(null), 1600);
+      }
+      return {
+        ...prev,
+        freeChestLastOpened: Date.now(),
+        equipmentCatalog: res.equipmentCatalog,
+        equipped: res.equipped,
+        stats: {
+          ...prev.stats,
+          gold: prev.stats.gold - res.goldSpent,
+        },
+      };
+    });
   };
 
   const handleOpenGoldChest = (cost: number) => {
-    const item = generateRandomEquipment();
-    setRevealedItem(item);
-    setSaveData((prev) => ({
-      ...prev,
-      stats: { ...prev.stats, gold: prev.stats.gold - cost },
-      inventory: [item, ...prev.inventory],
-    }));
+    const rawItem = generateRandomEquipment();
+    setSaveData((prev) => {
+      if (prev.stats.gold < cost) return prev;
+      const res = processEquipmentAcquisition(rawItem, {
+        ...prev,
+        stats: { ...prev.stats, gold: prev.stats.gold - cost },
+      });
+      setRevealedItem(res.acquiredItem);
+      if (res.toastMsg) {
+        setStageNotice(res.toastMsg);
+        setTimeout(() => setStageNotice(null), 1600);
+      }
+      return {
+        ...prev,
+        equipmentCatalog: res.equipmentCatalog,
+        equipped: res.equipped,
+        stats: {
+          ...prev.stats,
+          gold: prev.stats.gold - cost - res.goldSpent,
+        },
+      };
+    });
   };
 
   const handleOpenGemChest = (cost: number) => {
-    const item = generateRandomEquipment(Math.random() < 0.6 ? 'rare' : 'epic');
-    setRevealedItem(item);
-    setSaveData((prev) => ({
-      ...prev,
-      stats: { ...prev.stats, gems: prev.stats.gems - cost },
-      inventory: [item, ...prev.inventory],
-    }));
+    const rawItem = generateRandomEquipment(Math.random() < 0.6 ? 'rare' : 'epic');
+    setSaveData((prev) => {
+      if (prev.stats.gems < cost) return prev;
+      const res = processEquipmentAcquisition(rawItem, prev);
+      setRevealedItem(res.acquiredItem);
+      if (res.toastMsg) {
+        setStageNotice(res.toastMsg);
+        setTimeout(() => setStageNotice(null), 1600);
+      }
+      return {
+        ...prev,
+        equipmentCatalog: res.equipmentCatalog,
+        equipped: res.equipped,
+        stats: {
+          ...prev.stats,
+          gems: prev.stats.gems - cost,
+          gold: prev.stats.gold - res.goldSpent,
+        },
+      };
+    });
   };
 
   const handleBuyGemsWithGold = (goldCost: number, gemGain: number) => {
@@ -996,7 +1239,6 @@ export const App: React.FC = () => {
       if (skillId === null) {
         currentEquipped[slotIndex] = null;
       } else {
-        // If skill was equipped in another slot, unequip it from that slot first
         for (let i = 0; i < currentEquipped.length; i++) {
           if (currentEquipped[i] === skillId) {
             currentEquipped[i] = null;
@@ -1015,12 +1257,14 @@ export const App: React.FC = () => {
     setSaveData((prev) => {
       const currentSkills = prev.skills ?? INITIAL_SKILLS;
       const updated = currentSkills.map((sk) => {
-        if (sk.id === skillId && sk.pieces >= sk.piecesRequired) {
+        const req = sk.piecesRequired || getSkillPiecesRequired(sk);
+        if (sk.id === skillId && sk.pieces >= req) {
+          const nextLvl = sk.level + 1;
           return {
             ...sk,
-            level: sk.level + 1,
-            pieces: sk.pieces - sk.piecesRequired,
-            piecesRequired: Math.floor(sk.piecesRequired * 1.5),
+            level: nextLvl,
+            pieces: sk.pieces - req,
+            piecesRequired: getSkillPiecesRequired({ ...sk, level: nextLvl }),
             baseDamageMult: Number((sk.baseDamageMult + sk.damageMultPerLevel).toFixed(2)),
           };
         }
@@ -1029,6 +1273,78 @@ export const App: React.FC = () => {
       return {
         ...prev,
         skills: updated,
+      };
+    });
+  };
+
+  const handleBatchUpgradeSkills = () => {
+    sound.playFanfare();
+    confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+
+    setSaveData((prev) => {
+      let currentSkills = [...(prev.skills || INITIAL_SKILLS)];
+      let totalUpgrades = 0;
+
+      currentSkills = currentSkills.map((sk) => {
+        if (!sk.owned) return sk;
+        let lvl = sk.level;
+        let pcs = sk.pieces;
+        let req = sk.piecesRequired || getSkillPiecesRequired(sk);
+
+        while (pcs >= req) {
+          pcs -= req;
+          lvl += 1;
+          req = getSkillPiecesRequired({ ...sk, level: lvl });
+          totalUpgrades++;
+        }
+
+        return {
+          ...sk,
+          level: lvl,
+          pieces: pcs,
+          piecesRequired: req,
+          baseDamageMult: Number((sk.baseDamageMult + (lvl - sk.level) * sk.damageMultPerLevel).toFixed(2)),
+        };
+      });
+
+      if (totalUpgrades > 0) {
+        setStageNotice(`✨ 스킬 일괄 강화 완료! 총 ${totalUpgrades}회 레벨업`);
+        setTimeout(() => setStageNotice(null), 1600);
+
+        return {
+          ...prev,
+          skills: currentSkills,
+        };
+      }
+      return prev;
+    });
+  };
+
+  const handleAutoEquipSkills = () => {
+    sound.playFanfare();
+    confetti({ particleCount: 40, spread: 55, origin: { y: 0.6 } });
+
+    setSaveData((prev) => {
+      const activeClass = prev.classId || 'warrior';
+      const available = (prev.skills || INITIAL_SKILLS).filter(
+        (s) => s.classId === activeClass && !s.isAwakening && s.owned
+      );
+
+      available.sort((a, b) => calculateSkillPowerScore(b) - calculateSkillPowerScore(a));
+
+      const newEquipped = [
+        available[0]?.id || null,
+        available[1]?.id || null,
+        available[2]?.id || null,
+        available[3]?.id || null,
+      ];
+
+      setStageNotice(`⚡ ${activeClass === 'warrior' ? '전사' : '마법사'} 최적 DPS 스킬이 자동 장착되었습니다!`);
+      setTimeout(() => setStageNotice(null), 1600);
+
+      return {
+        ...prev,
+        equippedSkillIds: newEquipped,
       };
     });
   };
@@ -1054,20 +1370,48 @@ export const App: React.FC = () => {
 
         updatedSkills = updatedSkills.map((sk) => {
           if (sk.id === randomId) {
+            let nextLvl = sk.level;
+            let nextPieces = (sk.pieces || 0) + pieceGain;
+            let nextReq = sk.piecesRequired || getSkillPiecesRequired(sk);
+
+            // Auto Upgrade Skills if enabled
+            if (prev.settings?.autoUpgradeSkills) {
+              while (nextPieces >= nextReq) {
+                nextPieces -= nextReq;
+                nextLvl += 1;
+                nextReq = getSkillPiecesRequired({ ...sk, level: nextLvl });
+              }
+            }
+
             return {
               ...sk,
               owned: true,
-              unlocked: true,
-              pieces: sk.pieces + pieceGain,
+              level: nextLvl,
+              pieces: nextPieces,
+              piecesRequired: nextReq,
+              baseDamageMult: Number((sk.baseDamageMult + (nextLvl - sk.level) * sk.damageMultPerLevel).toFixed(2)),
             };
           }
           return sk;
         });
       }
 
+      // Auto Equip Skills if enabled
+      let newEquipped = prev.equippedSkillIds ?? STARTER_EQUIPPED_SKILLS;
+      if (prev.settings?.autoEquipSkills) {
+        const available = updatedSkills.filter((s) => s.classId === curClass && !s.isAwakening && s.owned);
+        available.sort((a, b) => calculateSkillPowerScore(b) - calculateSkillPowerScore(a));
+        newEquipped = [
+          available[0]?.id || null,
+          available[1]?.id || null,
+          available[2]?.id || null,
+          available[3]?.id || null,
+        ];
+      }
+
       setStageNotice(
         count === 1
-          ? `🔮 ${curClass === 'warrior' ? '전사' : '마법사'} 스킬 비급서 조각 획득!`
+          ? `🔮 ${curClass === 'warrior' ? '전사' : '마법사'} 스킬 비급서 획득!`
           : `🔮 ${curClass === 'warrior' ? '전사' : '마법사'} 스킬 비급서 10연속 소환 완료!`
       );
       setTimeout(() => setStageNotice(null), 1500);
@@ -1079,12 +1423,14 @@ export const App: React.FC = () => {
           gems: prev.stats.gems - cost,
         },
         skills: updatedSkills,
+        equippedSkillIds: newEquipped,
       };
     });
   };
 
   // --- Handlers: Quests ---
   const activeQuest = quests.find((q) => !q.claimed) || null;
+
 
   // Ensure cyclical repeating quest if all existing quests were claimed
   useEffect(() => {
@@ -1388,6 +1734,10 @@ export const App: React.FC = () => {
             equippedSkillIds={equippedSkillIds}
             onEquipSkill={handleEquipSkill}
             onUpgradeSkill={handleUpgradeSkill}
+            onBatchUpgradeSkills={handleBatchUpgradeSkills}
+            onAutoEquipSkills={handleAutoEquipSkills}
+            equipmentOwnedBonus={combatCalculations.equipOwnedBonus}
+            skillOwnedBonus={combatCalculations.skillOwnedBonus}
             classId={classId}
             promotion={promotion}
             awakeningUnlocked={awakeningUnlocked}
@@ -1401,13 +1751,13 @@ export const App: React.FC = () => {
 
         {activeTab === 'equipment' && (
           <EquipmentPage
+            equipmentCatalog={equipmentCatalog}
             equipped={equipped}
-            inventory={inventory}
             gold={stats.gold}
             combatPower={combatCalculations.combatPower}
             onEquip={handleEquip}
-            onUnequip={handleUnequip}
             onUpgradeItem={handleUpgradeItem}
+            onBatchUpgrade={handleBatchUpgradeEquip}
             onAutoEquip={handleAutoEquip}
             onClose={() => setActiveTab('adventure')}
           />
@@ -1487,9 +1837,25 @@ export const App: React.FC = () => {
             }
           }}
           onResetData={handleResetData}
+          onOpenDevModal={() => {
+            setShowSettings(false);
+            setShowDevModal(true);
+          }}
           onClose={() => setShowSettings(false)}
+        />
+      )}
+
+      {showDevModal && (
+        <DeveloperTestModal
+          isOpen={showDevModal}
+          onClose={() => setShowDevModal(false)}
+          saveData={saveData}
+          onUpdateSaveData={(updater) => setSaveData(updater)}
+          onResetSave={handleResetData}
+          onTriggerBoss={handleChallengeBoss}
         />
       )}
     </div>
   );
 };
+
