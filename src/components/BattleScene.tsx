@@ -9,6 +9,8 @@ import {
   Skill,
   SkillEffectType,
   Quest,
+  CharacterClassId,
+  PromotionId,
 } from '../types/game';
 import { RARITY_CONFIGS } from '../data/equipment';
 import { PlayerCharacter } from './PlayerCharacter';
@@ -17,7 +19,7 @@ import { PetCompanion } from './PetCompanion';
 import { DamageNumbers } from './DamageNumbers';
 import { SkillVfxLayer } from './SkillVfxLayer';
 import { SkillStatusHUD } from './SkillStatusHUD';
-import { Swords, Skull, Flame, ScrollText, Compass, CheckCircle2 } from 'lucide-react';
+import { Swords, Skull, Flame } from 'lucide-react';
 
 export interface FloatingGoldDrop {
   id: string;
@@ -57,6 +59,14 @@ interface BattleSceneProps {
   castingSkillId?: string | null;
   activeQuest?: Quest | null;
   onClaimQuest?: (questId: string) => void;
+  classId?: CharacterClassId;
+  promotion?: PromotionId;
+  isCasting?: boolean;
+  castingSkillType?: SkillEffectType | null;
+  isAwakeningCasting?: boolean;
+  awakeningUnlocked?: boolean;
+  awakeningGauge?: number;
+  awakeningSkill?: Skill | null;
 }
 
 export const BattleScene: React.FC<BattleSceneProps> = ({
@@ -87,6 +97,14 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
   castingSkillId,
   activeQuest,
   onClaimQuest,
+  classId = 'warrior',
+  promotion = 'none',
+  isCasting = false,
+  castingSkillType = null,
+  isAwakeningCasting = false,
+  awakeningUnlocked = false,
+  awakeningGauge = 0,
+  awakeningSkill = null,
 }) => {
   const isBossFight = stage.stage === 10 && stage.inBossFight;
 
@@ -165,82 +183,15 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
       )}
 
       {/* 🔮 Layer 5.8: Skill Visual Effects Layer */}
-      <SkillVfxLayer activeSkillVfx={activeSkillVfx ?? null} />
-
-      {/* 📜 PC Left Panel: Active Quest Tracker (PC Desktop Only) */}
-      <div className="pc-side-panel pc-left-panel">
-        <div className="pc-panel-header">
-          <ScrollText size={15} color="#f59e0b" />
-          <span>모험 임무</span>
-        </div>
-        {activeQuest ? (
-          <div className="pc-quest-card">
-            <div className="pc-quest-title">{activeQuest.title}</div>
-            <div className="pc-quest-progress-track">
-              <div
-                className="pc-quest-progress-fill"
-                style={{
-                  width: `${Math.min(100, Math.round((activeQuest.currentCount / activeQuest.targetCount) * 100))}%`,
-                }}
-              />
-            </div>
-            <div className="pc-quest-count">
-              진행도: {activeQuest.currentCount} / {activeQuest.targetCount}
-            </div>
-            <div className="pc-quest-rewards">
-              <span className="pc-reward-chip">🪙 +{activeQuest.rewardGold.toLocaleString()}</span>
-              <span className="pc-reward-chip pc-gem-chip">💎 +{activeQuest.rewardGems}</span>
-            </div>
-            {activeQuest.completed && !activeQuest.claimed && onClaimQuest && (
-              <button
-                className="pc-quest-claim-btn"
-                onClick={() => onClaimQuest(activeQuest.id)}
-              >
-                <CheckCircle2 size={13} />
-                <span>보상 수령</span>
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="pc-quest-empty">진행 중인 임무가 없습니다</div>
-        )}
-      </div>
-
-      {/* 🗺️ PC Right Panel: Stage & Monster Preview (PC Desktop Only) */}
-      <div className="pc-side-panel pc-right-panel">
-        <div className="pc-panel-header">
-          <Compass size={15} color="#38bdf8" />
-          <span>전장 정보</span>
-        </div>
-        <div className="pc-stage-card">
-          <div className="pc-stage-badge">
-            CHAPTER {stage.chapter} - STAGE {stage.stage}
-          </div>
-          <div className="pc-mon-info">
-            <div className="pc-mon-name">{monster.name}</div>
-            <div className="pc-mon-stat-row">
-              <span className="mon-stat-label">체력</span>
-              <span className="mon-stat-val">{monster.maxHp.toLocaleString()}</span>
-            </div>
-            <div className="pc-mon-stat-row">
-              <span className="mon-stat-label">공격력</span>
-              <span className="mon-stat-val">{monster.atk.toLocaleString()}</span>
-            </div>
-          </div>
-          <div className="pc-drop-preview">
-            <span className="drop-title">드랍 정보</span>
-            <div className="drop-pills-row">
-              <span className="drop-pill">🪙 {monster.goldReward.toLocaleString()}</span>
-              <span className="drop-pill">⭐ EXP {monster.expReward}</span>
-              <span className="drop-pill equip-pill">🎁 장비 18%</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <SkillVfxLayer
+        activeSkillVfx={activeSkillVfx ?? null}
+        isAwakeningCasting={isAwakeningCasting}
+        classId={classId}
+      />
 
       {/* ⚔️ Main Combat Arena Stage */}
       <div className={`combat-arena-stage ${screenShake && screenShake !== 'none' ? `shake-${screenShake}` : ''}`}>
-        {/* Left Side: Adventurer Knight & Companion Pet */}
+        {/* Left Side: Adventurer Hero & Companion Pet */}
         <div className="combatant-slot hero-slot">
           <PlayerCharacter
             stats={stats}
@@ -251,6 +202,11 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
             equippedWeapon={equippedWeapon}
             isHitStop={isHitStop}
             damages={damages.filter((d) => d.isPlayer)}
+            classId={classId}
+            promotion={promotion}
+            isCasting={isCasting}
+            castingSkillType={castingSkillType}
+            isAwakeningCasting={isAwakeningCasting}
           />
           <PetCompanion pet={activePet} />
         </div>
@@ -290,6 +246,11 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         equippedSkillIds={equippedSkillIds ?? []}
         skillCooldowns={skillCooldowns ?? {}}
         castingSkillId={castingSkillId}
+        awakeningUnlocked={awakeningUnlocked}
+        awakeningGauge={awakeningGauge}
+        isAwakeningCasting={isAwakeningCasting}
+        promotion={promotion}
+        awakeningSkill={awakeningSkill}
       />
 
       {/* Floating Bottom Status / Boss Trigger Overlay */}
@@ -826,184 +787,6 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
 
           .enemy-slot {
             width: clamp(210px, 19vw, 310px);
-          }
-
-          .pc-side-panel {
-            display: flex;
-            flex-direction: column;
-            position: absolute;
-            top: 76px;
-            width: clamp(200px, 16vw, 260px);
-            background: rgba(15, 23, 42, 0.88);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 14px;
-            padding: 12px 14px;
-            z-index: 15;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-            gap: 10px;
-          }
-
-          .pc-left-panel {
-            left: clamp(16px, 2.5vw, 48px);
-            border-left: 3px solid #f59e0b;
-          }
-
-          .pc-right-panel {
-            right: clamp(16px, 2.5vw, 48px);
-            border-right: 3px solid #38bdf8;
-          }
-
-          .pc-panel-header {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 12px;
-            font-weight: 800;
-            color: #f8fafc;
-            padding-bottom: 6px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-          }
-
-          .pc-quest-card, .pc-stage-card {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-          }
-
-          .pc-quest-title {
-            font-size: 11px;
-            font-weight: 700;
-            color: #fef08a;
-            line-height: 1.3;
-          }
-
-          .pc-quest-progress-track {
-            position: relative;
-            width: 100%;
-            height: 6px;
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 9999px;
-            overflow: hidden;
-          }
-
-          .pc-quest-progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #f59e0b, #fbbf24);
-            border-radius: 9999px;
-            transition: width 0.3s ease;
-          }
-
-          .pc-quest-count {
-            font-size: 10px;
-            color: #94a3b8;
-            font-weight: 600;
-            text-align: right;
-          }
-
-          .pc-quest-rewards {
-            display: flex;
-            gap: 6px;
-          }
-
-          .pc-reward-chip {
-            font-size: 10px;
-            font-weight: 800;
-            padding: 2px 6px;
-            border-radius: 6px;
-            background: rgba(234, 179, 8, 0.15);
-            color: #fde047;
-          }
-
-          .pc-gem-chip {
-            background: rgba(56, 189, 248, 0.15);
-            color: #38bdf8;
-          }
-
-          .pc-quest-claim-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-            padding: 6px 10px;
-            background: linear-gradient(135deg, #10b981, #059669);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 8px;
-            color: #fff;
-            font-size: 11px;
-            font-weight: 800;
-            cursor: pointer;
-            margin-top: 4px;
-          }
-
-          .pc-quest-empty {
-            font-size: 11px;
-            color: #64748b;
-            text-align: center;
-            padding: 8px 0;
-          }
-
-          .pc-stage-badge {
-            font-size: 11px;
-            font-weight: 800;
-            color: #38bdf8;
-            letter-spacing: 0.5px;
-          }
-
-          .pc-mon-info {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-            background: rgba(0, 0, 0, 0.25);
-            padding: 6px 8px;
-            border-radius: 8px;
-          }
-
-          .pc-mon-name {
-            font-size: 12px;
-            font-weight: 800;
-            color: #f8fafc;
-          }
-
-          .pc-mon-stat-row {
-            display: flex;
-            justify-content: space-between;
-            font-size: 10px;
-          }
-
-          .mon-stat-label { color: #94a3b8; }
-          .mon-stat-val { color: #cbd5e1; font-weight: 700; }
-
-          .pc-drop-preview {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-          }
-
-          .drop-title {
-            font-size: 10px;
-            font-weight: 700;
-            color: #94a3b8;
-          }
-
-          .drop-pills-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 4px;
-          }
-
-          .drop-pill {
-            font-size: 9px;
-            font-weight: 700;
-            padding: 2px 5px;
-            border-radius: 4px;
-            background: rgba(255, 255, 255, 0.08);
-            color: #cbd5e1;
-          }
-
-          .equip-pill {
-            background: rgba(245, 158, 11, 0.18);
-            color: #fef08a;
           }
 
           .battle-bottom-floating-bar {

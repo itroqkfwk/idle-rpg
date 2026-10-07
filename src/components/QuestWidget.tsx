@@ -1,6 +1,6 @@
 import React from 'react';
 import { Quest } from '../types/game';
-import { Scroll, Sparkles } from 'lucide-react';
+import { Scroll, Sparkles, CheckCircle2 } from 'lucide-react';
 
 interface QuestWidgetProps {
   quest: Quest | null;
@@ -15,7 +15,8 @@ export const QuestWidget: React.FC<QuestWidgetProps> = ({ quest, onClaim }) => {
 
   return (
     <div className={`floating-quest-card ${isReady ? 'quest-ready-glow' : ''}`}>
-      <div className="quest-content-row">
+      {/* Mobile Single Row View */}
+      <div className="quest-mobile-view">
         <div className="quest-icon-bubble">
           <Scroll size={13} color="#f59e0b" />
         </div>
@@ -44,6 +45,36 @@ export const QuestWidget: React.FC<QuestWidgetProps> = ({ quest, onClaim }) => {
         )}
       </div>
 
+      {/* PC Compact Card View (Rendered via CSS on >= 768px) */}
+      <div className="quest-pc-view">
+        <div className="quest-pc-top">
+          <div className="quest-pc-header-left">
+            <Scroll size={13} color="#f59e0b" />
+            <span className="quest-pc-title">{quest.title}</span>
+          </div>
+          <span className="quest-pc-count">
+            {quest.currentCount} / {quest.targetCount}
+          </span>
+        </div>
+
+        <div className="quest-mini-progress pc-progress-track">
+          <div className="quest-mini-fill" style={{ width: `${percent}%` }} />
+        </div>
+
+        <div className="quest-pc-footer">
+          <div className="quest-pc-rewards">
+            <span className="quest-reward-chip">🪙 +{quest.rewardGold.toLocaleString()}</span>
+            <span className="quest-reward-chip gem-chip">💎 +{quest.rewardGems}</span>
+          </div>
+          {isReady && (
+            <button className="quest-pc-claim-btn" onClick={() => onClaim(quest.id)}>
+              <CheckCircle2 size={12} />
+              <span>보상 수령</span>
+            </button>
+          )}
+        </div>
+      </div>
+
       <style>{`
         .floating-quest-card {
           position: absolute;
@@ -52,7 +83,7 @@ export const QuestWidget: React.FC<QuestWidgetProps> = ({ quest, onClaim }) => {
           right: 14px;
           z-index: 30;
           height: 34px;
-          background: rgba(15, 23, 42, 0.68);
+          background: rgba(15, 23, 42, 0.72);
           backdrop-filter: blur(10px);
           border: 1px solid rgba(255, 255, 255, 0.14);
           border-radius: 9999px;
@@ -76,10 +107,15 @@ export const QuestWidget: React.FC<QuestWidgetProps> = ({ quest, onClaim }) => {
           to { border-color: rgba(245, 158, 11, 0.9); }
         }
 
-        .quest-content-row {
+        .quest-mobile-view {
           display: flex;
           align-items: center;
           gap: 8px;
+          width: 100%;
+        }
+
+        .quest-pc-view {
+          display: none;
         }
 
         .quest-icon-bubble {
@@ -170,20 +206,114 @@ export const QuestWidget: React.FC<QuestWidgetProps> = ({ quest, onClaim }) => {
           transform: scale(0.94);
         }
 
-        .quest-reward-preview-pill {
-          display: flex;
-          flex-direction: column;
-          align-items: flex-end;
-          gap: 1px;
-          font-size: 9px;
-          font-weight: 700;
-          color: #cbd5e1;
-        }
-
-        /* 🖥️ PC Responsive Layout (width >= 768px): Handled by PC Left Side Panel in BattleScene */
+        /* 🖥️ PC Responsive Layout (width >= 768px): Compact HUD in bottom-left above Bottom Nav */
         @media (min-width: 768px) {
           .floating-quest-card {
+            position: fixed;
+            top: auto;
+            bottom: 84px;
+            left: clamp(24px, 3.5vw, 44px);
+            right: auto;
+            width: clamp(230px, 18vw, 280px);
+            height: clamp(62px, 7.8vh, 76px);
+            border-radius: 14px;
+            padding: 8px 12px;
+            background: rgba(11, 18, 33, 0.88);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+            display: flex;
+            align-items: stretch;
+          }
+
+          .quest-mobile-view {
             display: none;
+          }
+
+          .quest-pc-view {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            width: 100%;
+          }
+
+          .quest-pc-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+          }
+
+          .quest-pc-header-left {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
+          }
+
+          .quest-pc-title {
+            font-size: 11px;
+            font-weight: 800;
+            color: #f1f5f9;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+
+          .quest-pc-count {
+            font-size: 10px;
+            font-weight: 800;
+            color: #94a3b8;
+            flex-shrink: 0;
+          }
+
+          .pc-progress-track {
+            height: 4px;
+            margin: 4px 0;
+          }
+
+          .quest-pc-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+          }
+
+          .quest-pc-rewards {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+          }
+
+          .quest-reward-chip {
+            font-size: 9px;
+            font-weight: 800;
+            color: #fef08a;
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 9999px;
+            padding: 1px 6px;
+          }
+
+          .gem-chip {
+            color: #67e8f9;
+            background: rgba(56, 189, 248, 0.15);
+            border-color: rgba(56, 189, 248, 0.3);
+          }
+
+          .quest-pc-claim-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 9999px;
+            color: #ffffff;
+            font-size: 10px;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.5);
+            animation: claimBounce 1.5s infinite;
           }
         }
       `}</style>

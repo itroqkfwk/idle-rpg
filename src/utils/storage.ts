@@ -48,6 +48,11 @@ export function getDefaultSaveData(): GameSaveData {
   return {
     version: 1,
     lastOnlineTime: Date.now(),
+    classId: 'warrior',
+    promotion: 'none',
+    awakeningUnlocked: false,
+    awakeningGauge: 0,
+    promotionSeals: 1,
     stats: initialStats,
     equipped: { ...STARTER_EQUIPMENT },
     inventory: [],
@@ -81,6 +86,21 @@ export function loadGameData(): { data: GameSaveData; offlineSeconds: number } {
       ...parsed,
       lastOnlineTime: now,
     };
+    if (!mergedData.classId) {
+      mergedData.classId = 'warrior';
+    }
+    if (!mergedData.promotion) {
+      mergedData.promotion = 'none';
+    }
+    if (mergedData.awakeningUnlocked === undefined) {
+      mergedData.awakeningUnlocked = false;
+    }
+    if (mergedData.awakeningGauge === undefined) {
+      mergedData.awakeningGauge = 0;
+    }
+    if (mergedData.promotionSeals === undefined) {
+      mergedData.promotionSeals = 1;
+    }
     if (!mergedData.activePetId || !mergedData.pets?.some((p) => p.id === mergedData.activePetId)) {
       mergedData.activePetId = 'pet_fox';
     }
@@ -88,7 +108,7 @@ export function loadGameData(): { data: GameSaveData; offlineSeconds: number } {
       mergedData.pets = mergedData.pets.map((p) => (p.id === 'pet_fox' ? { ...p, owned: true } : p));
     }
 
-    // Migrate skills
+    // Migrate skills (merge with new skills pool)
     const baseSkills = INITIAL_SKILLS.map((initS) => {
       const saved = parsed.skills?.find((s) => s.id === initS.id);
       return saved ? { ...initS, ...saved } : { ...initS };

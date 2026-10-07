@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Gift, Sparkles, Gem, Clock, X, Store, Wand2 } from 'lucide-react';
+import { CharacterClassId } from '../types/game';
 import { sound } from '../utils/audio';
 
 interface ShopPageProps {
@@ -12,6 +13,7 @@ interface ShopPageProps {
   onBuyGemsWithGold: (goldCost: number, gemGain: number) => void;
   onSummonSkill?: (count: 1 | 10) => void;
   onClose?: () => void;
+  classId?: CharacterClassId;
 }
 
 export const ShopPage: React.FC<ShopPageProps> = ({
@@ -24,6 +26,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
   onBuyGemsWithGold,
   onSummonSkill,
   onClose,
+  classId = 'warrior',
 }) => {
   const FREE_CHEST_COOLDOWN = 60; // 60 seconds
   const [secondsLeft, setSecondsLeft] = useState(0);
@@ -158,11 +161,15 @@ export const ShopPage: React.FC<ShopPageProps> = ({
 
           {/* 4. Skill Summon (스킬 비급서 소환) */}
           <div className="parchment-panel chest-row-panel skill-summon-theme">
-            <div className="chest-badge-tag new-tag">NEW! 스킬</div>
-            <div className="chest-visual-box">🔮📜</div>
+            <div className="chest-badge-tag new-tag">{classId === 'mage' ? '마법사' : '전사'} 전용</div>
+            <div className="chest-visual-box">{classId === 'mage' ? '🔮📜' : '⚔️📜'}</div>
             <div className="chest-details">
-              <span className="chest-headline">신비한 스킬 비급서</span>
-              <span className="chest-subtext">스킬 조각 획득 & 스킬 성장</span>
+              <span className="chest-headline">
+                {classId === 'mage' ? '비전 마법서 소환' : '강철 검결서 소환'}
+              </span>
+              <span className="chest-subtext">
+                {classId === 'mage' ? '마법사 전용 스킬 조각 & 완제품' : '전사 전용 스킬 조각 & 완제품'}
+              </span>
             </div>
             <div className="skill-summon-btns-group">
               <button

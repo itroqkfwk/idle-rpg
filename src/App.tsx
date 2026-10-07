@@ -13,11 +13,14 @@ import {
   StageState,
   Skill,
   SkillEffectType,
+  CharacterClassId,
+  PromotionId,
 } from './types/game';
 import { loadGameData, saveGameData, getDefaultSaveData } from './utils/storage';
 import { getMonsterForStage } from './data/monsters';
 import { generateRandomEquipment } from './data/equipment';
-import { INITIAL_SKILLS, STARTER_EQUIPPED_SKILLS } from './data/skills';
+import { INITIAL_SKILLS, STARTER_EQUIPPED_SKILLS, STARTER_EQUIPPED_SKILLS_WARRIOR, STARTER_EQUIPPED_SKILLS_MAGE } from './data/skills';
+import { CLASS_CONFIGS, PROMOTION_REQUIREMENTS } from './data/classes';
 import { sound } from './utils/audio';
 
 import { TopHUD } from './components/TopHUD';
@@ -63,17 +66,31 @@ export const App: React.FC = () => {
   const freeChestLastOpened = saveData.freeChestLastOpened;
   const skills = saveData.skills ?? INITIAL_SKILLS;
   const equippedSkillIds = saveData.equippedSkillIds ?? STARTER_EQUIPPED_SKILLS;
+  const classId = saveData.classId ?? 'warrior';
+  const promotion = saveData.promotion ?? 'none';
+  const awakeningUnlocked = saveData.awakeningUnlocked ?? false;
+  const awakeningGauge = saveData.awakeningGauge ?? 0;
+  const promotionSeals = saveData.promotionSeals ?? 1;
 
-  // Live Auto Skill Engine State
+  // Live Auto Skill & Awakening Timeline Engine State
   const [skillCooldowns, setSkillCooldowns] = useState<Record<string, number>>({});
   const [activeSkillVfx, setActiveSkillVfx] = useState<{ id: string; type: SkillEffectType } | null>(null);
   const [castingSkillId, setCastingSkillId] = useState<string | null>(null);
+  const [isCasting, setIsCasting] = useState(false);
+  const [castingSkillType, setCastingSkillType] = useState<SkillEffectType | null>(null);
+  const [isAwakeningCasting, setIsAwakeningCasting] = useState(false);
+  const isCastingRef = useRef(false);
   const lastSkillCastTimeRef = useRef<number>(0);
 
   // Active Pet object
   const activePet = useMemo(() => {
     return pets.find((p) => p.id === activePetId) || null;
   }, [pets, activePetId]);
+
+  // Active Class Awakening Skill
+  const awakeningSkill = useMemo(() => {
+    return skills.find((s) => s.classId === classId && s.isAwakening) || null;
+  }, [skills, classId]);
 
   // Current Monster
   const [currentMonster, setCurrentMonster] = useState<Monster>(() => {
@@ -124,7 +141,7 @@ export const App: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // --- Compute Total Combat Stats with Gear & Pet Buffs ---
+  // --- Compute Total Combat Stats with Gear, Class Multipliers & Pet Buffs ---
   const combatCalculations = useMemo(() => {
     let equipAtk = 0;
     let equipHp = 0;
@@ -155,18 +172,29 @@ export const App: React.FC = () => {
       if (activePet.buffType === 'atkSpeed') petAtkSpeedMult = petVal;
     }
 
-    const totalAtk = Math.floor(
-      (stats.baseAtk + (stats.atkLevel - 1) * 4 + equipAtk) * (1 + petAtkMult)
+    const classConf = CLASS_CONFIGS[classId];
+    const isPromoted = promotion !== 'none';
+
+    // Base stat adjustments by class
+    const baseClassHp = (stats.baseHp + (stats.hpLevel - 1) * 35 + equipHp) * classConf.statBuffs.hpMult;
+    const baseClassDef = (stats.baseDef + (stats.defLevel - 1) * 2 + equipDef) * classConf.statBuffs.defMult;
+    const baseClassAtk = (stats.baseAtk + (stats.atkLevel - 1) * 4 + equipAtk) * classConf.statBuffs.atkMult;
+
+    // Promotion passive bonuses
+    const promoAtkSpeed = isPromoted ? classConf.promotionBuffs.atkSpeedBonus : 0;
+    const promoCritRate = isPromoted ? classConf.promotionBuffs.critRateBonus : 0;
+    const promoSkillDmg = isPromoted ? classConf.promotionBuffs.skillDamageBonus : 0;
+    const promoCdReduction = isPromoted ? classConf.promotionBuffs.cooldownReduction : 0;
+
+    const totalAtk = Math.floor(baseClassAtk * (1 + petAtkMult));
+    const totalMaxHp = Math.floor(baseClassHp);
+    const totalDef = Math.floor(baseClassDef);
+    const totalCritRate = Math.min(
+      0.85,
+      stats.critRate + equipCritRate + petCritRateMult + classConf.statBuffs.critRateBonus + promoCritRate
     );
-    const totalMaxHp = Math.floor(
-      (stats.baseHp + (stats.hpLevel - 1) * 35 + equipHp)
-    );
-    const totalDef = Math.floor(
-      stats.baseDef + (stats.defLevel - 1) * 2 + equipDef
-    );
-    const totalCritRate = Math.min(0.85, stats.critRate + equipCritRate + petCritRateMult);
     const totalCritDmg = stats.critDmg + petCritDmgMult;
-    const totalAtkSpeed = stats.atkSpeed * (1 + petAtkSpeedMult);
+    const totalAtkSpeed = stats.atkSpeed * (1 + petAtkSpeedMult + promoAtkSpeed);
 
     const combatPower = Math.floor(
       totalAtk * 4.0 + totalMaxHp * 0.5 + totalDef * 3.0 + totalCritRate * 500
@@ -181,8 +209,10 @@ export const App: React.FC = () => {
       totalAtkSpeed,
       combatPower,
       petGoldMult,
+      promoSkillDmg,
+      promoCdReduction,
     };
-  }, [stats, equipped, activePet]);
+  }, [stats, equipped, activePet, classId, promotion]);
 
   // Combat Power Growth Tracking & Floating Chip
   const prevCpRef = useRef(combatCalculations.combatPower);
@@ -333,10 +363,20 @@ export const App: React.FC = () => {
           }
         }
 
+        // Track highest chapter & stage for promotion checklist
+        if (newStage.chapter > newStage.highestChapter || (newStage.chapter === newStage.highestChapter && newStage.stage > newStage.highestStage)) {
+          newStage.highestChapter = Math.max(newStage.highestChapter, newStage.chapter);
+          newStage.highestStage = Math.max(newStage.highestStage, newStage.stage);
+        }
+
         const newInventory = droppedItem ? [droppedItem, ...prev.inventory] : prev.inventory;
+
+        // Charge Awakening Gauge on monster kill (+10%)
+        const nextAwakening = prev.awakeningUnlocked ? Math.min(100, Math.round(((prev.awakeningGauge ?? 0) + 10) * 10) / 10) : 0;
 
         return {
           ...prev,
+          awakeningGauge: nextAwakening,
           stats: {
             ...prev.stats,
             gold: prev.stats.gold + earnedGold,
@@ -364,14 +404,15 @@ export const App: React.FC = () => {
     // Minimum cycle is 540ms to accommodate complete 7-stage animation
     const intervalMs = Math.max(540, Math.floor(1000 / combatCalculations.totalAtkSpeed));
     const timer = setInterval(() => {
-      if (attackCooldownRef.current || isMonsterDefeated) return;
+      if (attackCooldownRef.current || isMonsterDefeated || isCastingRef.current) return;
 
       attackCooldownRef.current = true;
       setIsPlayerAttacking(true);
 
-      // Phase 1 to Phase 3: Anticipation (80ms) + Dash (90ms) -> Contact arrives at 210ms
+      const contactDelay = classId === 'mage' ? 240 : 210;
+
       setTimeout(() => {
-        if (isMonsterDefeated) {
+        if (isMonsterDefeated || isCastingRef.current) {
           setIsPlayerAttacking(false);
           attackCooldownRef.current = false;
           return;
@@ -398,6 +439,15 @@ export const App: React.FC = () => {
         setScreenShake(shakeType);
         addDamageNumber(damage, isCrit, false);
 
+        // Charge Awakening Gauge on basic attack hit (+2.5%)
+        setSaveData((prev) => {
+          if (!prev.awakeningUnlocked) return prev;
+          return {
+            ...prev,
+            awakeningGauge: Math.min(100, Math.round(((prev.awakeningGauge ?? 0) + 2.5) * 10) / 10),
+          };
+        });
+
         setCurrentMonster((prev) => {
           const nextHp = Math.max(0, prev.currentHp - damage);
           if (nextHp <= 0) {
@@ -421,7 +471,7 @@ export const App: React.FC = () => {
           setIsMonsterHit(false);
         }, 160);
 
-        // Player completes recovery to idle (approx 520ms total)
+        // Player completes recovery to idle
         setTimeout(() => {
           setIsPlayerAttacking(false);
         }, 310);
@@ -429,12 +479,12 @@ export const App: React.FC = () => {
         // Cooldown reset
         setTimeout(() => {
           attackCooldownRef.current = false;
-        }, Math.max(340, intervalMs - 210));
-      }, 210);
+        }, Math.max(340, intervalMs - contactDelay));
+      }, contactDelay);
     }, intervalMs);
 
     return () => clearInterval(timer);
-  }, [combatCalculations, currentMonster, isMonsterDefeated, handleMonsterDefeat, addDamageNumber, stage]);
+  }, [combatCalculations, currentMonster, isMonsterDefeated, handleMonsterDefeat, addDamageNumber, stage, classId]);
 
   // --- Auto Skill Engine: Single Unified 100ms Tick (Requirement 31) ---
   const skillCooldownsRef = useRef(skillCooldowns);
@@ -467,6 +517,21 @@ export const App: React.FC = () => {
     combatCalcRef.current = combatCalculations;
   }, [combatCalculations]);
 
+  const awakeningUnlockedRef = useRef(awakeningUnlocked);
+  useEffect(() => {
+    awakeningUnlockedRef.current = awakeningUnlocked;
+  }, [awakeningUnlocked]);
+
+  const awakeningGaugeRef = useRef(awakeningGauge);
+  useEffect(() => {
+    awakeningGaugeRef.current = awakeningGauge;
+  }, [awakeningGauge]);
+
+  const awakeningSkillRef = useRef(awakeningSkill);
+  useEffect(() => {
+    awakeningSkillRef.current = awakeningSkill;
+  }, [awakeningSkill]);
+
   useEffect(() => {
     const timer = setInterval(() => {
       // 1. Decrement existing cooldowns by 0.1s
@@ -484,47 +549,31 @@ export const App: React.FC = () => {
         return hasActive ? updated : prev;
       });
 
-      // 2. Check if eligible for casting
-      if (isMonsterDefeatedRef.current || currentMonsterRef.current.currentHp <= 0) return;
+      // 2. Check if eligible for casting (must not already be casting, monster alive)
+      if (isCastingRef.current || isMonsterDefeatedRef.current || currentMonsterRef.current.currentHp <= 0) return;
 
       const now = Date.now();
-      // Enforce 0.35s global skill delay between any casts
-      if (now - lastSkillCastTimeRef.current < 350) return;
+      // Enforce 300ms global skill delay between any casts
+      if (now - lastSkillCastTimeRef.current < 300) return;
 
-      const currentSkills = skillsRef.current;
-      const currentEquipped = equippedSkillIdsRef.current;
-      const currentCds = skillCooldownsRef.current;
-      const targetMonster = currentMonsterRef.current;
-      const isBossTarget = targetMonster.isBoss || targetMonster.id.includes('boss');
-
-      // Candidate selection with Boss Priority for Meteor Slash or Slot 1 -> 4
+      // 3. Candidate Selection: Priority 1 Awakening -> Priority 2 Slot 1~4
       let candidate: Skill | null = null;
+      let isAwakeningCast = false;
 
-      // Boss encounter priority check: Meteor Slash if equipped and ready
-      if (isBossTarget) {
-        for (let i = 0; i < currentEquipped.length; i++) {
-          const sId = currentEquipped[i];
-          if (sId === 'meteor_slash') {
-            const cd = currentCds[sId] ?? 0;
-            if (cd <= 0) {
-              const sk = currentSkills.find((s) => s.id === sId);
-              if (sk) {
-                candidate = sk;
-                break;
-              }
-            }
-          }
-        }
-      }
+      if (awakeningUnlockedRef.current && (awakeningGaugeRef.current ?? 0) >= 100 && awakeningSkillRef.current) {
+        candidate = awakeningSkillRef.current;
+        isAwakeningCast = true;
+      } else {
+        const currentSkills = skillsRef.current;
+        const currentEquipped = equippedSkillIdsRef.current;
+        const currentCds = skillCooldownsRef.current;
 
-      // If no boss priority candidate found, evaluate Slot 1 -> 4
-      if (!candidate) {
         for (let i = 0; i < currentEquipped.length; i++) {
           const sId = currentEquipped[i];
           if (!sId) continue;
           const cd = currentCds[sId] ?? 0;
           if (cd <= 0) {
-            const sk = currentSkills.find((s) => s.id === sId);
+            const sk = currentSkills.find((s) => s.id === sId && (s.owned || s.unlocked));
             if (sk) {
               candidate = sk;
               break;
@@ -535,57 +584,122 @@ export const App: React.FC = () => {
 
       if (!candidate) return;
 
-      // Cast Candidate Skill!
-      lastSkillCastTimeRef.current = now;
+      // 4. Begin Cast
       const castSkill = candidate;
-
-      // Put skill on cooldown
-      setSkillCooldowns((prev) => ({
-        ...prev,
-        [castSkill.id]: castSkill.cooldown,
-      }));
-
-      // Trigger casting indicator
+      lastSkillCastTimeRef.current = now;
+      isCastingRef.current = true;
+      setIsCasting(true);
+      setCastingSkillType(castSkill.effectType);
       setCastingSkillId(castSkill.id);
-      setTimeout(() => setCastingSkillId(null), 300);
 
-      // Trigger VFX
-      const vfxId = `${castSkill.id}_${now}`;
-      setActiveSkillVfx({ id: vfxId, type: castSkill.effectType });
-      setTimeout(() => {
-        setActiveSkillVfx((prev) => (prev?.id === vfxId ? null : prev));
-      }, 550);
-
-      // Sound feedback
-      sound.playCriticalHit();
-
-      // Damage calculation
-      const mult = castSkill.baseDamageMult + (castSkill.level - 1) * castSkill.damageMultPerLevel;
       const currentCalc = combatCalcRef.current;
+      const promoSkillMult = 1 + (currentCalc.promoSkillDmg || 0);
+      const mult = (castSkill.baseDamageMult + (castSkill.level - 1) * castSkill.damageMultPerLevel) * promoSkillMult;
+      const targetMonster = currentMonsterRef.current;
       const skillDamage = Math.floor(
         Math.max(1, currentCalc.totalAtk * mult - targetMonster.def * 0.25)
       );
 
-      // Visual feedback: Screen shake, hit stop, monster hit
-      const shake: 'normal' | 'crit' | 'boss' =
-        castSkill.id === 'meteor_slash' ? 'boss' : 'crit';
-      setScreenShake(shake);
-      setIsHitStop(true);
-      setIsMonsterHit(true);
-      addDamageNumber(skillDamage, true, false, true, castSkill.name);
+      if (isAwakeningCast) {
+        // === AWAKENING SPECTACLE TIMELINE ===
+        setIsAwakeningCasting(true);
+        setSaveData((prev) => ({ ...prev, awakeningGauge: 0 }));
+        sound.playFanfare();
+        setScreenShake('boss');
 
-      setTimeout(() => setIsHitStop(false), 70);
-      setTimeout(() => setScreenShake('none'), 160);
-      setTimeout(() => setIsMonsterHit(false), 200);
+        // Phase 2: Massive VFX Spawn (240ms)
+        const vfxId = `awk_${castSkill.id}_${now}`;
+        setTimeout(() => {
+          setActiveSkillVfx({ id: vfxId, type: castSkill.effectType });
+        }, 240);
 
-      // Apply damage to current monster
-      setCurrentMonster((prev) => {
-        const nextHp = Math.max(0, prev.currentHp - skillDamage);
-        if (nextHp <= 0) {
-          handleMonsterDefeat();
-        }
-        return { ...prev, currentHp: nextHp };
-      });
+        // Phase 3: Catastrophic Impact (480ms)
+        setTimeout(() => {
+          sound.playCriticalHit();
+          setIsHitStop(true);
+          setIsMonsterHit(true);
+          setScreenShake('boss');
+          addDamageNumber(skillDamage, true, false, true, `👑 ${castSkill.name}`);
+
+          setTimeout(() => setIsHitStop(false), 130);
+          setTimeout(() => setScreenShake('none'), 240);
+          setTimeout(() => setIsMonsterHit(false), 280);
+
+          setCurrentMonster((prev) => {
+            const nextHp = Math.max(0, prev.currentHp - skillDamage);
+            if (nextHp <= 0) {
+              handleMonsterDefeat();
+            }
+            return { ...prev, currentHp: nextHp };
+          });
+        }, 480);
+
+        // Phase 4: Recovery Completes (820ms)
+        setTimeout(() => {
+          setActiveSkillVfx((prev) => (prev?.id === vfxId ? null : prev));
+          setIsAwakeningCasting(false);
+          setIsCasting(false);
+          isCastingRef.current = false;
+          setCastingSkillId(null);
+          setCastingSkillType(null);
+        }, 820);
+      } else {
+        // === NORMAL SKILL TIMELINE ===
+        const reducedCd = Math.max(
+          2,
+          Math.round(castSkill.cooldown * (1 - (currentCalc.promoCdReduction || 0)) * 10) / 10
+        );
+        setSkillCooldowns((prev) => ({
+          ...prev,
+          [castSkill.id]: reducedCd,
+        }));
+
+        // Phase 2: VFX Spawn (160ms)
+        const vfxId = `${castSkill.id}_${now}`;
+        setTimeout(() => {
+          setActiveSkillVfx({ id: vfxId, type: castSkill.effectType });
+        }, 160);
+
+        // Phase 3: Impact on Enemy (260ms)
+        setTimeout(() => {
+          sound.playCriticalHit();
+          const shake: 'normal' | 'crit' | 'boss' = castSkill.hits && castSkill.hits > 1 ? 'boss' : 'crit';
+          setScreenShake(shake);
+          setIsHitStop(true);
+          setIsMonsterHit(true);
+          addDamageNumber(skillDamage, true, false, true, castSkill.name);
+
+          // Charge Awakening gauge on skill hit (+7%)
+          setSaveData((prev) => {
+            if (!prev.awakeningUnlocked) return prev;
+            return {
+              ...prev,
+              awakeningGauge: Math.min(100, Math.round(((prev.awakeningGauge ?? 0) + 7) * 10) / 10),
+            };
+          });
+
+          setTimeout(() => setIsHitStop(false), 70);
+          setTimeout(() => setScreenShake('none'), 160);
+          setTimeout(() => setIsMonsterHit(false), 200);
+
+          setCurrentMonster((prev) => {
+            const nextHp = Math.max(0, prev.currentHp - skillDamage);
+            if (nextHp <= 0) {
+              handleMonsterDefeat();
+            }
+            return { ...prev, currentHp: nextHp };
+          });
+        }, 260);
+
+        // Phase 4: Recovery Completes (520ms)
+        setTimeout(() => {
+          setActiveSkillVfx((prev) => (prev?.id === vfxId ? null : prev));
+          setIsCasting(false);
+          isCastingRef.current = false;
+          setCastingSkillId(null);
+          setCastingSkillType(null);
+        }, 520);
+      }
     }, 100);
 
     return () => clearInterval(timer);
@@ -929,7 +1043,9 @@ export const App: React.FC = () => {
 
     setSaveData((prev) => {
       let updatedSkills = [...(prev.skills ?? INITIAL_SKILLS)];
-      const skillIds = updatedSkills.map((s) => s.id);
+      const curClass = prev.classId ?? 'warrior';
+      const classSkills = updatedSkills.filter((s) => s.classId === curClass && !s.isAwakening);
+      const skillIds = classSkills.length > 0 ? classSkills.map((s) => s.id) : updatedSkills.map((s) => s.id);
 
       for (let i = 0; i < count; i++) {
         const randomId = skillIds[Math.floor(Math.random() * skillIds.length)];
@@ -939,6 +1055,7 @@ export const App: React.FC = () => {
           if (sk.id === randomId) {
             return {
               ...sk,
+              owned: true,
               unlocked: true,
               pieces: sk.pieces + pieceGain,
             };
@@ -949,8 +1066,8 @@ export const App: React.FC = () => {
 
       setStageNotice(
         count === 1
-          ? '🔮 스킬 비급서 조각 획득!'
-          : '🔮 스킬 비급서 10연속 소환 완료!'
+          ? `🔮 ${curClass === 'warrior' ? '전사' : '마법사'} 스킬 비급서 조각 획득!`
+          : `🔮 ${curClass === 'warrior' ? '전사' : '마법사'} 스킬 비급서 10연속 소환 완료!`
       );
       setTimeout(() => setStageNotice(null), 1500);
 
@@ -1060,6 +1177,9 @@ export const App: React.FC = () => {
     setSaveData((prev) => ({
       ...prev,
       stage: { ...prev.stage, inBossFight: true, bossTimeLeft: 30 },
+      awakeningGauge: prev.awakeningUnlocked
+        ? Math.min(100, Math.round(((prev.awakeningGauge ?? 0) + 20) * 10) / 10)
+        : (prev.awakeningGauge ?? 0),
     }));
     setCurrentMonster(getMonsterForStage(stage.chapter, 10));
   };
@@ -1070,6 +1190,75 @@ export const App: React.FC = () => {
       stage: { ...prev.stage, inBossFight: false },
     }));
     setCurrentMonster(getMonsterForStage(stage.chapter, 9));
+  };
+
+  // --- Handlers: Class & Promotion ---
+  const handlePromote = () => {
+    const isWarrior = classId === 'warrior';
+    const targetPromotion: PromotionId = isWarrior ? 'sword_master' : 'archmage';
+    const awkSkillId = isWarrior ? 'heavenly_blade' : 'astral_cataclysm';
+
+    sound.playFanfare();
+    confetti({ particleCount: 100, spread: 85, origin: { y: 0.5 } });
+
+    setSaveData((prev) => {
+      const updatedSkills = (prev.skills ?? INITIAL_SKILLS).map((s) =>
+        s.id === awkSkillId ? { ...s, owned: true, unlocked: true } : s
+      );
+
+      return {
+        ...prev,
+        promotion: targetPromotion,
+        awakeningUnlocked: true,
+        awakeningGauge: 100,
+        promotionSeals: Math.max(0, (prev.promotionSeals ?? 1) - 1),
+        skills: updatedSkills,
+      };
+    });
+
+    setStageNotice(`👑 [${isWarrior ? '소드마스터' : '아크메이지'}] 전직 및 각성기 해금 완료!`);
+    setTimeout(() => setStageNotice(null), 2500);
+  };
+
+  const handleSwitchClass = (newClassId: CharacterClassId) => {
+    if (newClassId === classId) return;
+
+    sound.playTap();
+    setSaveData((prev) => {
+      let newPromo: PromotionId = 'none';
+      if (prev.promotion !== 'none') {
+        newPromo = newClassId === 'warrior' ? 'sword_master' : 'archmage';
+      }
+
+      const newEquipped =
+        newClassId === 'warrior' ? STARTER_EQUIPPED_SKILLS_WARRIOR : STARTER_EQUIPPED_SKILLS_MAGE;
+      const newAwkId = newClassId === 'warrior' ? 'heavenly_blade' : 'astral_cataclysm';
+
+      const updatedSkills = (prev.skills ?? INITIAL_SKILLS).map((s) => {
+        if (s.id === newAwkId && prev.awakeningUnlocked) {
+          return { ...s, owned: true, unlocked: true };
+        }
+        return s;
+      });
+
+      return {
+        ...prev,
+        classId: newClassId,
+        promotion: newPromo,
+        equippedSkillIds: newEquipped,
+        skills: updatedSkills,
+      };
+    });
+
+    setSkillCooldowns({});
+    setIsCasting(false);
+    isCastingRef.current = false;
+    setCastingSkillId(null);
+    setCastingSkillType(null);
+    setIsAwakeningCasting(false);
+
+    setStageNotice(`⚔️ [${newClassId === 'warrior' ? '전사' : '마법사'}] 직업으로 변경되었습니다.`);
+    setTimeout(() => setStageNotice(null), 2000);
   };
 
   // --- Handlers: Offline & Settings ---
@@ -1112,6 +1301,8 @@ export const App: React.FC = () => {
       <TopHUD
         stats={stats}
         stage={stage}
+        classId={classId}
+        promotion={promotion}
         onOpenSettings={() => setShowSettings(true)}
         onOpenProfile={() => setActiveTab('hero')}
       />
@@ -1147,6 +1338,14 @@ export const App: React.FC = () => {
           castingSkillId={castingSkillId}
           activeQuest={activeQuest}
           onClaimQuest={handleClaimQuest}
+          classId={classId}
+          promotion={promotion}
+          isCasting={isCasting}
+          castingSkillType={castingSkillType}
+          isAwakeningCasting={isAwakeningCasting}
+          awakeningUnlocked={awakeningUnlocked}
+          awakeningGauge={awakeningGauge}
+          awakeningSkill={awakeningSkill}
         />
 
         {/* Quest Parchment Ribbon (Displayed only in main Adventure tab) */}
@@ -1169,6 +1368,13 @@ export const App: React.FC = () => {
             equippedSkillIds={equippedSkillIds}
             onEquipSkill={handleEquipSkill}
             onUpgradeSkill={handleUpgradeSkill}
+            classId={classId}
+            promotion={promotion}
+            awakeningUnlocked={awakeningUnlocked}
+            promotionSeals={promotionSeals}
+            stage={stage}
+            onPromote={handlePromote}
+            onSwitchClass={handleSwitchClass}
             onClose={() => setActiveTab('adventure')}
           />
         )}
@@ -1210,6 +1416,7 @@ export const App: React.FC = () => {
             onOpenGemChest={handleOpenGemChest}
             onBuyGemsWithGold={handleBuyGemsWithGold}
             onSummonSkill={handleSummonSkill}
+            classId={classId}
             onClose={() => setActiveTab('adventure')}
           />
         )}

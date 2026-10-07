@@ -1,11 +1,16 @@
 import React from 'react';
-import { Skill } from '../types/game';
+import { Skill, PromotionId } from '../types/game';
 
 interface SkillStatusHUDProps {
   skills: Skill[];
   equippedSkillIds: (string | null)[];
   skillCooldowns: Record<string, number>;
   castingSkillId?: string | null;
+  awakeningUnlocked?: boolean;
+  awakeningGauge?: number;
+  isAwakeningCasting?: boolean;
+  promotion?: PromotionId;
+  awakeningSkill?: Skill | null;
 }
 
 export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
@@ -13,6 +18,11 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
   equippedSkillIds,
   skillCooldowns,
   castingSkillId,
+  awakeningUnlocked = false,
+  awakeningGauge = 0,
+  isAwakeningCasting = false,
+  promotion = 'none',
+  awakeningSkill = null,
 }) => {
   const slots = [0, 1, 2, 3].map((idx) => {
     const skillId = equippedSkillIds[idx];
@@ -33,9 +43,13 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
     };
   });
 
+  const isAwakeningReady = awakeningGauge >= 100;
+  const awakeningPercent = Math.min(100, Math.max(0, Math.round(awakeningGauge)));
+
   return (
     <div className="skill-status-hud-root">
       <div className="skill-hud-container">
+        {/* 4 Standard Auto Skill Slots */}
         {slots.map((item) => {
           if (!item.skill) {
             return (
@@ -55,7 +69,7 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
               } ${isCasting ? 'is-casting-flash' : ''}`}
               title={`${skill.name} (자동 발동)`}
             >
-              {/* Radial or Linear Cooldown Shade */}
+              {/* Cooldown Shade */}
               {!isReady && (
                 <div
                   className="cooldown-dark-shade"
@@ -66,7 +80,7 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
               {/* Skill Icon */}
               <div className="skill-icon-glyph">{skill.icon}</div>
 
-              {/* Skill Name (Visible on PC) */}
+              {/* Skill Label (Desktop) */}
               <div className="skill-label-col">
                 <span className="skill-name-text">{skill.name}</span>
                 <span className={`skill-cd-text ${isReady ? 'ready-text' : ''}`}>
@@ -84,6 +98,47 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
             </div>
           );
         })}
+
+        {/* 👑 Special Awakening Slot (Unlocked via Promotion) */}
+        {awakeningUnlocked && (
+          <div
+            className={`skill-slot-box awakening-slot-box ${
+              isAwakeningReady ? 'is-awakening-ready' : 'is-awakening-charging'
+            } ${isAwakeningCasting ? 'is-casting-flash' : ''}`}
+            title={`${awakeningSkill?.name || '각성기'} (100% 충전 시 자동 발동)`}
+          >
+            {/* Charge Level Shade */}
+            {!isAwakeningReady && (
+              <div
+                className="cooldown-dark-shade awakening-shade"
+                style={{ height: `${100 - awakeningPercent}%` }}
+              />
+            )}
+
+            {/* Awakening Icon */}
+            <div className="skill-icon-glyph awakening-glyph">
+              {awakeningSkill?.icon || (promotion === 'archmage' ? '✨🌌' : '👑⚡')}
+            </div>
+
+            {/* Desktop Label */}
+            <div className="skill-label-col">
+              <span className="skill-name-text awakening-title">
+                {awakeningSkill?.name || '각성기'}
+              </span>
+              <span className={`skill-cd-text ${isAwakeningReady ? 'awakening-ready-text' : ''}`}>
+                {isAwakeningReady ? 'MAX READY' : `${awakeningPercent}%`}
+              </span>
+            </div>
+
+            {/* Mobile Tag */}
+            <div className="mobile-cd-tag awakening-tag">
+              {isAwakeningReady ? 'MAX' : `${awakeningPercent}%`}
+            </div>
+
+            {/* Pulsing Awakening Ring */}
+            {isAwakeningReady && <div className="awakening-glow-ring" />}
+          </div>
+        )}
       </div>
 
       <style>{`
@@ -102,19 +157,19 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
         .skill-hud-container {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
           padding: 4px 8px;
-          background: rgba(11, 18, 33, 0.75);
+          background: rgba(11, 18, 33, 0.78);
           backdrop-filter: blur(10px);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.12);
           border-radius: 9999px;
           box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
         }
 
         .skill-slot-box {
           position: relative;
-          width: 38px;
-          height: 38px;
+          width: 36px;
+          height: 36px;
           border-radius: 10px;
           background: rgba(15, 23, 42, 0.9);
           border: 1px solid rgba(255, 255, 255, 0.16);
@@ -138,7 +193,7 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
         }
 
         .skill-icon-glyph {
-          font-size: 18px;
+          font-size: 17px;
           z-index: 2;
           filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
         }
@@ -155,7 +210,7 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
         }
 
         .skill-label-col {
-          display: none; /* Shown on PC */
+          display: none;
         }
 
         .mobile-cd-tag {
@@ -196,11 +251,61 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
           filter: brightness(1.6);
         }
 
-        /* Rarity Border Accents */
+        /* Awakening Slot Styling */
+        .awakening-slot-box {
+          border: 1.5px solid #eab308;
+          background: linear-gradient(135deg, rgba(30, 27, 75, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%);
+        }
+
+        .is-awakening-ready {
+          border-color: #fbbf24;
+          box-shadow: 0 0 14px rgba(251, 191, 36, 0.7), inset 0 0 8px rgba(251, 191, 36, 0.4);
+          animation: awakeningPulse 1.2s infinite alternate;
+        }
+
+        @keyframes awakeningPulse {
+          0% { transform: scale(1); filter: brightness(1); }
+          100% { transform: scale(1.06); filter: brightness(1.25); }
+        }
+
+        .awakening-shade {
+          background: rgba(0, 0, 0, 0.75);
+        }
+
+        .awakening-glyph {
+          font-size: 18px;
+        }
+
+        .awakening-title {
+          color: #fbbf24 !important;
+        }
+
+        .awakening-ready-text {
+          color: #f59e0b !important;
+          font-weight: 900 !important;
+          text-shadow: 0 0 6px rgba(245, 158, 11, 0.8);
+        }
+
+        .awakening-tag {
+          color: #fbbf24;
+        }
+
+        .awakening-glow-ring {
+          position: absolute;
+          inset: 0;
+          border-radius: 9px;
+          border: 2px solid #fbbf24;
+          box-shadow: 0 0 12px rgba(251, 191, 36, 0.8), inset 0 0 8px rgba(245, 158, 11, 0.5);
+          pointer-events: none;
+          z-index: 5;
+        }
+
+        /* Rarity Borders */
         .rarity-common { border-color: rgba(148, 163, 184, 0.4); }
         .rarity-rare { border-color: rgba(56, 189, 248, 0.5); }
         .rarity-epic { border-color: rgba(168, 85, 247, 0.6); }
         .rarity-legendary { border-color: rgba(245, 158, 11, 0.7); }
+        .rarity-mythic { border-color: rgba(239, 68, 68, 0.8); }
 
         /* 🖥️ PC Responsive Skill Status Bar (width >= 768px) */
         @media (min-width: 768px) {
@@ -209,7 +314,7 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
           }
 
           .skill-hud-container {
-            gap: 12px;
+            gap: 10px;
             padding: 6px 14px;
             border-radius: 16px;
             background: rgba(11, 18, 33, 0.88);
@@ -218,12 +323,17 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
           }
 
           .skill-slot-box {
-            width: 140px;
+            width: 125px;
             height: 44px;
             border-radius: 12px;
             padding: 0 8px;
             justify-content: flex-start;
             gap: 8px;
+          }
+
+          .awakening-slot-box {
+            width: 135px;
+            border-width: 2px;
           }
 
           .skill-icon-glyph {

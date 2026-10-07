@@ -111,12 +111,33 @@ export interface DamageNumberData {
   offsetY?: number;
 }
 
-export type SkillEffectType = 'power_slash' | 'wind_blade' | 'whirlwind' | 'meteor_slash';
+export type CharacterClassId = 'warrior' | 'mage';
+
+export type PromotionId = 'none' | 'sword_master' | 'archmage';
+
+export type SkillEffectType =
+  | 'power_slash'
+  | 'double_slash'
+  | 'sword_wave'
+  | 'whirlwind'
+  | 'shield_bash'
+  | 'blade_storm'
+  | 'heavenly_blade'
+  | 'magic_missile'
+  | 'fireball'
+  | 'ice_spear'
+  | 'chain_lightning'
+  | 'meteor'
+  | 'arcane_storm'
+  | 'astral_cataclysm'
+  | 'wind_blade'
+  | 'meteor_slash';
 
 export interface Skill {
   id: string;
   name: string;
   rarity: EquipmentRarity;
+  classId: CharacterClassId;
   description: string;
   baseDamageMult: number; // e.g. 1.8 for 180%
   damageMultPerLevel: number; // e.g. 0.08 for +8%
@@ -125,8 +146,11 @@ export interface Skill {
   pieces: number; // duplicate pieces
   piecesRequired: number; // required pieces to level up (e.g. level * 2)
   owned: boolean;
+  unlocked?: boolean;
   effectType: SkillEffectType;
   bossPriority?: boolean;
+  isAwakening?: boolean;
+  hits?: number;
   icon: string;
 }
 
@@ -148,6 +172,11 @@ export interface GameSettings {
 export interface GameSaveData {
   version: number;
   lastOnlineTime: number;
+  classId: CharacterClassId;
+  promotion: PromotionId;
+  awakeningUnlocked: boolean;
+  awakeningGauge: number; // 0 ~ 100%
+  promotionSeals: number;
   stats: CharacterStats;
   equipped: Partial<Record<EquipmentSlot, Equipment>>;
   inventory: Equipment[];
@@ -160,3 +189,4 @@ export interface GameSaveData {
   freeChestLastOpened: number;
   settings: GameSettings;
 }
+

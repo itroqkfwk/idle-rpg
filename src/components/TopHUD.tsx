@@ -1,11 +1,13 @@
 import React from 'react';
-import { CharacterStats, StageState } from '../types/game';
-import { Settings } from 'lucide-react';
+import { CharacterStats, StageState, CharacterClassId, PromotionId } from '../types/game';
+import { Settings, Shield, Sparkles } from 'lucide-react';
 import { CHAPTERS_DATA } from '../data/monsters';
 
 interface TopHUDProps {
   stats: CharacterStats;
   stage: StageState;
+  classId?: CharacterClassId;
+  promotion?: PromotionId;
   onOpenSettings: () => void;
   onOpenProfile?: () => void;
 }
@@ -13,13 +15,14 @@ interface TopHUDProps {
 export const TopHUD: React.FC<TopHUDProps> = ({
   stats,
   stage,
+  classId = 'warrior',
+  promotion = 'none',
   onOpenSettings,
   onOpenProfile,
 }) => {
   const currentChapter = CHAPTERS_DATA[(stage.chapter - 1) % CHAPTERS_DATA.length];
   const expPercent = Math.min(100, Math.floor((stats.exp / stats.maxExp) * 100));
 
-  // Extract clean Korean title without English parenthesis e.g. "새싹의 숲"
   const chapterShortName = currentChapter.name.replace(/\s*\(.*?\)/, '');
 
   const formatNumber = (num: number) => {
@@ -29,21 +32,37 @@ export const TopHUD: React.FC<TopHUDProps> = ({
     return (num / 1000000000).toFixed(2) + 'B';
   };
 
+  const isMage = classId === 'mage';
+  const isPromoted = promotion !== 'none';
+  const classNameText =
+    promotion === 'sword_master'
+      ? '소드 마스터'
+      : promotion === 'archmage'
+      ? '아크메이지'
+      : isMage
+      ? '마법사'
+      : '전사';
+
+  const avatarSrc = isMage ? './assets/hero_mage.png' : './assets/hero_knight.png';
+
   return (
     <header className="game-top-hud">
-      {/* 🛡️ Left: Hero Profile Capsule */}
-      <div className="profile-capsule-btn" onClick={onOpenProfile} title="영웅 프로필">
-        <div className="profile-avatar-thumb">
+      {/* 🛡️ Left Zone: Hero Profile Capsule */}
+      <div className={`profile-capsule-btn ${isPromoted ? 'promoted-profile-glow' : ''}`} onClick={onOpenProfile} title="영웅 프로필">
+        <div className={`profile-avatar-thumb ${isPromoted ? 'promoted-avatar-ring' : ''}`}>
           <img
-            src="./assets/hero_knight.png"
+            src={avatarSrc}
             alt="Hero Avatar"
             className="avatar-img-crop"
           />
+          {isPromoted && <div className="promoted-crown-pip">👑</div>}
         </div>
         <div className="profile-info-col">
           <div className="profile-row-top">
             <span className="profile-lvl-tag">Lv.{stats.level}</span>
-            <span className="profile-name">기사</span>
+            <span className={`profile-name ${isPromoted ? 'promoted-name-gold' : ''}`}>
+              {classNameText}
+            </span>
           </div>
           {/* Slim EXP bar */}
           <div className="profile-exp-track" title={`EXP: ${stats.exp} / ${stats.maxExp}`}>
@@ -52,11 +71,11 @@ export const TopHUD: React.FC<TopHUDProps> = ({
         </div>
       </div>
 
-      {/* 🌲 Center: Stage Progression Badge */}
+      {/* 🌲 Center Zone: Stage Progression Badge */}
       <div className="stage-capsule-badge">
         <div className="stage-name-text">
           {stage.isBossStage ? (
-            <span className="boss-stage-text">🔥 BOSS</span>
+            <span className="boss-stage-text">🔥 BOSS RAID</span>
           ) : (
             <span>{chapterShortName} {stage.chapter}-{stage.stage}</span>
           )}
@@ -78,7 +97,7 @@ export const TopHUD: React.FC<TopHUDProps> = ({
         )}
       </div>
 
-      {/* 🪙 Right: Currency Badges & Settings */}
+      {/* 🪙 Right Zone: Currency Badges & Settings */}
       <div className="currencies-right-cluster">
         {/* Gold Capsule */}
         <div className="currency-pill gold-pill">
@@ -110,7 +129,7 @@ export const TopHUD: React.FC<TopHUDProps> = ({
           justify-content: space-between;
           padding: 4px 10px;
           z-index: 40;
-          background: linear-gradient(180deg, rgba(8, 12, 22, 0.82) 0%, rgba(8, 12, 22, 0.35) 75%, transparent 100%);
+          background: linear-gradient(180deg, rgba(8, 12, 22, 0.85) 0%, rgba(8, 12, 22, 0.4) 75%, transparent 100%);
           backdrop-filter: blur(8px);
           user-select: none;
           box-sizing: border-box;
@@ -120,15 +139,20 @@ export const TopHUD: React.FC<TopHUDProps> = ({
         .profile-capsule-btn {
           display: flex;
           align-items: center;
-          gap: 5px;
-          padding: 2px 7px 2px 2px;
+          gap: 6px;
+          padding: 2px 8px 2px 2px;
           background: rgba(15, 23, 42, 0.82);
           border: 1px solid rgba(255, 255, 255, 0.15);
           border-radius: 9999px;
           cursor: pointer;
-          transition: transform 0.1s ease;
+          transition: transform 0.1s ease, border-color 0.2s ease;
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
           flex-shrink: 0;
+        }
+
+        .promoted-profile-glow {
+          border-color: rgba(251, 191, 36, 0.5);
+          box-shadow: 0 0 12px rgba(245, 158, 11, 0.25), 0 2px 8px rgba(0, 0, 0, 0.4);
         }
 
         .profile-capsule-btn:active {
@@ -136,10 +160,11 @@ export const TopHUD: React.FC<TopHUDProps> = ({
         }
 
         .profile-avatar-thumb {
+          position: relative;
           width: 28px;
           height: 28px;
           border-radius: 50%;
-          background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+          background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
           border: 1.5px solid #f59e0b;
           overflow: hidden;
           display: flex;
@@ -147,11 +172,24 @@ export const TopHUD: React.FC<TopHUDProps> = ({
           align-items: center;
         }
 
+        .promoted-avatar-ring {
+          border-color: #fbbf24;
+          box-shadow: 0 0 8px rgba(251, 191, 36, 0.7);
+        }
+
+        .promoted-crown-pip {
+          position: absolute;
+          top: -2px;
+          right: -2px;
+          font-size: 8px;
+          line-height: 1;
+        }
+
         .avatar-img-crop {
-          width: 130%;
-          height: 130%;
+          width: 120%;
+          height: 120%;
           object-fit: cover;
-          transform: translateY(2px);
+          transform: translateY(1px);
         }
 
         .profile-info-col {
@@ -163,7 +201,7 @@ export const TopHUD: React.FC<TopHUDProps> = ({
         .profile-row-top {
           display: flex;
           align-items: center;
-          gap: 3px;
+          gap: 4px;
         }
 
         .profile-lvl-tag {
@@ -174,12 +212,17 @@ export const TopHUD: React.FC<TopHUDProps> = ({
 
         .profile-name {
           font-size: 10px;
-          font-weight: 700;
+          font-weight: 800;
           color: #f8fafc;
         }
 
+        .promoted-name-gold {
+          color: #fbbf24;
+          text-shadow: 0 0 6px rgba(251, 191, 36, 0.5);
+        }
+
         .profile-exp-track {
-          width: 38px;
+          width: 40px;
           height: 3px;
           background: rgba(255, 255, 255, 0.15);
           border-radius: 9999px;
@@ -198,8 +241,8 @@ export const TopHUD: React.FC<TopHUDProps> = ({
           display: flex;
           flex-direction: column;
           align-items: center;
-          padding: 3px 10px;
-          background: rgba(15, 23, 42, 0.82);
+          padding: 3px 12px;
+          background: rgba(15, 23, 42, 0.85);
           border: 1px solid rgba(255, 255, 255, 0.15);
           border-radius: 9999px;
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
@@ -216,7 +259,7 @@ export const TopHUD: React.FC<TopHUDProps> = ({
 
         .boss-stage-text {
           color: #ef4444;
-          text-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+          text-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
         }
 
         .stage-pips-row {
@@ -258,7 +301,7 @@ export const TopHUD: React.FC<TopHUDProps> = ({
         .currencies-right-cluster {
           display: flex;
           align-items: center;
-          gap: 4px;
+          gap: 5px;
           flex-shrink: 0;
         }
 
@@ -266,7 +309,7 @@ export const TopHUD: React.FC<TopHUDProps> = ({
           display: flex;
           align-items: center;
           gap: 3px;
-          padding: 2px 6px;
+          padding: 2px 7px;
           background: rgba(15, 23, 42, 0.82);
           border: 1px solid rgba(255, 255, 255, 0.15);
           border-radius: 9999px;
@@ -311,34 +354,34 @@ export const TopHUD: React.FC<TopHUDProps> = ({
           transform: scale(0.92);
         }
 
-        /* 🖥️ PC Responsive Layout (width >= 768px) */
+        /* 🖥️ PC Responsive 3-Zone Layout (width >= 768px) */
         @media (min-width: 768px) {
           .game-top-hud {
-            height: 62px;
-            padding: 6px clamp(20px, 3.5vw, 48px);
-            max-width: min(94vw, 1320px);
-            left: 50%;
-            right: auto;
-            transform: translateX(-50%);
-            border-radius: 0 0 24px 24px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            border-left: 1px solid rgba(255, 255, 255, 0.08);
-            border-right: 1px solid rgba(255, 255, 255, 0.08);
-            background: linear-gradient(180deg, rgba(11, 17, 32, 0.95) 0%, rgba(11, 17, 32, 0.8) 100%);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            position: fixed;
+            top: clamp(14px, 2vh, 22px);
+            left: clamp(24px, 3.5vw, 44px);
+            right: clamp(24px, 3.5vw, 44px);
+            max-width: 1480px;
+            margin: 0 auto;
+            height: 60px;
+            padding: 0 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: linear-gradient(180deg, rgba(11, 17, 32, 0.94) 0%, rgba(11, 17, 32, 0.84) 100%);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 0 1px rgba(255, 255, 255, 0.2) inset;
           }
 
           .profile-capsule-btn {
-            padding: 3px 12px 3px 3px;
-            gap: 8px;
+            padding: 3px 14px 3px 3px;
+            gap: 10px;
           }
 
           .profile-avatar-thumb {
-            width: 34px;
-            height: 34px;
+            width: 38px;
+            height: 38px;
           }
 
-          .profile-name-text {
+          .profile-name {
             font-size: 13px;
           }
 
@@ -347,20 +390,25 @@ export const TopHUD: React.FC<TopHUDProps> = ({
             padding: 1px 6px;
           }
 
-          .stage-crest-badge {
-            padding: 4px 16px;
+          .profile-exp-track {
+            width: 75px;
+            height: 4px;
           }
 
-          .stage-title-text {
+          .stage-capsule-badge {
+            padding: 5px 20px;
+          }
+
+          .stage-name-text {
             font-size: 13px;
           }
 
-          .currency-cluster {
+          .currencies-right-cluster {
             gap: 10px;
           }
 
           .currency-pill {
-            padding: 5px 14px;
+            padding: 6px 14px;
             font-size: 12px;
           }
 
@@ -373,8 +421,8 @@ export const TopHUD: React.FC<TopHUDProps> = ({
           }
 
           .settings-circle-btn {
-            width: 32px;
-            height: 32px;
+            width: 34px;
+            height: 34px;
           }
         }
       `}</style>
