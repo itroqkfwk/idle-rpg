@@ -310,7 +310,7 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
         /* 🖥️ PC Responsive Skill Status Bar (width >= 768px) */
         @media (min-width: 768px) {
           .skill-status-hud-root {
-            bottom: 84px;
+            bottom: 86px;
           }
 
           .skill-hud-container {

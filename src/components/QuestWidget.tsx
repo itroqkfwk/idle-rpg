@@ -211,7 +211,7 @@ export const QuestWidget: React.FC<QuestWidgetProps> = ({ quest, onClaim }) => {
           .floating-quest-card {
             position: fixed;
             top: auto;
-            bottom: 84px;
+            bottom: 86px;
             left: clamp(24px, 3.5vw, 44px);
             right: auto;
             width: clamp(230px, 18vw, 280px);

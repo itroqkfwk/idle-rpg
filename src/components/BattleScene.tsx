@@ -19,6 +19,8 @@ import { PetCompanion } from './PetCompanion';
 import { DamageNumbers } from './DamageNumbers';
 import { SkillVfxLayer } from './SkillVfxLayer';
 import { SkillStatusHUD } from './SkillStatusHUD';
+import { BattleFxCanvas } from './BattleFxCanvas';
+import { getStageEnvironment } from '../data/stages';
 import { Swords, Skull, Flame } from 'lucide-react';
 
 export interface FloatingGoldDrop {
@@ -107,47 +109,73 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
   awakeningSkill = null,
 }) => {
   const isBossFight = stage.stage === 10 && stage.inBossFight;
+  const stageEnv = getStageEnvironment(stage.chapter, stage.stage, isBossFight);
 
   return (
     <div className={`battle-environment-root ${isBossFight ? 'boss-battle-mode' : ''}`}>
-      {/* 🌲 Layer 1: High-Res 2D Painted Forest Panorama Backdrop */}
-      <div className="battle-bg-container">
+      {/* 🌲 Dynamic 2D Painted Environment Panorama Backdrop */}
+      <div className="battle-bg-container" style={{ filter: stageEnv.filterStyle }}>
         <img
-          src="./assets/forest_bg.jpg"
-          alt="Battle Forest Background"
+          key={stageEnv.bgImage}
+          src={stageEnv.bgImage}
+          alt={stageEnv.areaName}
           className="battle-bg-image"
           draggable={false}
         />
 
-        {/* ☀️ Layer 2: Sunlight Godrays Streaming from Canopy */}
-        <div className="god-rays-overlay" />
+        {/* ☀️ Dynamic Sunlight / Mystic Fog Streaming Overlay */}
+        <div className="god-rays-overlay" style={{ background: stageEnv.fogGradient }} />
 
-        {/* 🍃 Layer 3: Natural Floating Leaves drifting through the wind */}
-        <div className="floating-leaves-container">
-          <div className="falling-leaf leaf-1">🍃</div>
-          <div className="falling-leaf leaf-2">🍂</div>
-          <div className="falling-leaf leaf-3">🍃</div>
-          <div className="falling-leaf leaf-4">🌿</div>
-        </div>
+        {/* 🍃 Chapter 1 Forest Leaves */}
+        {stageEnv.ambientParticleType === 'leaves' && (
+          <div className="floating-leaves-container">
+            <div className="falling-leaf leaf-1">🍃</div>
+            <div className="falling-leaf leaf-2">🍂</div>
+            <div className="falling-leaf leaf-3">🍃</div>
+            <div className="falling-leaf leaf-4">🌿</div>
+          </div>
+        )}
 
-        {/* ✨ Layer 4: Glowing Fireflies & Forest Pollen Motes */}
-        <div className="ambient-fireflies">
-          <div className="firefly firefly-1" />
-          <div className="firefly firefly-2" />
-          <div className="firefly firefly-3" />
-          <div className="firefly firefly-4" />
-        </div>
+        {/* 🍁 Chapter 3 Autumn Red Maple Leaves */}
+        {stageEnv.ambientParticleType === 'maple_leaves' && (
+          <div className="floating-leaves-container">
+            <div className="falling-leaf leaf-1">🍁</div>
+            <div className="falling-leaf leaf-2">🍂</div>
+            <div className="falling-leaf leaf-3">🍁</div>
+            <div className="falling-leaf leaf-4">🍁</div>
+          </div>
+        )}
 
-        {/* 🌿 Layer 5: Foreground Foliage Vignette (Cinematic Depth) */}
+        {/* ✨ Ambient Fireflies & Glowing Motes */}
+        {(stageEnv.ambientParticleType === 'fireflies' || stageEnv.ambientParticleType === 'water_orbs') && (
+          <div className="ambient-fireflies">
+            <div className="firefly firefly-1" />
+            <div className="firefly firefly-2" />
+            <div className="firefly firefly-3" />
+            <div className="firefly firefly-4" />
+          </div>
+        )}
+
+        {/* 🌿 Foreground Foliage Vignette (Cinematic Depth) */}
         <div className="foreground-bush bush-left" />
         <div className="foreground-bush bush-right" />
 
-        {/* 🌿 Layer 5.5: Atmospheric Silhouette Contrast Overlay */}
+        {/* 🌿 Atmospheric Silhouette Contrast Overlay */}
         <div className="battle-ground-vignette" />
 
         {/* 🩸 Boss Encounter Crimson Pulse Vignette */}
         {isBossFight && <div className="boss-vignette-pulse" />}
       </div>
+
+      {/* 🔮 Lightweight HTML5 Canvas 2D Projectiles & Impact Bursts */}
+      <BattleFxCanvas
+        activeSkillVfx={activeSkillVfx ?? null}
+        isAwakeningCasting={isAwakeningCasting}
+        classId={classId}
+        isPlayerAttacking={isPlayerAttacking}
+        isMonsterHit={isMonsterHit}
+        ambientType={stageEnv.ambientParticleType}
+      />
 
       {/* ⚡ Combat Power Growth Chip */}
       {cpDelta && (
@@ -525,10 +553,10 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           letter-spacing: 1px;
         }
 
-        /* Floating Bottom Bar (Cleanly anchored above bottom dock) */
+        /* Floating Bottom Bar (Cleanly anchored above bottom dock and skill HUD) */
         .battle-bottom-floating-bar {
           position: absolute;
-          bottom: 58px;
+          bottom: 122px;
           left: 50%;
           transform: translateX(-50%);
           z-index: 10;
@@ -790,7 +818,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           }
 
           .battle-bottom-floating-bar {
-            bottom: 84px;
+            bottom: 154px;
           }
 
           .floating-boss-btn {
@@ -804,8 +832,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           }
 
           .floating-auto-hunt-pill {
-            padding: 4px 16px;
-            font-size: 11px;
+            display: none !important;
           }
         }
 
@@ -817,7 +844,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           }
 
           .battle-bottom-floating-bar {
-            bottom: 74px;
+            bottom: 148px;
           }
         }
 

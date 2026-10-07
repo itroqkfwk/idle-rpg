@@ -188,5 +188,6 @@ export interface GameSaveData {
   equippedSkillIds: (string | null)[];
   freeChestLastOpened: number;
   settings: GameSettings;
+  hasSelectedClass?: boolean;
 }
 

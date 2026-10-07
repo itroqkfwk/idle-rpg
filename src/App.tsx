@@ -30,6 +30,7 @@ import { BottomNavigation } from './components/BottomNavigation';
 import { OfflineModal } from './components/OfflineModal';
 import { GachaModal } from './components/GachaModal';
 import { SettingsModal } from './components/SettingsModal';
+import { ClassSelectScreen } from './components/ClassSelectScreen';
 
 import { HeroPage } from './pages/HeroPage';
 import { EquipmentPage } from './pages/EquipmentPage';
@@ -1287,6 +1288,21 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleFirstClassSelect = (chosenClass: CharacterClassId) => {
+    setSaveData((prev) => {
+      const starterEquipped =
+        chosenClass === 'warrior' ? STARTER_EQUIPPED_SKILLS_WARRIOR : STARTER_EQUIPPED_SKILLS_MAGE;
+      const updated: GameSaveData = {
+        ...prev,
+        classId: chosenClass,
+        equippedSkillIds: starterEquipped,
+        hasSelectedClass: true,
+      };
+      saveGameData(updated);
+      return updated;
+    });
+  };
+
   // Badges
   const badges: Partial<Record<ActiveTab, boolean>> = {
     hero: stats.gold >= 50,
@@ -1294,6 +1310,10 @@ export const App: React.FC = () => {
     pet: pets.some((p) => !p.owned && stats.gems >= p.costGems),
     shop: Date.now() - freeChestLastOpened > 60000,
   };
+
+  if (!saveData.hasSelectedClass) {
+    return <ClassSelectScreen onConfirmClass={handleFirstClassSelect} />;
+  }
 
   return (
     <div className="mobile-frame">

@@ -642,43 +642,6 @@ export const HeroPage: React.FC<HeroPageProps> = ({
                 </div>
               )}
             </div>
-
-            {/* Class Switch Section */}
-            <div className="parchment-panel class-switch-panel">
-              <div className="switch-panel-header">
-                <BookOpen size={15} color="#38bdf8" />
-                <span className="switch-panel-title">직업 전환 (Warrior ⇄ Mage)</span>
-              </div>
-              <p className="switch-panel-desc">
-                원하는 스타일에 맞춰 전사와 마법사를 자유롭게 전환할 수 있습니다. (성장 레벨 및 골드는 그대로 유지됩니다)
-              </p>
-              <div className="switch-buttons-row">
-                <button
-                  className={`btn-game ${classId === 'warrior' ? 'btn-game-wood' : 'btn-game-gold'} switch-btn`}
-                  disabled={classId === 'warrior'}
-                  onClick={() => {
-                    if (classId !== 'warrior' && onSwitchClass) {
-                      sound.playTap();
-                      onSwitchClass('warrior');
-                    }
-                  }}
-                >
-                  <span>⚔️ 전사 (Warrior)로 전환</span>
-                </button>
-                <button
-                  className={`btn-game ${classId === 'mage' ? 'btn-game-wood' : 'btn-game-blue'} switch-btn`}
-                  disabled={classId === 'mage'}
-                  onClick={() => {
-                    if (classId !== 'mage' && onSwitchClass) {
-                      sound.playTap();
-                      onSwitchClass('mage');
-                    }
-                  }}
-                >
-                  <span>🔮 마법사 (Mage)로 전환</span>
-                </button>
-              </div>
-            </div>
           </div>
         )}
       </div>

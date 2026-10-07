@@ -522,25 +522,26 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
         }
 
         @keyframes warriorFullAttackAnim {
-          0% { transform: translateX(0) scale(1); }
-          15% { transform: translateX(-8px) rotate(-4deg) scale(0.97, 1.03); }
-          35% { transform: translateX(60px) rotate(8deg) scale(1.08, 0.94); }
-          48% { transform: translateX(65px) rotate(11deg) scale(1.04, 0.98); }
-          65% { transform: translateX(65px) rotate(10deg) scale(1.03, 0.98); }
-          100% { transform: translateX(0) rotate(0deg) scale(1); }
+          0% { transform: translateX(0) translateY(0) scale(1); }
+          15% { transform: translateX(-12px) translateY(3px) rotate(-6deg) scale(0.95, 1.05); }
+          35% { transform: translateX(78px) translateY(-2px) rotate(9deg) scale(1.1, 0.93); }
+          50% { transform: translateX(82px) translateY(0) rotate(12deg) scale(1.05, 0.97); }
+          65% { transform: translateX(80px) translateY(0) rotate(10deg) scale(1.03, 0.98); }
+          85% { transform: translateX(25px) translateY(0) rotate(2deg) scale(0.98, 1.01); }
+          100% { transform: translateX(0) translateY(0) rotate(0deg) scale(1); }
         }
 
-        /* Mage Ranged Basic Attack */
+        /* Mage Ranged Basic Attack (Zero Forward Dash, Pure Stance Casting) */
         .hero-act-mage-attack {
           animation: mageCastAttackAnim 0.5s cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
         }
 
         @keyframes mageCastAttackAnim {
-          0% { transform: translateX(0) translateY(0); }
-          20% { transform: translateX(-6px) translateY(-5px) scale(0.98, 1.02); }
-          45% { transform: translateX(15px) translateY(-2px) scale(1.04, 0.98); }
-          70% { transform: translateX(12px) translateY(0) scale(1.02, 0.99); }
-          100% { transform: translateX(0) translateY(0) scale(1); }
+          0% { transform: translateX(0) translateY(0) rotate(0deg); }
+          20% { transform: translateX(-8px) translateY(-3px) rotate(-4deg) scale(0.96, 1.03); }
+          45% { transform: translateX(0px) translateY(-15px) rotate(4deg) scale(1.07, 1.02); }
+          68% { transform: translateX(0px) translateY(-10px) rotate(2deg) scale(1.03, 1.0); }
+          100% { transform: translateX(0) translateY(0) rotate(0deg) scale(1); }
         }
 
         /* Warrior Skill Cast Pose */
@@ -550,22 +551,22 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
 
         @keyframes warriorCastAnim {
           0% { transform: translateX(0) scale(1); }
-          20% { transform: translateX(-10px) rotate(-6deg) scale(0.95, 1.05); }
-          45% { transform: translateX(75px) rotate(12deg) scale(1.12, 0.92); }
-          75% { transform: translateX(70px) rotate(10deg) scale(1.05, 0.96); }
-          100% { transform: translateX(0) rotate(0deg) scale(1); }
+          20% { transform: translateX(-14px) translateY(4px) rotate(-8deg) scale(0.93, 1.07); }
+          45% { transform: translateX(92px) translateY(-3px) rotate(14deg) scale(1.14, 0.9); }
+          72% { transform: translateX(88px) translateY(0) rotate(11deg) scale(1.06, 0.95); }
+          100% { transform: translateX(0) translateY(0) rotate(0deg) scale(1); }
         }
 
-        /* Mage Skill Cast Pose */
+        /* Mage Skill Cast Pose (Levitation & Magic Focus) */
         .hero-act-mage-cast {
           animation: mageSkillCastAnim 0.58s cubic-bezier(0.2, 0.8, 0.25, 1) forwards;
         }
 
         @keyframes mageSkillCastAnim {
           0% { transform: translateY(0) scale(1); }
-          25% { transform: translateY(-16px) scale(1.05, 1.05); filter: brightness(1.2); }
-          60% { transform: translateY(-12px) translateX(10px) scale(1.08, 1.02); filter: brightness(1.3); }
-          100% { transform: translateY(0) translateX(0) scale(1); filter: brightness(1); }
+          25% { transform: translateY(-20px) rotate(-3deg) scale(1.06, 1.06); filter: brightness(1.25); }
+          60% { transform: translateY(-16px) rotate(2deg) scale(1.09, 1.03); filter: brightness(1.35); }
+          100% { transform: translateY(0) rotate(0deg) scale(1); filter: brightness(1); }
         }
 
         /* Grand Awakening Animation */
@@ -575,9 +576,9 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
 
         @keyframes awakeningHeroAnim {
           0% { transform: scale(1) translateY(0); filter: brightness(1); }
-          20% { transform: scale(1.1) translateY(-10px); filter: brightness(1.5) drop-shadow(0 0 20px #fbbf24); }
-          50% { transform: scale(1.18) translateX(30px) translateY(-18px); filter: brightness(1.6) drop-shadow(0 0 35px #f59e0b); }
-          80% { transform: scale(1.08) translateX(20px) translateY(-5px); filter: brightness(1.3); }
+          20% { transform: scale(1.1) translateY(-12px); filter: brightness(1.5) drop-shadow(0 0 20px #fbbf24); }
+          50% { transform: scale(1.18) translateX(25px) translateY(-22px); filter: brightness(1.65) drop-shadow(0 0 35px #f59e0b); }
+          80% { transform: scale(1.08) translateX(15px) translateY(-6px); filter: brightness(1.3); }
           100% { transform: scale(1) translateY(0); filter: brightness(1); }
         }
 
@@ -657,12 +658,21 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           }
 
           @keyframes warriorFullAttackAnim {
-            0% { transform: translateX(0) rotate(0deg); }
-            15% { transform: translateX(-8px) rotate(-3deg) scale(0.97, 1.03); }
-            35% { transform: translateX(clamp(65px, 5.5vw, 95px)) rotate(5deg) scale(1.08, 0.94); }
-            48% { transform: translateX(clamp(65px, 5.5vw, 95px)) rotate(11deg) scale(1.04, 0.98); }
-            65% { transform: translateX(clamp(65px, 5.5vw, 95px)) rotate(10deg) scale(1.03, 0.98); }
-            100% { transform: translateX(0) rotate(0deg) scale(1); }
+            0% { transform: translateX(0) translateY(0) rotate(0deg); }
+            15% { transform: translateX(-14px) translateY(3px) rotate(-5deg) scale(0.96, 1.04); }
+            35% { transform: translateX(clamp(85px, 7vw, 135px)) translateY(-2px) rotate(8deg) scale(1.1, 0.93); }
+            50% { transform: translateX(clamp(90px, 7.5vw, 140px)) translateY(0) rotate(11deg) scale(1.05, 0.97); }
+            65% { transform: translateX(clamp(88px, 7.3vw, 138px)) translateY(0) rotate(10deg) scale(1.03, 0.98); }
+            85% { transform: translateX(30px) translateY(0) rotate(2deg) scale(0.98, 1.01); }
+            100% { transform: translateX(0) translateY(0) rotate(0deg) scale(1); }
+          }
+
+          @keyframes warriorCastAnim {
+            0% { transform: translateX(0) scale(1); }
+            20% { transform: translateX(-16px) translateY(4px) rotate(-7deg) scale(0.94, 1.06); }
+            45% { transform: translateX(clamp(100px, 8.5vw, 160px)) translateY(-3px) rotate(13deg) scale(1.14, 0.9); }
+            72% { transform: translateX(clamp(96px, 8.2vw, 154px)) translateY(0) rotate(10deg) scale(1.06, 0.95); }
+            100% { transform: translateX(0) translateY(0) rotate(0deg) scale(1); }
           }
         }
       `}</style>

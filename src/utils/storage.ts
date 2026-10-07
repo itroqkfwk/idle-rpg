@@ -64,6 +64,7 @@ export function getDefaultSaveData(): GameSaveData {
     equippedSkillIds: [...STARTER_EQUIPPED_SKILLS],
     freeChestLastOpened: 0,
     settings: initialSettings,
+    hasSelectedClass: false,
   };
 }
 
@@ -86,6 +87,12 @@ export function loadGameData(): { data: GameSaveData; offlineSeconds: number } {
       ...parsed,
       lastOnlineTime: now,
     };
+    if (parsed.hasSelectedClass !== undefined) {
+      mergedData.hasSelectedClass = parsed.hasSelectedClass;
+    } else {
+      // Existing save file from prior gameplay
+      mergedData.hasSelectedClass = true;
+    }
     if (!mergedData.classId) {
       mergedData.classId = 'warrior';
     }
