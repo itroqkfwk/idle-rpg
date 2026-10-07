@@ -104,6 +104,13 @@ export const App: React.FC = () => {
   const isCastingRef = useRef(false);
   const lastSkillCastTimeRef = useRef<number>(0);
 
+  // QA & Testing helper to trigger VFX instantly
+  useEffect(() => {
+    (window as any).__triggerSkillVfx = (type: SkillEffectType) => {
+      setActiveSkillVfx({ id: `manual_${Date.now()}`, type });
+    };
+  }, []);
+
   // Active Pet object
   const activePet = useMemo(() => {
     return pets.find((p) => p.id === activePetId) || null;

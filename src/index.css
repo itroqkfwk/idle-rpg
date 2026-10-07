@@ -323,7 +323,7 @@ html, body {
   border-radius: 4px;
 }
 
-/* 💥 Combat Floating Damage Numbers */
+/* 💥 Combat Floating Damage Numbers (Arcade Impact Punch) */
 .damage-number-pop {
   position: absolute;
   pointer-events: none;
@@ -331,47 +331,54 @@ html, body {
   font-weight: 900;
   z-index: 60;
   user-select: none;
+  letter-spacing: -0.5px;
 }
 
 .dmg-normal {
   color: #ffffff;
-  font-size: 1.25rem;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 2px #000;
-  animation: normalDmgPop 0.45s ease-out forwards;
+  font-size: 1.35rem;
+  -webkit-text-stroke: 1.2px #0f172a;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9), 0 0 8px rgba(255, 255, 255, 0.4);
+  animation: normalDmgPop 0.5s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
 }
 
 .dmg-crit {
-  color: #fbbf24;
-  font-size: 1.65rem;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9), 0 0 4px #000;
-  animation: critDmgPop 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  color: #fef08a;
+  font-size: 1.85rem;
+  -webkit-text-stroke: 1.6px #450a0a;
+  text-shadow: 0 3px 6px rgba(0, 0, 0, 0.95), 0 0 12px #f59e0b, 0 0 20px #ef4444;
+  animation: critDmgPop 0.65s cubic-bezier(0.175, 0.885, 0.32, 1.35) forwards;
 }
 
 .dmg-player-hit {
-  color: #ef4444;
-  font-size: 1.15rem;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 2px #000;
-  animation: playerHitPop 0.45s ease-out forwards;
+  color: #f87171;
+  font-size: 1.2rem;
+  -webkit-text-stroke: 1.2px #450a0a;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9), 0 0 6px #dc2626;
+  animation: playerHitPop 0.48s ease-out forwards;
 }
 
 @keyframes normalDmgPop {
-  0% { opacity: 0; transform: translateY(0) scale(0.7); }
-  25% { opacity: 1; transform: translateY(-16px) scale(1.1); }
-  65% { opacity: 1; transform: translateY(-28px) scale(1); }
-  100% { opacity: 0; transform: translateY(-42px) scale(0.9); }
+  0% { opacity: 0; transform: translateY(0) scale(0.6); }
+  22% { opacity: 1; transform: translateY(-16px) scale(1.25); }
+  50% { opacity: 1; transform: translateY(-26px) scale(1.0); }
+  80% { opacity: 0.9; transform: translateY(-38px) scale(0.96); }
+  100% { opacity: 0; transform: translateY(-48px) scale(0.88); }
 }
 
 @keyframes critDmgPop {
-  0% { opacity: 0; transform: translateY(0) scale(0.7); }
-  25% { opacity: 1; transform: translateY(-20px) scale(1.35, 0.95); }
-  60% { opacity: 1; transform: translateY(-38px) scale(1.1); }
-  100% { opacity: 0; transform: translateY(-50px) scale(0.95); }
+  0% { opacity: 0; transform: translateY(0) scale(0.65) rotate(-3deg); }
+  20% { opacity: 1; transform: translateY(-22px) scale(1.6) rotate(1deg); }
+  45% { opacity: 1; transform: translateY(-36px) scale(1.1) rotate(0deg); }
+  75% { opacity: 0.95; transform: translateY(-50px) scale(1.0); }
+  100% { opacity: 0; transform: translateY(-64px) scale(0.92); }
 }
 
 @keyframes playerHitPop {
   0% { opacity: 0; transform: translateY(0) scale(0.7); }
-  30% { opacity: 1; transform: translateY(-12px) scale(1.05); }
-  100% { opacity: 0; transform: translateY(-32px) scale(0.85); }
+  25% { opacity: 1; transform: translateY(-14px) scale(1.15); }
+  60% { opacity: 1; transform: translateY(-24px) scale(1.0); }
+  100% { opacity: 0; transform: translateY(-36px) scale(0.85); }
 }
 
 /* Modals Backdrops */

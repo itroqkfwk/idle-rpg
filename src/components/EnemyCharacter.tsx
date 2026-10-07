@@ -117,16 +117,6 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           draggable={false}
         />
 
-        {/* Impact Hit Torso Spark & Flash VFX */}
-        {isHit && (
-          <div className="enemy-hit-burst-vfx">
-            <div className="impact-flash-ring" />
-            <div className="star-sparkle spark-1">✦</div>
-            <div className="star-sparkle spark-2">✦</div>
-            <div className="star-sparkle spark-3">✦</div>
-          </div>
-        )}
-
         {/* Ground Knockback Dust */}
         {isHit && <div className="enemy-knockback-dust" />}
       </div>
@@ -498,10 +488,27 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           100% { transform: translateX(0); }
         }
 
-        /* Hit Knockback & White Flash (Contact Reaction) */
+        /* Hit Knockback & Pure White Flash (Action RPG Contact Reaction) */
         .enemy-act-hit {
-          animation: enemyKnockbackAnim 0.24s cubic-bezier(0.2, 0.85, 0.3, 1) forwards;
-          filter: brightness(2.8) contrast(1.25) drop-shadow(0 0 16px rgba(255, 255, 255, 0.95));
+          animation: enemyKnockbackAnim 0.22s cubic-bezier(0.18, 0.9, 0.28, 1) forwards;
+        }
+
+        .enemy-act-hit .monster-2d-sprite {
+          animation: whiteFlashPulse 0.2s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+        }
+
+        @keyframes whiteFlashPulse {
+          0% {
+            filter: brightness(16) contrast(3) saturate(0) drop-shadow(0 0 25px rgba(255, 255, 255, 0.95));
+            transform: scale(0.96) translateX(4px);
+          }
+          40% {
+            filter: brightness(7) contrast(2) saturate(0.2) drop-shadow(0 0 14px rgba(255, 255, 255, 0.6));
+          }
+          100% {
+            filter: brightness(1) contrast(1) saturate(1) drop-shadow(0 0 0 transparent);
+            transform: scale(1) translateX(0);
+          }
         }
 
         @keyframes enemyKnockbackAnim {

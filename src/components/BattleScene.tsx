@@ -126,25 +126,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         {/* ☀️ Dynamic Sunlight / Mystic Fog Streaming Overlay */}
         <div className="god-rays-overlay" style={{ background: stageEnv.fogGradient }} />
 
-        {/* 🍃 Chapter 1 Forest Leaves */}
-        {stageEnv.ambientParticleType === 'leaves' && (
-          <div className="floating-leaves-container">
-            <div className="falling-leaf leaf-1">🍃</div>
-            <div className="falling-leaf leaf-2">🍂</div>
-            <div className="falling-leaf leaf-3">🍃</div>
-            <div className="falling-leaf leaf-4">🌿</div>
-          </div>
-        )}
-
-        {/* 🍁 Chapter 3 Autumn Red Maple Leaves */}
-        {stageEnv.ambientParticleType === 'maple_leaves' && (
-          <div className="floating-leaves-container">
-            <div className="falling-leaf leaf-1">🍁</div>
-            <div className="falling-leaf leaf-2">🍂</div>
-            <div className="falling-leaf leaf-3">🍁</div>
-            <div className="falling-leaf leaf-4">🍁</div>
-          </div>
-        )}
+        {/* 🍃 Ambient Leaves / Orbs / Embers rendered via GPU Canvas in BattleFxCanvas */}
 
         {/* ✨ Ambient Fireflies & Glowing Motes */}
         {(stageEnv.ambientParticleType === 'fireflies' || stageEnv.ambientParticleType === 'water_orbs') && (
