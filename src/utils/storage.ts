@@ -74,6 +74,9 @@ export function getDefaultSaveData(): GameSaveData {
     hasSelectedClass: false,
     cheatUsed: false,
     isTestAccount: false,
+    questCollapsed: false,
+    skillCooldownOff: false,
+    infiniteAwakening: false,
   };
 }
 
@@ -131,6 +134,15 @@ export function loadGameData(): { data: GameSaveData; offlineSeconds: number } {
     }
     if (mergedData.isTestAccount === undefined) {
       mergedData.isTestAccount = false;
+    }
+    if (mergedData.questCollapsed === undefined) {
+      mergedData.questCollapsed = false;
+    }
+    if (mergedData.skillCooldownOff === undefined) {
+      mergedData.skillCooldownOff = false;
+    }
+    if (mergedData.infiniteAwakening === undefined) {
+      mergedData.infiniteAwakening = false;
     }
     if (!mergedData.activePetId || !mergedData.pets?.some((p) => p.id === mergedData.activePetId)) {
       mergedData.activePetId = 'pet_fox';

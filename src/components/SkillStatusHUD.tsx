@@ -13,6 +13,14 @@ interface SkillStatusHUDProps {
   awakeningSkill?: Skill | null;
 }
 
+const RARITY_LABEL: Record<string, string> = {
+  common: 'N',
+  rare: 'R',
+  epic: 'E',
+  legendary: 'L',
+  mythic: 'M',
+};
+
 export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
   skills,
   equippedSkillIds,
@@ -53,47 +61,54 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
         {slots.map((item) => {
           if (!item.skill) {
             return (
-              <div key={item.slotNum} className="skill-slot-box slot-empty">
+              <div key={item.slotNum} className="rpg-skill-slot slot-empty">
                 <span className="slot-empty-num">{item.slotNum}</span>
+                <span className="slot-empty-sub">EMPTY</span>
               </div>
             );
           }
 
           const { skill, cd, isReady, percent, isCasting } = item;
+          const rarityBadge = RARITY_LABEL[skill.rarity] || 'N';
 
           return (
             <div
               key={skill.id}
-              className={`skill-slot-box rarity-${skill.rarity} ${
+              className={`rpg-skill-slot rarity-${skill.rarity} ${
                 isReady ? 'is-ready-pulse' : 'is-cooling'
               } ${isCasting ? 'is-casting-flash' : ''}`}
-              title={`${skill.name} (자동 발동)`}
+              title={`${skill.name} (Lv.${skill.level}) - 자동 발동`}
             >
-              {/* Cooldown Shade */}
+              {/* Radial Cooldown Conic Overlay */}
               {!isReady && (
                 <div
-                  className="cooldown-dark-shade"
-                  style={{ height: `${100 - percent}%` }}
+                  className="cooldown-radial-shade"
+                  style={{
+                    background: `conic-gradient(rgba(0,0,0,0.78) ${100 - percent}%, transparent 0)`,
+                  }}
                 />
               )}
 
-              {/* Skill Icon */}
-              <div className="skill-icon-glyph">{skill.icon}</div>
-
-              {/* Skill Label (Desktop) */}
-              <div className="skill-label-col">
-                <span className="skill-name-text">{skill.name}</span>
-                <span className={`skill-cd-text ${isReady ? 'ready-text' : ''}`}>
-                  {isReady ? 'READY' : `${cd.toFixed(1)}s`}
-                </span>
+              {/* Top Row: Rarity Tag & Level */}
+              <div className="slot-header-row">
+                <span className={`slot-rarity-chip chip-${skill.rarity}`}>{rarityBadge}</span>
+                <span className="slot-level-text">Lv.{skill.level}</span>
               </div>
 
-              {/* Mobile Timer Badge */}
-              <div className="mobile-cd-tag">
-                {isReady ? 'RDY' : `${Math.ceil(cd)}s`}
+              {/* Center: Skill Icon */}
+              <div className="slot-icon-container">
+                <span className="skill-icon-glyph">{skill.icon}</span>
+                {!isReady && (
+                  <span className="cooldown-seconds-tag">{cd.toFixed(1)}s</span>
+                )}
               </div>
 
-              {/* Ready Glow Rim */}
+              {/* Bottom: Skill Name */}
+              <div className="slot-footer-name">
+                <span className="skill-name-txt">{skill.name}</span>
+              </div>
+
+              {/* Ready Pulsing Glow Rim */}
               {isReady && <div className="ready-glow-ring" />}
             </div>
           );
@@ -102,40 +117,47 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
         {/* 👑 Special Awakening Slot (Unlocked via Promotion) */}
         {awakeningUnlocked && (
           <div
-            className={`skill-slot-box awakening-slot-box ${
+            className={`rpg-skill-slot awakening-skill-slot ${
               isAwakeningReady ? 'is-awakening-ready' : 'is-awakening-charging'
             } ${isAwakeningCasting ? 'is-casting-flash' : ''}`}
-            title={`${awakeningSkill?.name || '각성기'} (100% 충전 시 자동 발동)`}
+            title={`${awakeningSkill?.name || '각성기'} (Lv.${awakeningSkill?.level || 1}) - 100% 충전 시 자동 발동`}
           >
-            {/* Charge Level Shade */}
+            {/* Awakening Radial/Height Shade */}
             {!isAwakeningReady && (
               <div
-                className="cooldown-dark-shade awakening-shade"
-                style={{ height: `${100 - awakeningPercent}%` }}
+                className="cooldown-radial-shade awakening-shade"
+                style={{
+                  background: `conic-gradient(rgba(10, 5, 20, 0.82) ${100 - awakeningPercent}%, transparent 0)`,
+                }}
               />
             )}
 
-            {/* Awakening Icon */}
-            <div className="skill-icon-glyph awakening-glyph">
-              {awakeningSkill?.icon || (promotion === 'archmage' ? '✨🌌' : '👑⚡')}
+            {/* Top Row */}
+            <div className="slot-header-row">
+              <span className="slot-rarity-chip chip-mythic">AWK</span>
+              <span className="slot-level-text">Lv.{awakeningSkill?.level || 1}</span>
             </div>
 
-            {/* Desktop Label */}
-            <div className="skill-label-col">
-              <span className="skill-name-text awakening-title">
+            {/* Center: Awakening Icon */}
+            <div className="slot-icon-container">
+              <span className="skill-icon-glyph awakening-glyph">
+                {awakeningSkill?.icon || (promotion === 'archmage' ? '✨🌌' : '👑⚡')}
+              </span>
+              {!isAwakeningReady ? (
+                <span className="awakening-gauge-tag">{awakeningPercent}%</span>
+              ) : (
+                <span className="awakening-ready-tag">READY</span>
+              )}
+            </div>
+
+            {/* Bottom: Awakening Name */}
+            <div className="slot-footer-name">
+              <span className="skill-name-txt awakening-title">
                 {awakeningSkill?.name || '각성기'}
               </span>
-              <span className={`skill-cd-text ${isAwakeningReady ? 'awakening-ready-text' : ''}`}>
-                {isAwakeningReady ? 'MAX READY' : `${awakeningPercent}%`}
-              </span>
             </div>
 
-            {/* Mobile Tag */}
-            <div className="mobile-cd-tag awakening-tag">
-              {isAwakeningReady ? 'MAX' : `${awakeningPercent}%`}
-            </div>
-
-            {/* Pulsing Awakening Ring */}
+            {/* Awakening Animated Glow Ring */}
             {isAwakeningReady && <div className="awakening-glow-ring" />}
           </div>
         )}
@@ -144,236 +166,312 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
       <style>{`
         .skill-status-hud-root {
           position: absolute;
-          z-index: 25;
+          z-index: 60;
           pointer-events: none;
           user-select: none;
           display: flex;
           justify-content: center;
           width: 100%;
           left: 0;
-          bottom: 74px;
+          bottom: 68px;
+          transition: bottom 0.2s ease;
         }
 
         .skill-hud-container {
           display: flex;
           align-items: center;
           gap: 6px;
-          padding: 4px 8px;
-          background: rgba(11, 18, 33, 0.78);
-          backdrop-filter: blur(10px);
+          padding: 5px 8px;
+          background: rgba(11, 18, 33, 0.82);
+          backdrop-filter: blur(12px);
           border: 1px solid rgba(255, 255, 255, 0.12);
-          border-radius: 9999px;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+          border-radius: 16px;
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
         }
 
-        .skill-slot-box {
+        /* 📱 Mobile Slot Size: 58px */
+        .rpg-skill-slot {
           position: relative;
-          width: 36px;
-          height: 36px;
-          border-radius: 10px;
-          background: rgba(15, 23, 42, 0.9);
+          width: 58px;
+          height: 58px;
+          border-radius: 12px;
+          background: rgba(15, 23, 42, 0.92);
           border: 1px solid rgba(255, 255, 255, 0.16);
           overflow: hidden;
           display: flex;
+          flex-direction: column;
+          justify-content: space-between;
           align-items: center;
-          justify-content: center;
+          padding: 3px 4px 2px;
+          box-sizing: border-box;
           flex-shrink: 0;
-          transition: transform 0.15s ease, border-color 0.15s ease;
+          transition: transform 0.12s ease, border-color 0.15s ease;
         }
 
         .slot-empty {
           opacity: 0.35;
           border-style: dashed;
+          justify-content: center;
+          gap: 2px;
         }
 
         .slot-empty-num {
-          font-size: 11px;
+          font-size: 13px;
           font-weight: 800;
           color: #64748b;
         }
 
-        .skill-icon-glyph {
-          font-size: 17px;
-          z-index: 2;
-          filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
-        }
-
-        .cooldown-dark-shade {
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          background: rgba(0, 0, 0, 0.72);
-          z-index: 3;
-          pointer-events: none;
-          transition: height 0.1s linear;
-        }
-
-        .skill-label-col {
-          display: none;
-        }
-
-        .mobile-cd-tag {
-          position: absolute;
-          bottom: 1px;
-          left: 50%;
-          transform: translateX(-50%);
+        .slot-empty-sub {
           font-size: 8px;
+          font-weight: 800;
+          color: #475569;
+          letter-spacing: 0.5px;
+        }
+
+        .slot-header-row {
+          width: 100%;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          z-index: 4;
+          line-height: 1;
+        }
+
+        .slot-rarity-chip {
+          font-size: 7.5px;
+          font-weight: 900;
+          padding: 1px 3px;
+          border-radius: 4px;
+          background: rgba(255, 255, 255, 0.12);
+          color: #cbd5e1;
+          letter-spacing: -0.2px;
+        }
+
+        .chip-common { color: #94a3b8; background: rgba(148, 163, 184, 0.2); }
+        .chip-rare { color: #38bdf8; background: rgba(56, 189, 248, 0.25); }
+        .chip-epic { color: #c084fc; background: rgba(192, 132, 252, 0.25); }
+        .chip-legendary { color: #fbbf24; background: rgba(251, 191, 36, 0.25); }
+        .chip-mythic { color: #f87171; background: rgba(248, 113, 113, 0.28); }
+
+        .slot-level-text {
+          font-size: 8px;
+          font-weight: 800;
+          color: #94a3b8;
+          font-family: monospace;
+        }
+
+        .slot-icon-container {
+          position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 4;
+          margin-top: -2px;
+        }
+
+        .skill-icon-glyph {
+          font-size: 19px;
+          filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7));
+        }
+
+        .cooldown-seconds-tag {
+          position: absolute;
+          font-size: 9px;
           font-weight: 900;
           color: #f8fafc;
-          text-shadow: 0 1px 2px #000, 0 0 2px #000;
-          z-index: 4;
-          white-space: nowrap;
+          text-shadow: 0 1px 3px #000, 0 0 4px #000;
+          background: rgba(0, 0, 0, 0.55);
+          padding: 0 3px;
+          border-radius: 4px;
         }
 
-        .is-ready-pulse .mobile-cd-tag {
-          color: #fef08a;
+        .slot-footer-name {
+          width: 100%;
+          text-align: center;
+          z-index: 4;
+          line-height: 1;
+        }
+
+        .skill-name-txt {
+          font-size: 8px;
+          font-weight: 800;
+          color: #cbd5e1;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          display: block;
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+        }
+
+        .cooldown-radial-shade {
+          position: absolute;
+          inset: 0;
+          border-radius: 11px;
+          z-index: 3;
+          pointer-events: none;
         }
 
         .ready-glow-ring {
           position: absolute;
           inset: 0;
-          border-radius: 9px;
+          border-radius: 11px;
           border: 1.5px solid #fbbf24;
-          box-shadow: 0 0 8px rgba(251, 191, 36, 0.6), inset 0 0 6px rgba(251, 191, 36, 0.3);
+          box-shadow: 0 0 8px rgba(251, 191, 36, 0.7), inset 0 0 6px rgba(251, 191, 36, 0.3);
           pointer-events: none;
           z-index: 5;
           animation: readyGlowPulse 1.8s infinite alternate;
         }
 
         @keyframes readyGlowPulse {
-          0% { opacity: 0.6; }
+          0% { opacity: 0.5; }
           100% { opacity: 1; }
         }
 
         .is-casting-flash {
-          transform: scale(1.12);
-          filter: brightness(1.6);
+          transform: scale(1.08);
+          filter: brightness(1.5);
         }
 
-        /* Awakening Slot Styling */
-        .awakening-slot-box {
+        /* Awakening Slot */
+        .awakening-skill-slot {
           border: 1.5px solid #eab308;
-          background: linear-gradient(135deg, rgba(30, 27, 75, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%);
-        }
-
-        .is-awakening-ready {
-          border-color: #fbbf24;
-          box-shadow: 0 0 14px rgba(251, 191, 36, 0.7), inset 0 0 8px rgba(251, 191, 36, 0.4);
-          animation: awakeningPulse 1.2s infinite alternate;
-        }
-
-        @keyframes awakeningPulse {
-          0% { transform: scale(1); filter: brightness(1); }
-          100% { transform: scale(1.06); filter: brightness(1.25); }
-        }
-
-        .awakening-shade {
-          background: rgba(0, 0, 0, 0.75);
-        }
-
-        .awakening-glyph {
-          font-size: 18px;
+          background: linear-gradient(145deg, rgba(30, 27, 75, 0.94) 0%, rgba(15, 23, 42, 0.96) 100%);
         }
 
         .awakening-title {
           color: #fbbf24 !important;
         }
 
-        .awakening-ready-text {
-          color: #f59e0b !important;
-          font-weight: 900 !important;
-          text-shadow: 0 0 6px rgba(245, 158, 11, 0.8);
+        .awakening-gauge-tag {
+          position: absolute;
+          font-size: 8.5px;
+          font-weight: 900;
+          color: #fef08a;
+          text-shadow: 0 1px 3px #000, 0 0 3px #000;
+          background: rgba(0, 0, 0, 0.65);
+          padding: 0 3px;
+          border-radius: 4px;
         }
 
-        .awakening-tag {
+        .awakening-ready-tag {
+          position: absolute;
+          font-size: 8px;
+          font-weight: 900;
           color: #fbbf24;
+          text-shadow: 0 0 6px rgba(251, 191, 36, 0.8);
+          background: rgba(0, 0, 0, 0.7);
+          padding: 0 4px;
+          border-radius: 4px;
+          letter-spacing: 0.3px;
+        }
+
+        .is-awakening-ready {
+          border-color: #fbbf24;
+          box-shadow: 0 0 14px rgba(251, 191, 36, 0.7);
+          animation: awakeningPulse 1.2s infinite alternate;
+        }
+
+        @keyframes awakeningPulse {
+          0% { transform: scale(1); filter: brightness(1); }
+          100% { transform: scale(1.04); filter: brightness(1.22); }
         }
 
         .awakening-glow-ring {
           position: absolute;
           inset: 0;
-          border-radius: 9px;
+          border-radius: 11px;
           border: 2px solid #fbbf24;
           box-shadow: 0 0 12px rgba(251, 191, 36, 0.8), inset 0 0 8px rgba(245, 158, 11, 0.5);
           pointer-events: none;
           z-index: 5;
         }
 
-        /* Rarity Borders */
-        .rarity-common { border-color: rgba(148, 163, 184, 0.4); }
-        .rarity-rare { border-color: rgba(56, 189, 248, 0.5); }
-        .rarity-epic { border-color: rgba(168, 85, 247, 0.6); }
-        .rarity-legendary { border-color: rgba(245, 158, 11, 0.7); }
-        .rarity-mythic { border-color: rgba(239, 68, 68, 0.8); }
+        /* Rarity Border Styles */
+        .rarity-common { border-color: rgba(148, 163, 184, 0.35); }
+        .rarity-rare { border-color: rgba(56, 189, 248, 0.5); box-shadow: 0 0 8px rgba(56, 189, 248, 0.2); }
+        .rarity-epic { border-color: rgba(168, 85, 247, 0.6); box-shadow: 0 0 10px rgba(168, 85, 247, 0.25); }
+        .rarity-legendary { border-color: rgba(245, 158, 11, 0.7); box-shadow: 0 0 12px rgba(245, 158, 11, 0.3); }
+        .rarity-mythic { border-color: rgba(239, 68, 68, 0.8); box-shadow: 0 0 14px rgba(239, 68, 68, 0.35); }
 
-        /* 🖥️ PC Responsive Skill Status Bar (width >= 768px) */
-        @media (min-width: 768px) {
+        /* 💻 Compact Desktop Layout (700px ~ 1439px): Slot Size: 66px */
+        @media (min-width: 700px) {
           .skill-status-hud-root {
-            bottom: 86px;
+            bottom: calc(var(--bottom-nav-height, 64px) + 16px);
           }
 
           .skill-hud-container {
-            gap: 10px;
-            padding: 6px 14px;
-            border-radius: 16px;
-            background: rgba(11, 18, 33, 0.88);
-            border: 1px solid rgba(255, 255, 255, 0.14);
-            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
-          }
-
-          .skill-slot-box {
-            width: 125px;
-            height: 44px;
-            border-radius: 12px;
-            padding: 0 8px;
-            justify-content: flex-start;
             gap: 8px;
+            padding: 6px 10px;
+            border-radius: 18px;
+            background: rgba(11, 18, 33, 0.88);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
           }
 
-          .awakening-slot-box {
-            width: 135px;
-            border-width: 2px;
+          .rpg-skill-slot {
+            width: 66px;
+            height: 66px;
+            border-radius: 14px;
+            padding: 4px 5px 3px;
+          }
+
+          .slot-rarity-chip {
+            font-size: 8px;
+            padding: 1px 4px;
+          }
+
+          .slot-level-text {
+            font-size: 8.5px;
           }
 
           .skill-icon-glyph {
-            font-size: 20px;
+            font-size: 22px;
           }
 
-          .skill-label-col {
-            display: flex;
-            flex-direction: column;
-            gap: 1px;
-            z-index: 4;
-            min-width: 0;
-            flex: 1;
+          .skill-name-txt {
+            font-size: 8.5px;
           }
 
-          .skill-name-text {
-            font-size: 11px;
-            font-weight: 800;
-            color: #f8fafc;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+          .cooldown-seconds-tag, .awakening-gauge-tag {
+            font-size: 9.5px;
           }
 
-          .skill-cd-text {
-            font-size: 10px;
-            font-weight: 800;
-            color: #94a3b8;
-            font-family: monospace;
+          .ready-glow-ring, .awakening-glow-ring {
+            border-radius: 13px;
+          }
+        }
+
+        /* 🖥️ Wide Desktop Layout (>= 1440px): Slot Size: 76px */
+        @media (min-width: 1440px) {
+          .rpg-skill-slot {
+            width: 76px;
+            height: 76px;
+            border-radius: 16px;
+            padding: 5px 6px 4px;
           }
 
-          .ready-text {
-            color: #fbbf24;
-            font-weight: 900;
-            text-shadow: 0 0 6px rgba(251, 191, 36, 0.6);
+          .slot-rarity-chip {
+            font-size: 9px;
+            padding: 1px 5px;
           }
 
-          .mobile-cd-tag {
-            display: none;
+          .slot-level-text {
+            font-size: 9.5px;
+          }
+
+          .skill-icon-glyph {
+            font-size: 25px;
+          }
+
+          .skill-name-txt {
+            font-size: 9.5px;
+          }
+
+          .cooldown-seconds-tag, .awakening-gauge-tag {
+            font-size: 10.5px;
+          }
+
+          .ready-glow-ring, .awakening-glow-ring {
+            border-radius: 15px;
           }
         }
       `}</style>

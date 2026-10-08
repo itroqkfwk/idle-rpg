@@ -134,22 +134,88 @@ export type PromotionId = 'none' | 'sword_master' | 'archmage' | 'gladiator';
 
 
 export type SkillEffectType =
+  // Warrior skills (14)
   | 'power_slash'
   | 'double_slash'
   | 'sword_wave'
   | 'whirlwind'
   | 'shield_bash'
   | 'blade_storm'
+  | 'ground_breaker'
+  | 'blood_thirst'
+  | 'execution'
+  | 'flame_sword'
+  | 'iron_fortress'
+  | 'phantom_blade'
   | 'heavenly_blade'
+  | 'ragnarok_cleave'
+  // Mage skills (14)
   | 'magic_missile'
   | 'fireball'
   | 'ice_spear'
   | 'chain_lightning'
+  | 'blizzard'
+  | 'arcane_orb'
+  | 'thunder_strike'
+  | 'frost_nova'
+  | 'flame_pillar'
+  | 'gravity_well'
+  | 'mana_burst'
+  | 'arcane_familiar'
+  | 'astral_cataclysm'
+  | 'absolute_zero'
+  // Legacy aliases
   | 'meteor'
   | 'arcane_storm'
-  | 'astral_cataclysm'
   | 'wind_blade'
   | 'meteor_slash';
+
+export type SkillMechanicType =
+  | 'single'
+  | 'aoe'
+  | 'multi_hit'
+  | 'pierce'
+  | 'knockback'
+  | 'pull'
+  | 'stun'
+  | 'freeze'
+  | 'burn'
+  | 'bleed'
+  | 'shock'
+  | 'def_shred'
+  | 'atk_buff'
+  | 'atk_speed'
+  | 'crit_buff'
+  | 'shield'
+  | 'lifesteal'
+  | 'execute'
+  | 'summon'
+  | 'hazard'
+  | 'chain'
+  | 'boss_slayer';
+
+export type StatusEffectType = 'burn' | 'freeze' | 'shock' | 'armor_break' | 'stun';
+
+export interface MonsterStatusEffect {
+  type: StatusEffectType;
+  duration: number; // in seconds
+  value?: number;    // e.g. def reduction % or dot damage
+  timer?: number;
+}
+
+export type SkillSynergyType =
+  | 'shatter_lightning'
+  | 'flame_burst'
+  | 'cosmic_implosion'
+  | 'armor_shatter';
+
+export interface SkillPowerScoreVector {
+  totalScore: number;
+  bossDamage: number;
+  aoeDamage: number;
+  survival: number;
+  utility: number;
+}
 
 export interface Skill {
   id: string;
@@ -170,6 +236,8 @@ export interface Skill {
   isAwakening?: boolean;
   hits?: number;
   icon: string;
+  mechanics?: SkillMechanicType[];
+  synergyTrigger?: SkillSynergyType;
   // Owned Collection Effects
   ownedAtk?: number;
   ownedHp?: number;
@@ -220,6 +288,9 @@ export interface GameSaveData {
   hasSelectedClass?: boolean;
   cheatUsed?: boolean;
   isTestAccount?: boolean;
+  questCollapsed?: boolean;
+  skillCooldownOff?: boolean;
+  infiniteAwakening?: boolean;
 }
 
 

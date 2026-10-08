@@ -13,6 +13,7 @@ import {
   StageState,
   Skill,
   SkillEffectType,
+  MonsterStatusEffect,
   CharacterClassId,
   PromotionId,
 } from './types/game';
@@ -139,6 +140,13 @@ export const App: React.FC = () => {
   const [lootAlert, setLootAlert] = useState<{ id: string; item: Equipment } | null>(null);
   const [stageNotice, setStageNotice] = useState<string | null>(null);
   const [cpDelta, setCpDelta] = useState<{ value: number; delta: number } | null>(null);
+
+  // Monster Status Effects (Burn, Freeze, Shock, Armor Break, Stun)
+  const [monsterStatuses, setMonsterStatuses] = useState<MonsterStatusEffect[]>([]);
+  const monsterStatusesRef = useRef<MonsterStatusEffect[]>([]);
+  useEffect(() => {
+    monsterStatusesRef.current = monsterStatuses;
+  }, [monsterStatuses]);
 
   // Sound Engine Sync
   useEffect(() => {
@@ -652,14 +660,39 @@ export const App: React.FC = () => {
       const promoSkillMult = 1 + (currentCalc.promoSkillDmg || 0);
       const mult = (castSkill.baseDamageMult + (castSkill.level - 1) * castSkill.damageMultPerLevel) * promoSkillMult;
       const targetMonster = currentMonsterRef.current;
-      const skillDamage = Math.floor(
+      const baseSkillDamage = Math.floor(
         Math.max(1, currentCalc.totalAtk * mult - targetMonster.def * 0.25)
       );
+
+      // 💥 Detect Skill Synergies against active Monster Statuses
+      let skillDamage = baseSkillDamage;
+      let synergyBanner: string | null = null;
+      const activeStatuses = monsterStatusesRef.current;
+
+      if (castSkill.synergyTrigger === 'shatter_lightning' && activeStatuses.some((s) => s.type === 'freeze')) {
+        skillDamage = Math.floor(baseSkillDamage * 1.5);
+        synergyBanner = '⚡ Shatter Lightning (+50%)';
+      } else if (castSkill.synergyTrigger === 'flame_burst' && activeStatuses.some((s) => s.type === 'burn')) {
+        skillDamage = Math.floor(baseSkillDamage * 1.6);
+        synergyBanner = '🔥 Flame Burst (+60%)';
+      } else if (castSkill.synergyTrigger === 'cosmic_implosion') {
+        skillDamage = Math.floor(baseSkillDamage * 1.6);
+        synergyBanner = '🌌 Cosmic Implosion (+60%)';
+      } else if (
+        castSkill.synergyTrigger === 'armor_shatter' &&
+        activeStatuses.some((s) => s.type === 'armor_break' || s.type === 'stun')
+      ) {
+        skillDamage = Math.floor(baseSkillDamage * 1.8);
+        synergyBanner = '⚔️ Armor Shatter (+80%)';
+      }
 
       if (isAwakeningCast) {
         // === AWAKENING SPECTACLE TIMELINE ===
         setIsAwakeningCasting(true);
-        setSaveData((prev) => ({ ...prev, awakeningGauge: 0 }));
+        setSaveData((prev) => ({
+          ...prev,
+          awakeningGauge: prev.infiniteAwakening ? 100 : 0,
+        }));
         sound.playFanfare();
         setScreenShake('boss');
 
@@ -675,7 +708,7 @@ export const App: React.FC = () => {
           setIsHitStop(true);
           setIsMonsterHit(true);
           setScreenShake('boss');
-          addDamageNumber(skillDamage, true, false, true, `👑 ${castSkill.name}`);
+          addDamageNumber(skillDamage, true, false, true, synergyBanner || `👑 ${castSkill.name}`);
 
           setTimeout(() => setIsHitStop(false), 130);
           setTimeout(() => setScreenShake('none'), 240);
@@ -701,10 +734,11 @@ export const App: React.FC = () => {
         }, 820);
       } else {
         // === NORMAL SKILL TIMELINE ===
-        const reducedCd = Math.max(
+        const baseReducedCd = Math.max(
           2,
           Math.round(castSkill.cooldown * (1 - (currentCalc.promoCdReduction || 0)) * 10) / 10
         );
+        const reducedCd = saveData.skillCooldownOff ? 0.05 : baseReducedCd;
         setSkillCooldowns((prev) => ({
           ...prev,
           [castSkill.id]: reducedCd,
@@ -723,11 +757,29 @@ export const App: React.FC = () => {
           setScreenShake(shake);
           setIsHitStop(true);
           setIsMonsterHit(true);
-          addDamageNumber(skillDamage, true, false, true, castSkill.name);
+          addDamageNumber(skillDamage, true, false, true, synergyBanner || castSkill.name);
 
-          // Charge Awakening gauge on skill hit (+7%)
+          // Apply Status Effects to Monster
+          if (castSkill.mechanics?.includes('burn')) {
+            setMonsterStatuses((prev) => [...prev.filter((s) => s.type !== 'burn'), { type: 'burn', duration: 3.5 }]);
+          }
+          if (castSkill.mechanics?.includes('freeze')) {
+            setMonsterStatuses((prev) => [...prev.filter((s) => s.type !== 'freeze'), { type: 'freeze', duration: 2.5 }]);
+          }
+          if (castSkill.mechanics?.includes('shock')) {
+            setMonsterStatuses((prev) => [...prev.filter((s) => s.type !== 'shock'), { type: 'shock', duration: 3.0 }]);
+          }
+          if (castSkill.mechanics?.includes('def_shred')) {
+            setMonsterStatuses((prev) => [...prev.filter((s) => s.type !== 'armor_break'), { type: 'armor_break', duration: 4.0 }]);
+          }
+          if (castSkill.mechanics?.includes('stun')) {
+            setMonsterStatuses((prev) => [...prev.filter((s) => s.type !== 'stun'), { type: 'stun', duration: 2.0 }]);
+          }
+
+          // Charge Awakening gauge on skill hit (+7%, or 100% if infiniteAwakening cheat is ON)
           setSaveData((prev) => {
             if (!prev.awakeningUnlocked) return prev;
+            if (prev.infiniteAwakening) return { ...prev, awakeningGauge: 100 };
             return {
               ...prev,
               awakeningGauge: Math.min(100, Math.round(((prev.awakeningGauge ?? 0) + 7) * 10) / 10),
@@ -759,6 +811,34 @@ export const App: React.FC = () => {
     }, 100);
 
     return () => clearInterval(timer);
+  }, [handleMonsterDefeat, addDamageNumber]);
+
+  // --- Status Effect Decay & Burn DoT Tick ---
+  useEffect(() => {
+    const dotTimer = setInterval(() => {
+      // 1. Burn DoT Tick
+      if (monsterStatusesRef.current.some((s) => s.type === 'burn')) {
+        const burnDmg = Math.max(1, Math.floor(combatCalcRef.current.totalAtk * 0.15));
+        addDamageNumber(burnDmg, false, false, true, '🔥 화상');
+        setCurrentMonster((prev) => {
+          const nextHp = Math.max(0, prev.currentHp - burnDmg);
+          if (nextHp <= 0) {
+            handleMonsterDefeat();
+          }
+          return { ...prev, currentHp: nextHp };
+        });
+      }
+
+      // 2. Decay Status Effects
+      setMonsterStatuses((prev) => {
+        if (prev.length === 0) return prev;
+        return prev
+          .map((s) => ({ ...s, duration: s.duration - 0.5 }))
+          .filter((s) => s.duration > 0);
+      });
+    }, 500);
+
+    return () => clearInterval(dotTimer);
   }, [handleMonsterDefeat, addDamageNumber]);
 
   // --- Monster Attack Tick (Every 2.4s) ---
@@ -1337,7 +1417,8 @@ export const App: React.FC = () => {
         (s) => s.classId === activeClass && !s.isAwakening && s.owned
       );
 
-      available.sort((a, b) => calculateSkillPowerScore(b) - calculateSkillPowerScore(a));
+      const isBoss = prev.stage.stage === 10 || prev.stage.inBossFight;
+      available.sort((a, b) => calculateSkillPowerScore(b, isBoss) - calculateSkillPowerScore(a, isBoss));
 
       const newEquipped = [
         available[0]?.id || null,
@@ -1346,7 +1427,9 @@ export const App: React.FC = () => {
         available[3]?.id || null,
       ];
 
-      setStageNotice(`⚡ ${activeClass === 'warrior' ? '전사' : '마법사'} 최적 DPS 스킬이 자동 장착되었습니다!`);
+      setStageNotice(
+        `⚡ ${activeClass === 'warrior' ? '전사' : '마법사'} ${isBoss ? '보스 레이드' : '웨이브 사냥'} 최적 스킬이 자동 장착되었습니다!`
+      );
       setTimeout(() => setStageNotice(null), 1600);
 
       return {
@@ -1723,7 +1806,18 @@ export const App: React.FC = () => {
 
         {/* Quest Parchment Ribbon (Displayed only in main Adventure tab) */}
         {activeTab === 'adventure' && (
-          <QuestWidget quest={activeQuest} onClaim={handleClaimQuest} />
+          <QuestWidget
+            quest={activeQuest}
+            onClaim={handleClaimQuest}
+            isCollapsed={saveData.questCollapsed}
+            onToggleCollapse={(collapsed) =>
+              setSaveData((prev) => {
+                const next = { ...prev, questCollapsed: collapsed };
+                saveGameData(next);
+                return next;
+              })
+            }
+          />
         )}
 
         {/* 3. Half-Sheet Drawers for Subpages */}

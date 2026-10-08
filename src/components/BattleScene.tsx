@@ -538,7 +538,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         /* Floating Bottom Bar (Cleanly anchored above bottom dock and skill HUD) */
         .battle-bottom-floating-bar {
           position: absolute;
-          bottom: 122px;
+          bottom: 136px;
           left: 50%;
           transform: translateX(-50%);
           z-index: 10;
@@ -800,7 +800,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           }
 
           .battle-bottom-floating-bar {
-            bottom: 154px;
+            bottom: 162px;
           }
 
           .floating-boss-btn {

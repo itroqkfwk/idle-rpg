@@ -510,6 +510,142 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
         spawnShockwave(monsterX, groundY, 120, 450, '#ef4444', 0.45, 8);
         spawnDirectionalSparks(monsterX, monsterY, 32, '#fef08a', Math.PI * 0.5, 2.0, 11, groundY);
       }, 300);
+    } else if (type === 'ground_breaker') {
+      // 7. Ground Breaker: Heavy slam, downward crater shockwave + fissures + upward debris
+      spawnShockwave(monsterX, groundY, 110, 480, '#f59e0b', 0.42, 8);
+      const fissureCracks: { x: number; y: number }[][] = [];
+      for (let c = 0; c < 4; c++) {
+        const crackPath: { x: number; y: number }[] = [{ x: monsterX, y: groundY }];
+        let curX = monsterX;
+        let curY = groundY;
+        const cAngle = (c / 4) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+        for (let s = 0; s < 3; s++) {
+          curX += Math.cos(cAngle) * (25 + Math.random() * 15);
+          curY += Math.sin(cAngle) * (12 + Math.random() * 8);
+          crackPath.push({ x: curX, y: curY });
+        }
+        fissureCracks.push(crackPath);
+      }
+      fissuresRef.current.push({
+        id: `fis_gb_${Date.now()}`,
+        originX: monsterX,
+        originY: groundY,
+        cracks: fissureCracks,
+        color: '#f59e0b',
+        life: 0,
+        maxLife: 0.65,
+      });
+      spawnDirectionalSparks(monsterX, groundY - 15, 28, '#d97706', -Math.PI * 0.5, 1.8, 10, groundY);
+    } else if (type === 'blood_thirst') {
+      // 8. Blood Thirst: Crimson blood aura tendrils + inward red spark ribbons
+      for (let i = 0; i < 2; i++) {
+        setTimeout(() => {
+          slashesRef.current.push({
+            id: `bt_${Date.now()}_${i}`,
+            x: monsterX,
+            y: monsterY,
+            radius: 80 + i * 15,
+            startAngle: -Math.PI * 0.8,
+            endAngle: Math.PI * 0.4,
+            maxThickness: 22,
+            color: '#ef4444',
+            glowColor: '#7f1d1d',
+            life: 0,
+            maxLife: 0.22,
+            rotation: i * 0.5,
+          });
+          spawnDirectionalSparks(monsterX, monsterY, 16, '#dc2626', -Math.PI * 0.2, 1.4, 8, groundY);
+        }, i * 70);
+      }
+      spawnShockwave(heroX, heroY, 65, 320, '#ef4444', 0.8, 5);
+    } else if (type === 'execution') {
+      // 9. Execution: Massive guillotine vertical cleave with dark crimson-ruby glow + heavy ground shockwave
+      slashesRef.current.push({
+        id: `exec_${Date.now()}`,
+        x: monsterX,
+        y: monsterY - 10,
+        radius: 120,
+        startAngle: -Math.PI * 0.95,
+        endAngle: Math.PI * 0.45,
+        maxThickness: 38,
+        color: '#ffffff',
+        glowColor: '#ef4444',
+        life: 0,
+        maxLife: 0.30,
+        rotation: 0.05,
+      });
+      spawnShockwave(monsterX, groundY, 130, 520, '#ef4444', 0.45, 10);
+      spawnDirectionalSparks(monsterX, monsterY, 36, '#dc2626', Math.PI * 0.5, 2.4, 12, groundY);
+    } else if (type === 'flame_sword') {
+      // 10. Flame Sword: Flaming ribbon slash arc + lingering ground fire sparks
+      slashesRef.current.push({
+        id: `fs_${Date.now()}`,
+        x: monsterX,
+        y: monsterY,
+        radius: 90,
+        startAngle: -Math.PI * 0.8,
+        endAngle: Math.PI * 0.35,
+        maxThickness: 26,
+        color: '#f97316',
+        glowColor: '#ea580c',
+        life: 0,
+        maxLife: 0.24,
+        rotation: -0.3,
+      });
+      spawnShockwave(monsterX, monsterY, 70, 390, '#fbbf24', 0.75, 6);
+      spawnDirectionalSparks(monsterX, groundY - 10, 22, '#f97316', -Math.PI * 0.4, 1.6, 9, groundY);
+    } else if (type === 'iron_fortress') {
+      // 11. Iron Fortress: Giant golden forcefield around hero
+      spawnShockwave(heroX, heroY, 75, 240, '#fbbf24', 0.85, 10);
+      spawnDirectionalSparks(heroX, heroY, 16, '#fef08a', 0, 3.14, 6, groundY);
+    } else if (type === 'phantom_blade') {
+      // 12. Phantom Blade: 5 rapid spatial shadow slashes with violet echoes
+      for (let i = 0; i < 5; i++) {
+        setTimeout(() => {
+          slashesRef.current.push({
+            id: `pb_${Date.now()}_${i}`,
+            x: monsterX + (Math.random() - 0.5) * 40,
+            y: monsterY + (Math.random() - 0.5) * 40,
+            radius: 80,
+            startAngle: -Math.PI * 0.75,
+            endAngle: Math.PI * 0.35,
+            maxThickness: 18,
+            color: '#a855f7',
+            glowColor: '#581c87',
+            life: 0,
+            maxLife: 0.16,
+            rotation: (i - 2) * 0.4,
+          });
+          spawnDirectionalSparks(monsterX, monsterY, 8, '#c084fc', Math.random() * Math.PI * 2, 1.5, 7, groundY);
+        }, i * 50);
+      }
+    } else if (type === 'ragnarok_cleave') {
+      // 14. Ragnarok Cleave (Warrior Awakening 2): Screen-cleaving void-fire doom slash
+      awakeningAnimRef.current = {
+        active: true,
+        classId: 'warrior',
+        startTime: performance.now(),
+        targetX: monsterX,
+        targetY: monsterY,
+        groundY: groundY,
+      };
+      slashesRef.current.push({
+        id: `rag_${Date.now()}`,
+        x: monsterX,
+        y: monsterY,
+        radius: 160,
+        startAngle: -Math.PI * 0.9,
+        endAngle: Math.PI * 0.45,
+        maxThickness: 45,
+        color: '#ffffff',
+        glowColor: '#dc2626',
+        life: 0,
+        maxLife: 0.45,
+        rotation: 0.35,
+      });
+      spawnShockwave(monsterX, groundY, 160, 520, '#ef4444', 0.42, 12);
+      spawnShockwave(monsterX, monsterY, 130, 480, '#7f1d1d', 0.85, 10);
+      spawnDirectionalSparks(monsterX, groundY - 20, 50, '#f97316', -Math.PI * 0.5, 2.5, 13, groundY);
     } else if (type === 'heavenly_blade' || (isAwakeningCasting && classId === 'warrior')) {
       // 7. Heavenly Blade (Warrior Awakening): Colossal Golden Greatsword + Ground Fissures + Holy Cross Flash
       awakeningAnimRef.current = {
@@ -664,6 +800,96 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
           spawnDirectionalSparks(px, py, 15, '#e879f9', -Math.PI * 0.5, 1.8, 8.5, groundY);
         }, s * 55);
       }
+    } else if (type === 'blizzard') {
+      // 5. Blizzard: Multi-layer Cryo Blizzard vortex
+      for (let s = 0; s < 4; s++) {
+        setTimeout(() => {
+          spawnShockwave(monsterX + (Math.random() - 0.5) * 40, groundY - 10, 80 + s * 10, 320, '#67e8f9', 0.45, 5);
+          spawnDirectionalSparks(monsterX, groundY - 20, 14, '#a5f3fc', Math.random() * Math.PI * 2, 2.0, 7, groundY);
+        }, s * 70);
+      }
+    } else if (type === 'arcane_orb') {
+      // 6. Arcane Orb: Large slow-moving violet piercing orb
+      projectilesRef.current.push({
+        id: `ao_${Date.now()}`,
+        type: 'magic_missile',
+        startX: heroX,
+        startY: heroY,
+        targetX: monsterX,
+        targetY: monsterY,
+        currentX: heroX,
+        currentY: heroY,
+        progress: 0,
+        speed: 0.038,
+        color: '#c084fc',
+        size: 26,
+        trail: [],
+      });
+    } else if (type === 'thunder_strike') {
+      // 7. Thunder Strike: Single-target massive sky lightning bolt
+      const { main, branches } = generateLightning(monsterX, -40, monsterX, monsterY, 40, 5, 0.35);
+      lightningRef.current.push({
+        id: `ts_${Date.now()}`,
+        segments: main,
+        branches: branches,
+        color: '#fbbf24',
+        coreColor: '#ffffff',
+        life: 0,
+        maxLife: 0.28,
+        width: 4.5,
+      });
+      spawnShockwave(monsterX, monsterY, 90, 460, '#fbbf24', 0.85, 8);
+      spawnDirectionalSparks(monsterX, monsterY, 30, '#fef08a', Math.PI * 0.5, 2.4, 11, groundY);
+    } else if (type === 'frost_nova') {
+      // 8. Frost Nova: Instant radial ice crystal shockwave
+      spawnShockwave(monsterX, monsterY, 110, 480, '#38bdf8', 0.9, 8);
+      spawnDirectionalSparks(monsterX, monsterY, 26, '#e0f2fe', 0, 3.14, 8.5, groundY);
+    } else if (type === 'flame_pillar') {
+      // 9. Flame Pillar: Erupting ground fire column
+      spawnShockwave(monsterX, groundY, 85, 380, '#f97316', 0.42, 8);
+      spawnDirectionalSparks(monsterX, groundY, 32, '#ea580c', -Math.PI * 0.5, 2.2, 10, groundY);
+    } else if (type === 'gravity_well') {
+      // 10. Gravity Well: Inward black hole vortex
+      spawnShockwave(monsterX, monsterY, 95, 350, '#9333ea', 0.9, 8);
+      spawnDirectionalSparks(monsterX, monsterY, 24, '#c084fc', 0, 3.14, 7, groundY);
+    } else if (type === 'mana_burst') {
+      // 11. Mana Burst: Concentrated prismatic energy explosion
+      spawnShockwave(monsterX, monsterY, 115, 520, '#a855f7', 0.85, 9);
+      spawnDirectionalSparks(monsterX, monsterY, 34, '#f0abfc', Math.random() * Math.PI * 2, 2.8, 10, groundY);
+    } else if (type === 'arcane_familiar') {
+      // 12. Arcane Familiar: Orbiting glowing wisp around hero shooting sub-bolts
+      for (let f = 0; f < 3; f++) {
+        setTimeout(() => {
+          projectilesRef.current.push({
+            id: `af_${Date.now()}_${f}`,
+            type: 'magic_missile',
+            startX: heroX + 25,
+            startY: heroY - 30,
+            targetX: monsterX,
+            targetY: monsterY + (f - 1) * 15,
+            currentX: heroX + 25,
+            currentY: heroY - 30,
+            progress: 0,
+            speed: 0.075,
+            color: '#e879f9',
+            size: 9,
+            trail: [],
+          });
+        }, f * 100);
+      }
+    } else if (type === 'absolute_zero') {
+      // 14. Absolute Zero (Mage Awakening 2): Time freeze + Glacier shatter
+      awakeningAnimRef.current = {
+        active: true,
+        classId: 'mage',
+        startTime: performance.now(),
+        targetX: monsterX,
+        targetY: monsterY,
+        groundY: groundY,
+      };
+      spawnShockwave(monsterX, monsterY, 160, 520, '#06b6d4', 0.9, 12);
+      spawnShockwave(monsterX, groundY, 140, 420, '#bae6fd', 0.45, 10);
+      spawnDirectionalSparks(monsterX, monsterY, 55, '#ffffff', 0, 3.14, 11, groundY);
     } else if (type === 'astral_cataclysm' || (isAwakeningCasting && classId === 'mage')) {
       // 7. Astral Cataclysm (Mage Awakening): Cosmic Gate + Starlight Bombardment + Supernova
       awakeningAnimRef.current = {

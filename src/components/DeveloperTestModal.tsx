@@ -421,7 +421,7 @@ export const DeveloperTestModal: React.FC<DeveloperTestModalProps> = ({
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
               <CheatButton
                 label="현재 직업 스킬 전체 해금"
-                desc={`${saveData.classId === 'warrior' ? '전사' : '마법사'} 스킬 7종 해금`}
+                desc={`${saveData.classId === 'warrior' ? '전사' : '마법사'} 14종 스킬 해금`}
                 onClick={() =>
                   applyCheat('현재 직업 스킬 해금', (prev) => ({
                     ...prev,
@@ -430,11 +430,11 @@ export const DeveloperTestModal: React.FC<DeveloperTestModalProps> = ({
                 }
               />
               <CheatButton
-                label="전 직업 스킬 100% 해금"
-                desc="전사 + 마법사 모든 스킬 보유"
+                label="전 28종 스킬 100% 해금"
+                desc="전사 14종 + 마법사 14종 일괄 보유"
                 highlight
                 onClick={() =>
-                  applyCheat('전 직업 스킬 해금', (prev) => ({
+                  applyCheat('전 28종 스킬 해금', (prev) => ({
                     ...prev,
                     skills: prev.skills.map((s) => ({ ...s, owned: true })),
                   }))
@@ -442,7 +442,7 @@ export const DeveloperTestModal: React.FC<DeveloperTestModalProps> = ({
               />
               <CheatButton
                 label="스킬 조각 +100 일괄 지급"
-                desc="모든 스킬에 조각 100개 지급"
+                desc="모든 28종 스킬에 조각 100개 지급"
                 onClick={() =>
                   applyCheat('스킬 조각 +100', (prev) => ({
                     ...prev,
@@ -452,7 +452,7 @@ export const DeveloperTestModal: React.FC<DeveloperTestModalProps> = ({
               />
               <CheatButton
                 label="모든 스킬 Lv. 10 세팅"
-                desc="전 스킬 레벨 10으로 설정"
+                desc="전 28종 스킬 레벨 10으로 설정"
                 onClick={() =>
                   applyCheat('스킬 Lv. 10 세팅', (prev) => ({
                     ...prev,
@@ -466,7 +466,7 @@ export const DeveloperTestModal: React.FC<DeveloperTestModalProps> = ({
                 }
               />
               <CheatButton
-                label="모든 스킬 Lv. 30 (MAX)"
+                label="모든 28종 스킬 Lv. 30 (MAX)"
                 desc="전 스킬 레벨 30 극대화"
                 highlight
                 onClick={() =>
@@ -480,6 +480,47 @@ export const DeveloperTestModal: React.FC<DeveloperTestModalProps> = ({
                     })),
                   }))
                 }
+              />
+              <CheatButton
+                label={`스킬 쿨타임 OFF: ${saveData.skillCooldownOff ? 'ON' : 'OFF'}`}
+                desc="스킬 쿨타임 없이 무한 연속 발동"
+                highlight={!!saveData.skillCooldownOff}
+                onClick={() =>
+                  applyCheat(
+                    `스킬 쿨타임 OFF (${!saveData.skillCooldownOff ? '활성' : '해제'})`,
+                    (prev) => ({
+                      ...prev,
+                      skillCooldownOff: !prev.skillCooldownOff,
+                    })
+                  )
+                }
+              />
+              <CheatButton
+                label={`각성 게이지 100% 무한: ${saveData.infiniteAwakening ? 'ON' : 'OFF'}`}
+                desc="각성기 상시 즉시 발동 가능"
+                highlight={!!saveData.infiniteAwakening}
+                onClick={() =>
+                  applyCheat(
+                    `각성 무한 (${!saveData.infiniteAwakening ? '활성' : '해제'})`,
+                    (prev) => ({
+                      ...prev,
+                      infiniteAwakening: !prev.infiniteAwakening,
+                      awakeningGauge: 100,
+                      awakeningUnlocked: true,
+                    })
+                  )
+                }
+              />
+              <CheatButton
+                label="신화 각성기 VFX 연출 테스트"
+                desc="라그나로크 & 절대영도 즉시 실행"
+                onClick={() => {
+                  const trigger = (window as any).__triggerSkillVfx;
+                  if (trigger) {
+                    trigger(saveData.classId === 'warrior' ? 'ragnarok_cleave' : 'absolute_zero');
+                    showToast('각성기 VFX 테스트 발동!');
+                  }
+                }}
               />
             </div>
           )}
