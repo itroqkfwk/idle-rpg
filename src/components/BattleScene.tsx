@@ -11,6 +11,7 @@ import {
   Quest,
   CharacterClassId,
   PromotionId,
+  MonsterStatusEffect,
 } from '../types/game';
 import { RARITY_CONFIGS } from '../data/equipment';
 import { PlayerCharacter } from './PlayerCharacter';
@@ -69,6 +70,12 @@ interface BattleSceneProps {
   awakeningUnlocked?: boolean;
   awakeningGauge?: number;
   awakeningSkill?: Skill | null;
+  basicAttackEvent?: { id: string; comboStep: 1 | 2 | 3; classId: CharacterClassId } | null;
+  petAttackEvent?: { id: string; petId: string } | null;
+  isPetAttacking?: boolean;
+  basicComboStep?: 1 | 2 | 3;
+  monsterStatuses?: MonsterStatusEffect[];
+  currentDps?: number;
 }
 
 export const BattleScene: React.FC<BattleSceneProps> = ({
@@ -107,6 +114,12 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
   awakeningUnlocked = false,
   awakeningGauge = 0,
   awakeningSkill = null,
+  basicAttackEvent = null,
+  petAttackEvent = null,
+  isPetAttacking = false,
+  basicComboStep = 1,
+  monsterStatuses = [],
+  currentDps = 0,
 }) => {
   const isBossFight = stage.stage === 10 && stage.inBossFight;
   const stageEnv = getStageEnvironment(stage.chapter, stage.stage, isBossFight);
@@ -157,7 +170,29 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         isPlayerAttacking={isPlayerAttacking}
         isMonsterHit={isMonsterHit}
         ambientType={stageEnv.ambientParticleType}
+        basicAttackEvent={basicAttackEvent}
+        petAttackEvent={petAttackEvent}
       />
+
+      {/* ⚔️ Live DPS & 3-Hit Basic Attack Combo HUD Pill */}
+      <div className="battle-live-dps-hud">
+        <div className="dps-stat-row">
+          <span className="dps-icon">⚡</span>
+          <span className="dps-label">DPS</span>
+          <span className="dps-value">{currentDps.toLocaleString()}</span>
+        </div>
+        <div className="combo-pips-row" title="기본 평타 3연격 콤보">
+          <span className="combo-label">평타</span>
+          {[1, 2, 3].map((step) => (
+            <span
+              key={step}
+              className={`combo-pip ${basicComboStep === step && isPlayerAttacking ? 'pip-active' : basicComboStep > step ? 'pip-filled' : ''}`}
+            >
+              {step}
+            </span>
+          ))}
+        </div>
+      </div>
 
       {/* ⚡ Combat Power Growth Chip */}
       {cpDelta && (
@@ -217,8 +252,9 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
             isCasting={isCasting}
             castingSkillType={castingSkillType}
             isAwakeningCasting={isAwakeningCasting}
+            basicComboStep={basicComboStep}
           />
-          <PetCompanion pet={activePet} />
+          <PetCompanion pet={activePet} isAttacking={isPetAttacking} />
         </div>
 
         {/* Center: Boss Encounter Alert Badge */}
@@ -246,6 +282,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
             isAttacking={isMonsterAttacking}
             isHitStop={isHitStop}
             damages={damages.filter((d) => !d.isPlayer)}
+            monsterStatuses={monsterStatuses}
           />
         </div>
       </div>
@@ -508,6 +545,100 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
                       linear-gradient(to top, rgba(10, 15, 25, 0.72) 0%, rgba(10, 15, 25, 0.25) 30%, transparent 60%);
           pointer-events: none;
           z-index: 4;
+        }
+
+        /* Live DPS & 3-Hit Combo HUD Pill */
+        .battle-live-dps-hud {
+          position: absolute;
+          top: 112px;
+          left: 12px;
+          z-index: 12;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          padding: 6px 10px;
+          border-radius: 12px;
+          background: rgba(11, 18, 33, 0.78);
+          backdrop-filter: blur(8px);
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+          pointer-events: none;
+          user-select: none;
+        }
+
+        @media (min-width: 700px) {
+          .battle-live-dps-hud {
+            top: clamp(68px, 9vh, 92px);
+            left: clamp(16px, 2.8vw, 36px);
+            padding: 7px 12px;
+            border-radius: 14px;
+          }
+        }
+
+        .dps-stat-row {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          font-size: 10px;
+          font-weight: 800;
+        }
+
+        .dps-icon {
+          font-size: 11px;
+        }
+
+        .dps-label {
+          color: #94a3b8;
+          letter-spacing: 0.5px;
+        }
+
+        .dps-value {
+          color: #fbbf24;
+          font-weight: 900;
+          font-size: 11.5px;
+          text-shadow: 0 0 8px rgba(251, 191, 36, 0.45);
+        }
+
+        .combo-pips-row {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .combo-label {
+          font-size: 9px;
+          font-weight: 800;
+          color: #cbd5e1;
+          margin-right: 2px;
+        }
+
+        .combo-pip {
+          width: 15px;
+          height: 15px;
+          border-radius: 50%;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 8.5px;
+          font-weight: 900;
+          background: rgba(30, 41, 59, 0.85);
+          border: 1px solid rgba(255, 255, 255, 0.18);
+          color: #64748b;
+          transition: all 0.15s ease;
+        }
+
+        .combo-pip.pip-filled {
+          background: rgba(56, 189, 248, 0.25);
+          border-color: #38bdf8;
+          color: #e0f2fe;
+        }
+
+        .combo-pip.pip-active {
+          background: linear-gradient(135deg, #f59e0b, #ea580c);
+          border-color: #fde047;
+          color: #ffffff;
+          transform: scale(1.18);
+          box-shadow: 0 0 8px rgba(245, 158, 11, 0.8);
         }
 
         /* Center Boss Alert */

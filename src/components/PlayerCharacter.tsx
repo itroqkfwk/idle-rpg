@@ -15,6 +15,7 @@ interface PlayerCharacterProps {
   isCasting?: boolean;
   castingSkillType?: SkillEffectType | null;
   isAwakeningCasting?: boolean;
+  basicComboStep?: 1 | 2 | 3;
 }
 
 export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
@@ -28,8 +29,8 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
   classId = 'warrior',
   promotion = 'none',
   isCasting = false,
-  castingSkillType,
   isAwakeningCasting = false,
+  basicComboStep = 1,
 }) => {
   const [ghostHpPercent, setGhostHpPercent] = useState(100);
   const hpPercent = Math.max(0, Math.min(100, Math.round((stats.currentHp / maxHp) * 100)));
@@ -91,6 +92,11 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           <span className={`name-text ${promotion !== 'none' ? 'promoted-name-text' : ''}`}>
             {roleTitle}
           </span>
+          {isAttacking && (
+            <span className={`combo-step-chip combo-step-${basicComboStep}`}>
+              {basicComboStep}타
+            </span>
+          )}
         </div>
         <div className="combatant-hp-track">
           <div className="combatant-hp-ghost" style={{ width: `${ghostHpPercent}%` }} />
@@ -135,9 +141,6 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           className="hero-2d-sprite"
           draggable={false}
         />
-
-        {/* Warrior Basic Slash Arc */}
-        {!isMage && isAttacking && <div className="hero-slash-arc-vfx" />}
 
         {/* Mage Basic Staff Glow / Flare */}
         {isMage && isAttacking && <div className="mage-staff-flare-vfx" />}
@@ -210,6 +213,34 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
         .promoted-name-text {
           color: #fbbf24;
           text-shadow: 0 0 8px rgba(251, 191, 36, 0.6), 0 1px 3px rgba(0, 0, 0, 0.8);
+        }
+
+        .combo-step-chip {
+          font-size: 9px;
+          font-weight: 900;
+          padding: 1px 5px;
+          border-radius: 9999px;
+          letter-spacing: 0.3px;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .combo-step-1 {
+          background: rgba(56, 189, 248, 0.28);
+          border: 1px solid #38bdf8;
+          color: #e0f2fe;
+        }
+
+        .combo-step-2 {
+          background: rgba(251, 191, 36, 0.3);
+          border: 1px solid #fbbf24;
+          color: #fef08a;
+        }
+
+        .combo-step-3 {
+          background: linear-gradient(135deg, #f97316, #dc2626);
+          border: 1px solid #fde047;
+          color: #ffffff;
+          box-shadow: 0 0 8px rgba(249, 115, 22, 0.7);
         }
 
         .combatant-hp-track {

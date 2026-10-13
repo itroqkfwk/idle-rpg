@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Monster, DamageNumberData } from '../types/game';
+import { Monster, DamageNumberData, MonsterStatusEffect } from '../types/game';
 import { Skull } from 'lucide-react';
 
 interface EnemyCharacterProps {
@@ -9,7 +9,16 @@ interface EnemyCharacterProps {
   isAttacking: boolean;
   isHitStop?: boolean;
   damages?: DamageNumberData[];
+  monsterStatuses?: MonsterStatusEffect[];
 }
+
+const STATUS_META: Record<MonsterStatusEffect['type'], { label: string; icon: string; color: string; bg: string }> = {
+  burn: { label: '화상', icon: '🔥', color: '#fb923c', bg: 'rgba(234, 88, 12, 0.32)' },
+  freeze: { label: '빙결', icon: '❄️', color: '#38bdf8', bg: 'rgba(2, 132, 199, 0.35)' },
+  shock: { label: '감전', icon: '⚡', color: '#facc15', bg: 'rgba(202, 138, 4, 0.32)' },
+  armor_break: { label: '방어파쇄', icon: '🛡️', color: '#f43f5e', bg: 'rgba(225, 29, 72, 0.32)' },
+  stun: { label: '기절', icon: '💫', color: '#fde047', bg: 'rgba(217, 119, 6, 0.35)' },
+};
 
 export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
   monster,
@@ -18,6 +27,7 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
   isAttacking,
   isHitStop,
   damages,
+  monsterStatuses = [],
 }) => {
   const [ghostHpPercent, setGhostHpPercent] = useState(100);
   const hpPercent = Math.max(0, Math.min(100, Math.round((monster.currentHp / monster.maxHp) * 100)));
@@ -30,6 +40,9 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
   }, [hpPercent]);
 
   const isBoss = monster.isBoss || monster.id.includes('boss');
+  const isFrozen = monsterStatuses.some((s) => s.type === 'freeze');
+  const isBurning = monsterStatuses.some((s) => s.type === 'burn');
+  const isStunned = monsterStatuses.some((s) => s.type === 'stun');
 
   // Determine monster sprite & idle animation type
   const getMonsterType = () => {
@@ -70,6 +83,30 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
 
       {/* Overhead Enemy HP Cluster */}
       <div className="combatant-hp-cluster">
+        {/* Active Status Effect Debuff Pills */}
+        {monsterStatuses.length > 0 && (
+          <div className="monster-status-pills-row">
+            {monsterStatuses.map((st) => {
+              const meta = STATUS_META[st.type];
+              return (
+                <span
+                  key={st.type}
+                  className="monster-status-pill"
+                  style={{
+                    borderColor: meta.color,
+                    background: meta.bg,
+                    color: '#ffffff',
+                  }}
+                >
+                  <span>{meta.icon}</span>
+                  <span>{meta.label}</span>
+                  <span className="status-sec">{st.duration.toFixed(1)}s</span>
+                </span>
+              );
+            })}
+          </div>
+        )}
+
         <div className="combatant-name-tag">
           {isBoss ? (
             <span className="boss-lvl-badge">
@@ -101,10 +138,12 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
             ? 'enemy-act-defeat'
             : isHit
             ? 'enemy-act-hit'
+            : isFrozen || isStunned
+            ? 'enemy-act-cc-frozen'
             : isAttacking
             ? 'enemy-act-attack'
             : monsterConfig.idleClass
-        } ${isHitStop ? 'hit-stop-freeze' : ''}`}
+        } ${isHitStop ? 'hit-stop-freeze' : ''} ${isFrozen ? 'status-tint-freeze' : isBurning ? 'status-tint-burn' : ''}`}
       >
         {/* Soft Ground Contact Shadow */}
         <div className={`character-ground-shadow ${isBoss ? 'boss-ground-shadow' : 'normal-ground-shadow'}`} />
@@ -136,6 +175,45 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           align-items: center;
           margin-bottom: 6px;
           z-index: 10;
+        }
+
+        .monster-status-pills-row {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 3px;
+          margin-bottom: 3px;
+        }
+
+        .monster-status-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 2px;
+          font-size: 8.5px;
+          font-weight: 800;
+          padding: 1px 5px;
+          border-radius: 9999px;
+          border: 1px solid;
+          box-shadow: 0 2px 5px rgba(0, 0, 0, 0.55);
+          backdrop-filter: blur(4px);
+        }
+
+        .status-sec {
+          opacity: 0.85;
+          font-size: 8px;
+          margin-left: 1px;
+        }
+
+        .status-tint-freeze .monster-2d-sprite {
+          filter: drop-shadow(0 0 12px #38bdf8) brightness(1.15) hue-rotate(15deg) !important;
+        }
+
+        .status-tint-burn .monster-2d-sprite {
+          filter: drop-shadow(0 0 12px #f97316) brightness(1.12) saturate(1.25) !important;
+        }
+
+        .enemy-act-cc-frozen {
+          animation: none !important;
         }
 
         .combatant-name-tag {

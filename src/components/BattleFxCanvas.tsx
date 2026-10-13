@@ -9,6 +9,8 @@ interface BattleFxCanvasProps {
   isPlayerAttacking?: boolean;
   isMonsterHit?: boolean;
   ambientType?: AmbientParticleType;
+  basicAttackEvent?: { id: string; comboStep: 1 | 2 | 3; classId: CharacterClassId } | null;
+  petAttackEvent?: { id: string; petId: string } | null;
 }
 
 // 💥 Directional Velocity-Stretched Physics Spark
@@ -235,6 +237,8 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
   isPlayerAttacking = false,
   isMonsterHit = false,
   ambientType = 'leaves',
+  basicAttackEvent = null,
+  petAttackEvent = null,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animFrameRef = useRef<number | null>(null);
@@ -260,6 +264,8 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
 
   const lastTimeRef = useRef<number>(performance.now());
   const activeVfxIdRef = useRef<string | null>(null);
+  const lastBasicEventIdRef = useRef<string | null>(null);
+  const lastPetEventIdRef = useRef<string | null>(null);
 
   // Anchor Calculation relative to canvas coordinates
   const getAnchors = () => {
@@ -932,28 +938,210 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
   }, [activeSkillVfx, isAwakeningCasting, classId]);
 
   // ==========================================
-  // Trigger Mage Basic Attack Projectile
+  // Trigger 3-Stage Basic Attack Combo VFX (Warrior & Mage)
   // ==========================================
   useEffect(() => {
-    if (!isPlayerAttacking || classId !== 'mage') return;
-    const { heroX, heroY, monsterX, monsterY } = getAnchors();
+    if (!basicAttackEvent) return;
+    if (lastBasicEventIdRef.current === basicAttackEvent.id) return;
+    lastBasicEventIdRef.current = basicAttackEvent.id;
+
+    const { heroX, heroY, monsterX, monsterY, groundY } = getAnchors();
+    const { comboStep, classId: atkClass } = basicAttackEvent;
+
+    if (atkClass === 'warrior') {
+      if (comboStep === 1) {
+        // ⚔️ Warrior Combo 1: Crisp Cyan-Silver Diagonal Slash
+        setTimeout(() => {
+          slashesRef.current.push({
+            id: `w_basic1_${Date.now()}`,
+            x: monsterX - 6,
+            y: monsterY,
+            radius: 76,
+            startAngle: -Math.PI * 0.78,
+            endAngle: Math.PI * 0.28,
+            maxThickness: 20,
+            color: '#38bdf8',
+            glowColor: '#0284c7',
+            life: 0,
+            maxLife: 0.21,
+            rotation: 0.25,
+          });
+          spawnDirectionalSparks(monsterX, monsterY, 16, '#38bdf8', Math.PI * 0.25, 1.1, 8, groundY);
+        }, 95);
+      } else if (comboStep === 2) {
+        // ⚔️ Warrior Combo 2: Reverse Upward Golden-Amber Slash
+        setTimeout(() => {
+          slashesRef.current.push({
+            id: `w_basic2_${Date.now()}`,
+            x: monsterX + 4,
+            y: monsterY - 4,
+            radius: 82,
+            startAngle: Math.PI * 0.72,
+            endAngle: -Math.PI * 0.32,
+            maxThickness: 23,
+            color: '#fbbf24',
+            glowColor: '#d97706',
+            life: 0,
+            maxLife: 0.22,
+            rotation: -0.3,
+          });
+          spawnShockwave(monsterX, monsterY, 55, 360, '#fde047', 0.85, 4);
+          spawnDirectionalSparks(monsterX, monsterY, 20, '#fbbf24', -Math.PI * 0.3, 1.2, 8.8, groundY);
+        }, 95);
+      } else {
+        // 💥 Warrior Combo 3 (Finisher): Crimson-Gold X-Cross Cleave + Sword Wave + Shockwave
+        projectilesRef.current.push({
+          id: `w_basic3_wave_${Date.now()}`,
+          type: 'sword_wave',
+          startX: heroX + 20,
+          startY: heroY,
+          targetX: monsterX,
+          targetY: monsterY,
+          currentX: heroX + 20,
+          currentY: heroY,
+          progress: 0,
+          speed: 0.11,
+          color: '#f97316',
+          size: 22,
+          trail: [],
+        });
+        setTimeout(() => {
+          slashesRef.current.push({
+            id: `w_basic3a_${Date.now()}`,
+            x: monsterX,
+            y: monsterY,
+            radius: 92,
+            startAngle: -Math.PI * 0.82,
+            endAngle: Math.PI * 0.32,
+            maxThickness: 26,
+            color: '#f97316',
+            glowColor: '#ea580c',
+            life: 0,
+            maxLife: 0.24,
+            rotation: 0.38,
+          });
+          slashesRef.current.push({
+            id: `w_basic3b_${Date.now()}`,
+            x: monsterX,
+            y: monsterY,
+            radius: 88,
+            startAngle: Math.PI * 0.82,
+            endAngle: -Math.PI * 0.32,
+            maxThickness: 24,
+            color: '#fbbf24',
+            glowColor: '#d97706',
+            life: 0,
+            maxLife: 0.24,
+            rotation: -0.38,
+          });
+          spawnShockwave(monsterX, groundY, 78, 420, '#fbbf24', 0.45, 6);
+          spawnDirectionalSparks(monsterX, monsterY, 28, '#f97316', Math.PI * 0.5, 1.8, 10, groundY);
+        }, 95);
+      }
+    } else {
+      // 🔮 Mage 3-Stage Arcane Bolt Combo
+      if (comboStep === 1) {
+        projectilesRef.current.push({
+          id: `m_basic1_${Date.now()}`,
+          type: 'mage_bolt',
+          startX: heroX,
+          startY: heroY,
+          targetX: monsterX,
+          targetY: monsterY,
+          currentX: heroX,
+          currentY: heroY,
+          progress: 0,
+          speed: 0.09,
+          color: '#38bdf8',
+          size: 12,
+          trail: [],
+        });
+      } else if (comboStep === 2) {
+        // Twin Helix Starlight Bolts
+        [-22, 22].forEach((offset, idx) => {
+          projectilesRef.current.push({
+            id: `m_basic2_${Date.now()}_${idx}`,
+            type: 'magic_missile',
+            startX: heroX,
+            startY: heroY + (idx === 0 ? -10 : 10),
+            targetX: monsterX,
+            targetY: monsterY,
+            currentX: heroX,
+            currentY: heroY,
+            progress: 0,
+            speed: 0.088,
+            color: idx === 0 ? '#38bdf8' : '#c084fc',
+            size: 11,
+            waveOffset: offset,
+            wavePhase: idx * Math.PI,
+            trail: [],
+          });
+        });
+      } else {
+        // Empowered Grand Arcane Nova Orb Finisher
+        projectilesRef.current.push({
+          id: `m_basic3_${Date.now()}`,
+          type: 'fireball',
+          startX: heroX,
+          startY: heroY - 8,
+          targetX: monsterX,
+          targetY: monsterY,
+          currentX: heroX,
+          currentY: heroY - 8,
+          progress: 0,
+          speed: 0.095,
+          color: '#a855f7',
+          size: 18,
+          trail: [],
+        });
+        setTimeout(() => {
+          spawnShockwave(monsterX, monsterY, 72, 410, '#c084fc', 0.85, 6);
+          spawnDirectionalSparks(monsterX, monsterY, 24, '#38bdf8', 0, 2.4, 9.5, groundY);
+        }, 160);
+      }
+    }
+  }, [basicAttackEvent]);
+
+  // ==========================================
+  // Trigger Active Pet Companion Projectile VFX
+  // ==========================================
+  useEffect(() => {
+    if (!petAttackEvent) return;
+    if (lastPetEventIdRef.current === petAttackEvent.id) return;
+    lastPetEventIdRef.current = petAttackEvent.id;
+
+    const { heroX, monsterX, monsterY, groundY } = getAnchors();
+    const petColor = petAttackEvent.petId.includes('fox')
+      ? '#f97316'
+      : petAttackEvent.petId.includes('fairy')
+      ? '#34d399'
+      : petAttackEvent.petId.includes('dragon')
+      ? '#ef4444'
+      : '#38bdf8';
 
     projectilesRef.current.push({
-      id: `mage_basic_${Date.now()}`,
-      type: 'mage_bolt',
-      startX: heroX,
-      startY: heroY,
+      id: `pet_proj_${petAttackEvent.id}`,
+      type: 'magic_missile',
+      startX: heroX - 24,
+      startY: groundY - 26,
       targetX: monsterX,
-      targetY: monsterY,
-      currentX: heroX,
-      currentY: heroY,
+      targetY: monsterY + 8,
+      currentX: heroX - 24,
+      currentY: groundY - 26,
       progress: 0,
-      speed: 0.075,
-      color: '#38bdf8',
-      size: 11,
+      speed: 0.085,
+      color: petColor,
+      size: 10,
+      waveOffset: -18,
+      wavePhase: 0.5,
       trail: [],
     });
-  }, [isPlayerAttacking, classId]);
+
+    setTimeout(() => {
+      spawnShockwave(monsterX, monsterY + 8, 42, 320, petColor, 0.85, 3.5);
+      spawnDirectionalSparks(monsterX, monsterY + 8, 12, petColor, 0, 2.0, 7, groundY);
+    }, 180);
+  }, [petAttackEvent]);
 
   // ==========================================
   // Trigger Contact Impact Sparks on Monster Hit

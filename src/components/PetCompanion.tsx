@@ -3,9 +3,10 @@ import { Pet } from '../types/game';
 
 interface PetCompanionProps {
   pet: Pet | null;
+  isAttacking?: boolean;
 }
 
-export const PetCompanion: React.FC<PetCompanionProps> = ({ pet }) => {
+export const PetCompanion: React.FC<PetCompanionProps> = ({ pet, isAttacking = false }) => {
   if (!pet) return null;
 
   const getPetSprite = (p: Pet) => {
@@ -16,9 +17,9 @@ export const PetCompanion: React.FC<PetCompanionProps> = ({ pet }) => {
 
   return (
     <div className="pet-companion-box" title={`${pet.name} (${pet.description})`}>
-      <div className="pet-sprite anim-pet-bounce">
+      <div className={`pet-sprite ${isAttacking ? 'anim-pet-attack' : 'anim-pet-bounce'}`}>
         {/* Companion Aura Glow */}
-        <div className="pet-aura-ring" />
+        <div className={`pet-aura-ring ${isAttacking ? 'pet-aura-burst' : ''}`} />
         {/* Real 2D Companion Sprite */}
         <img
           src={getPetSprite(pet)}
@@ -61,6 +62,12 @@ export const PetCompanion: React.FC<PetCompanionProps> = ({ pet }) => {
           background: radial-gradient(circle, rgba(245, 158, 11, 0.25) 0%, transparent 70%);
           filter: blur(4px);
           pointer-events: none;
+          transition: transform 0.2s ease, background 0.2s ease;
+        }
+
+        .pet-aura-burst {
+          transform: translate(-50%, -50%) scale(1.45);
+          background: radial-gradient(circle, rgba(251, 191, 36, 0.7) 0%, rgba(249, 115, 22, 0.35) 55%, transparent 75%);
         }
 
         .pet-2d-sprite {
@@ -80,6 +87,16 @@ export const PetCompanion: React.FC<PetCompanionProps> = ({ pet }) => {
 
         .anim-pet-bounce {
           animation: petHop 1.8s ease-in-out infinite;
+        }
+
+        .anim-pet-attack {
+          animation: petAttackLunge 0.38s cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
+        }
+
+        @keyframes petAttackLunge {
+          0% { transform: translate(0, 0) scale(1); }
+          40% { transform: translate(24px, -14px) rotate(10deg) scale(1.22); filter: brightness(1.3); }
+          100% { transform: translate(0, 0) rotate(0deg) scale(1); filter: brightness(1); }
         }
 
         @keyframes petHop {

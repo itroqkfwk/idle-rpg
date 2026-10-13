@@ -135,6 +135,26 @@ export const App: React.FC = () => {
   const [isMonsterDefeated, setIsMonsterDefeated] = useState(false);
   const [damages, setDamages] = useState<DamageNumberData[]>([]);
 
+  // 3-Combo Basic Attack, Pet Assist & Live DPS States
+  const [basicComboStep, setBasicComboStep] = useState<1 | 2 | 3>(1);
+  const [basicAttackEvent, setBasicAttackEvent] = useState<{
+    id: string;
+    comboStep: 1 | 2 | 3;
+    classId: CharacterClassId;
+  } | null>(null);
+  const [petAttackEvent, setPetAttackEvent] = useState<{ id: string; petId: string } | null>(null);
+  const [isPetAttacking, setIsPetAttacking] = useState(false);
+  const [currentDps, setCurrentDps] = useState<number>(0);
+
+  const basicComboRef = useRef<1 | 2 | 3>(1);
+  const isBasicAttackingRef = useRef<boolean>(false);
+  const lastBasicAttackTimeRef = useRef<number>(0);
+  const lastSkillEndTimeRef = useRef<number>(0);
+  const skillsCastSinceBasicRef = useRef<number>(1);
+  const totalBasicAttacksRef = useRef<number>(0);
+  const totalSkillCastsRef = useRef<number>(0);
+  const recentDamageLogRef = useRef<{ time: number; amount: number }[]>([]);
+
   // Reward Feedback & Combat Power FX States
   const [floatingGold, setFloatingGold] = useState<{ id: string; gold: number }[]>([]);
   const [lootAlert, setLootAlert] = useState<{ id: string; item: Equipment } | null>(null);
@@ -331,7 +351,14 @@ export const App: React.FC = () => {
   }, []);
 
   // --- Monster Defeated Handler ---
+  const isMonsterDefeatedRef = useRef(isMonsterDefeated);
+  useEffect(() => {
+    isMonsterDefeatedRef.current = isMonsterDefeated;
+  }, [isMonsterDefeated]);
+
   const handleMonsterDefeat = useCallback(() => {
+    if (isMonsterDefeatedRef.current) return;
+    isMonsterDefeatedRef.current = true;
     sound.playMonsterDefeat();
     setIsMonsterDefeated(true);
 
@@ -417,7 +444,10 @@ export const App: React.FC = () => {
         }
 
         // Track highest chapter & stage for promotion checklist
-        if (newStage.chapter > newStage.highestChapter || (newStage.chapter === newStage.highestChapter && newStage.stage > newStage.highestStage)) {
+        if (
+          newStage.chapter > newStage.highestChapter ||
+          (newStage.chapter === newStage.highestChapter && newStage.stage > newStage.highestStage)
+        ) {
           newStage.highestChapter = Math.max(newStage.highestChapter, newStage.chapter);
           newStage.highestStage = Math.max(newStage.highestStage, newStage.stage);
         }
@@ -433,7 +463,9 @@ export const App: React.FC = () => {
         }
 
         // Charge Awakening Gauge on monster kill (+10%)
-        const nextAwakening = prev.awakeningUnlocked ? Math.min(100, Math.round(((prev.awakeningGauge ?? 0) + 10) * 10) / 10) : 0;
+        const nextAwakening = prev.awakeningUnlocked
+          ? Math.min(100, Math.round(((prev.awakeningGauge ?? 0) + 10) * 10) / 10)
+          : 0;
 
         return {
           ...prev,
@@ -451,106 +483,28 @@ export const App: React.FC = () => {
           inventory: prev.inventory,
           stage: newStage,
         };
-
       });
 
       const nextMon = getMonsterForStage(nextChapter, nextStageNum);
       setCurrentMonster(nextMon);
+      setMonsterStatuses([]);
+      monsterStatusesRef.current = [];
       setIsMonsterDefeated(false);
+      isMonsterDefeatedRef.current = false;
     }, 380);
   }, [currentMonster, combatCalculations, stage, progressQuest]);
 
-  // --- Auto Combat Tick (Player Attack: 7-Phase Choreography & Hit Stop) ---
-  const attackCooldownRef = useRef(false);
+  // --- Shared Combat Refs (Prevents Interval Reset Starvation on Monster HP Changes!) ---
+  const handleMonsterDefeatRef = useRef(handleMonsterDefeat);
   useEffect(() => {
-    if (isMonsterDefeated) return;
+    handleMonsterDefeatRef.current = handleMonsterDefeat;
+  }, [handleMonsterDefeat]);
 
-    // Minimum cycle is 540ms to accommodate complete 7-stage animation
-    const intervalMs = Math.max(540, Math.floor(1000 / combatCalculations.totalAtkSpeed));
-    const timer = setInterval(() => {
-      if (attackCooldownRef.current || isMonsterDefeated || isCastingRef.current) return;
+  const addDamageNumberRef = useRef(addDamageNumber);
+  useEffect(() => {
+    addDamageNumberRef.current = addDamageNumber;
+  }, [addDamageNumber]);
 
-      attackCooldownRef.current = true;
-      setIsPlayerAttacking(true);
-
-      const contactDelay = classId === 'mage' ? 240 : 210;
-
-      setTimeout(() => {
-        if (isMonsterDefeated || isCastingRef.current) {
-          setIsPlayerAttacking(false);
-          attackCooldownRef.current = false;
-          return;
-        }
-
-        const isCrit = Math.random() < combatCalculations.totalCritRate;
-        const isBoss = stage.stage === 10 && stage.inBossFight;
-        const damage = Math.floor(
-          Math.max(1, combatCalculations.totalAtk * (isCrit ? combatCalculations.totalCritDmg : 1) - currentMonster.def * 0.3)
-        );
-
-        if (isCrit) {
-          sound.playCriticalHit();
-        } else {
-          sound.playAttack();
-        }
-
-        // Contact Impact & Hit Stop Freeze Frame
-        const hitStopDuration = isBoss ? 85 : isCrit ? 75 : 50;
-        const shakeType: 'normal' | 'crit' | 'boss' = isBoss ? 'boss' : isCrit ? 'crit' : 'normal';
-
-        setIsHitStop(true);
-        setIsMonsterHit(true);
-        setScreenShake(shakeType);
-        addDamageNumber(damage, isCrit, false);
-
-        // Charge Awakening Gauge on basic attack hit (+2.5%)
-        setSaveData((prev) => {
-          if (!prev.awakeningUnlocked) return prev;
-          return {
-            ...prev,
-            awakeningGauge: Math.min(100, Math.round(((prev.awakeningGauge ?? 0) + 2.5) * 10) / 10),
-          };
-        });
-
-        setCurrentMonster((prev) => {
-          const nextHp = Math.max(0, prev.currentHp - damage);
-          if (nextHp <= 0) {
-            handleMonsterDefeat();
-          }
-          return { ...prev, currentHp: nextHp };
-        });
-
-        // Hit Stop unfreeze
-        setTimeout(() => {
-          setIsHitStop(false);
-        }, hitStopDuration);
-
-        // Shake release
-        setTimeout(() => {
-          setScreenShake('none');
-        }, hitStopDuration + 80);
-
-        // Enemy knockback recovery
-        setTimeout(() => {
-          setIsMonsterHit(false);
-        }, 160);
-
-        // Player completes recovery to idle
-        setTimeout(() => {
-          setIsPlayerAttacking(false);
-        }, 310);
-
-        // Cooldown reset
-        setTimeout(() => {
-          attackCooldownRef.current = false;
-        }, Math.max(340, intervalMs - contactDelay));
-      }, contactDelay);
-    }, intervalMs);
-
-    return () => clearInterval(timer);
-  }, [combatCalculations, currentMonster, isMonsterDefeated, handleMonsterDefeat, addDamageNumber, stage, classId]);
-
-  // --- Auto Skill Engine: Single Unified 100ms Tick (Requirement 31) ---
   const skillCooldownsRef = useRef(skillCooldowns);
   useEffect(() => {
     skillCooldownsRef.current = skillCooldowns;
@@ -570,11 +524,6 @@ export const App: React.FC = () => {
   useEffect(() => {
     currentMonsterRef.current = currentMonster;
   }, [currentMonster]);
-
-  const isMonsterDefeatedRef = useRef(isMonsterDefeated);
-  useEffect(() => {
-    isMonsterDefeatedRef.current = isMonsterDefeated;
-  }, [isMonsterDefeated]);
 
   const combatCalcRef = useRef(combatCalculations);
   useEffect(() => {
@@ -596,6 +545,217 @@ export const App: React.FC = () => {
     awakeningSkillRef.current = awakeningSkill;
   }, [awakeningSkill]);
 
+  const stageRef = useRef(stage);
+  useEffect(() => {
+    stageRef.current = stage;
+  }, [stage]);
+
+  const classIdRef = useRef(classId);
+  useEffect(() => {
+    classIdRef.current = classId;
+  }, [classId]);
+
+  const activePetRef = useRef(activePet);
+  useEffect(() => {
+    activePetRef.current = activePet;
+  }, [activePet]);
+
+  // Expose QA telemetry & preset helpers on window
+  useEffect(() => {
+    (window as any).__getCombatStats = () => ({
+      totalBasicAttacks: totalBasicAttacksRef.current,
+      totalSkillCasts: totalSkillCastsRef.current,
+      basicComboStep: basicComboRef.current,
+      isBasicAttacking: isBasicAttackingRef.current,
+      isCasting: isCastingRef.current,
+    });
+
+    (window as any).__applyCombatTestPreset = (targetClass: CharacterClassId) => {
+      totalBasicAttacksRef.current = 0;
+      totalSkillCastsRef.current = 0;
+      basicComboRef.current = 1;
+      skillsCastSinceBasicRef.current = 1;
+      isBasicAttackingRef.current = false;
+      isCastingRef.current = false;
+      setSkillCooldowns({});
+      skillCooldownsRef.current = {};
+
+      const eqIds =
+        targetClass === 'warrior'
+          ? ['flame_sword', 'shield_bash', 'blade_storm', 'sword_wave']
+          : ['frost_nova', 'thunder_strike', 'fireball', 'arcane_orb'];
+
+      setSaveData((prev) => {
+        const nextSkills = (prev.skills ?? INITIAL_SKILLS).map((s) => ({
+          ...s,
+          owned: true,
+          unlocked: true,
+          level: 12,
+        }));
+        skillsRef.current = nextSkills;
+        equippedSkillIdsRef.current = eqIds;
+        classIdRef.current = targetClass;
+
+        const updated: GameSaveData = {
+          ...prev,
+          hasSelectedClass: true,
+          classId: targetClass,
+          promotion: targetClass === 'warrior' ? 'sword_master' : 'archmage',
+          awakeningUnlocked: true,
+          awakeningGauge: 55,
+          activePetId: 'pet_fox',
+          pets: prev.pets.map((p) => ({ ...p, owned: true, level: 8 })),
+          skills: nextSkills,
+          equippedSkillIds: eqIds,
+          stats: {
+            ...prev.stats,
+            level: 30,
+            atkLevel: 35,
+            hpLevel: 35,
+            defLevel: 30,
+            atkSpeed: 1.65,
+            gold: 950000,
+          },
+          stage: {
+            ...prev.stage,
+            chapter: 2,
+            stage: 10,
+            inBossFight: true,
+          },
+        };
+        saveGameData(updated);
+        return updated;
+      });
+
+      const bossMon = {
+        ...getMonsterForStage(2, 10),
+        maxHp: 500000,
+        currentHp: 500000,
+      };
+      setCurrentMonster(bossMon);
+      currentMonsterRef.current = bossMon;
+      setIsMonsterDefeated(false);
+      isMonsterDefeatedRef.current = false;
+    };
+  }, []);
+
+  // --- 1. Ref-Stabilized 3-Combo Basic Attack Engine (50ms High-Precision Scheduler) ---
+  useEffect(() => {
+    const basicTimer = setInterval(() => {
+      if (isMonsterDefeatedRef.current || currentMonsterRef.current.currentHp <= 0) return;
+      if (isBasicAttackingRef.current || isCastingRef.current) return;
+
+      const calc = combatCalcRef.current;
+      const intervalMs = Math.max(460, Math.floor(1000 / calc.totalAtkSpeed));
+      const now = Date.now();
+
+      if (now - lastBasicAttackTimeRef.current < intervalMs) return;
+
+      // Begin 3-Stage Basic Attack Swing
+      lastBasicAttackTimeRef.current = now;
+      isBasicAttackingRef.current = true;
+      skillsCastSinceBasicRef.current = 0;
+
+      const combo = basicComboRef.current;
+      basicComboRef.current = combo === 1 ? 2 : combo === 2 ? 3 : 1;
+      setBasicComboStep(combo);
+      setIsPlayerAttacking(true);
+
+      const curClass = classIdRef.current;
+      setBasicAttackEvent({
+        id: `ba_${now}_${combo}`,
+        comboStep: combo,
+        classId: curClass,
+      });
+      totalBasicAttacksRef.current += 1;
+
+      const contactDelay = curClass === 'mage' ? 180 : 160;
+
+      setTimeout(() => {
+        if (isMonsterDefeatedRef.current || currentMonsterRef.current.currentHp <= 0) {
+          setIsPlayerAttacking(false);
+          isBasicAttackingRef.current = false;
+          return;
+        }
+
+        const latestCalc = combatCalcRef.current;
+        const targetMon = currentMonsterRef.current;
+        const curStage = stageRef.current;
+
+        // 3-Stage Combo Multiplier: 1타 (100%) -> 2타 (120%) -> 3타 피니시 (155%)
+        const comboMult = combo === 3 ? 1.55 : combo === 2 ? 1.2 : 1.0;
+        const hasArmorBreak = monsterStatusesRef.current.some((s) => s.type === 'armor_break');
+        const effDef = targetMon.def * (hasArmorBreak ? 0.12 : 0.3);
+
+        const isCrit = Math.random() < latestCalc.totalCritRate || combo === 3;
+        const isBoss = curStage.stage === 10 && curStage.inBossFight;
+        const damage = Math.floor(
+          Math.max(
+            1,
+            latestCalc.totalAtk * comboMult * (isCrit ? latestCalc.totalCritDmg : 1) - effDef
+          )
+        );
+
+        if (isCrit) {
+          sound.playCriticalHit();
+        } else {
+          sound.playAttack();
+        }
+
+        const hitStopDuration = combo === 3 ? 65 : isBoss ? 60 : isCrit ? 55 : 40;
+        const shakeType: 'normal' | 'crit' | 'boss' =
+          combo === 3 || isBoss ? 'crit' : isCrit ? 'crit' : 'normal';
+
+        setIsHitStop(true);
+        setIsMonsterHit(true);
+        setScreenShake(shakeType);
+
+        const comboBanner =
+          combo === 3
+            ? curClass === 'mage'
+              ? '✨ 3연타 마력폭발!'
+              : '⚡ 3연타 강타!'
+            : undefined;
+        addDamageNumberRef.current(damage, isCrit, false, combo === 3, comboBanner);
+        recentDamageLogRef.current.push({ time: Date.now(), amount: damage });
+
+        // Charge Awakening Gauge on basic attack hit (+2.5%, or +5% on 3rd-hit finisher)
+        const awkGain = combo === 3 ? 5.0 : 2.5;
+        setSaveData((prev) => {
+          if (!prev.awakeningUnlocked) return prev;
+          return {
+            ...prev,
+            awakeningGauge: Math.min(100, Math.round(((prev.awakeningGauge ?? 0) + awkGain) * 10) / 10),
+          };
+        });
+
+        setCurrentMonster((prev) => {
+          const nextHp = Math.max(0, prev.currentHp - damage);
+          if (nextHp <= 0) {
+            handleMonsterDefeatRef.current();
+          }
+          return { ...prev, currentHp: nextHp };
+        });
+
+        setTimeout(() => setIsHitStop(false), hitStopDuration);
+        setTimeout(() => setScreenShake('none'), hitStopDuration + 75);
+        setTimeout(() => setIsMonsterHit(false), 150);
+
+        // Release action lock quickly after impact so skills/next swings weave seamlessly
+        setTimeout(() => {
+          isBasicAttackingRef.current = false;
+        }, 85);
+
+        setTimeout(() => {
+          setIsPlayerAttacking(false);
+        }, 210);
+      }, contactDelay);
+    }, 50);
+
+    return () => clearInterval(basicTimer);
+  }, []);
+
+  // --- 2. Auto Skill Engine with Basic Attack Weaving (Single Unified 100ms Tick) ---
   useEffect(() => {
     const timer = setInterval(() => {
       // 1. Decrement existing cooldowns by 0.1s
@@ -613,12 +773,22 @@ export const App: React.FC = () => {
         return hasActive ? updated : prev;
       });
 
-      // 2. Check if eligible for casting (must not already be casting, monster alive)
-      if (isCastingRef.current || isMonsterDefeatedRef.current || currentMonsterRef.current.currentHp <= 0) return;
+      // 2. Never interrupt an active skill OR an active basic attack swing!
+      if (
+        isCastingRef.current ||
+        isBasicAttackingRef.current ||
+        isMonsterDefeatedRef.current ||
+        currentMonsterRef.current.currentHp <= 0
+      ) {
+        return;
+      }
 
       const now = Date.now();
-      // Enforce 300ms global skill delay between any casts
-      if (now - lastSkillCastTimeRef.current < 300) return;
+      // Enforce post-skill recovery breathing gap and 1:1 Basic Attack <-> Skill Weaving!
+      if (now - lastSkillEndTimeRef.current < 160) return;
+      if (!saveDataRef.current.skillCooldownOff && skillsCastSinceBasicRef.current >= 1) {
+        return;
+      }
 
       // 3. Candidate Selection: Priority 1 Awakening -> Priority 2 Slot 1~4
       let candidate: Skill | null = null;
@@ -651,6 +821,8 @@ export const App: React.FC = () => {
       // 4. Begin Cast
       const castSkill = candidate;
       lastSkillCastTimeRef.current = now;
+      skillsCastSinceBasicRef.current += 1;
+      totalSkillCastsRef.current += 1;
       isCastingRef.current = true;
       setIsCasting(true);
       setCastingSkillType(castSkill.effectType);
@@ -708,7 +880,8 @@ export const App: React.FC = () => {
           setIsHitStop(true);
           setIsMonsterHit(true);
           setScreenShake('boss');
-          addDamageNumber(skillDamage, true, false, true, synergyBanner || `👑 ${castSkill.name}`);
+          addDamageNumberRef.current(skillDamage, true, false, true, synergyBanner || `👑 ${castSkill.name}`);
+          recentDamageLogRef.current.push({ time: Date.now(), amount: skillDamage });
 
           setTimeout(() => setIsHitStop(false), 130);
           setTimeout(() => setScreenShake('none'), 240);
@@ -717,7 +890,7 @@ export const App: React.FC = () => {
           setCurrentMonster((prev) => {
             const nextHp = Math.max(0, prev.currentHp - skillDamage);
             if (nextHp <= 0) {
-              handleMonsterDefeat();
+              handleMonsterDefeatRef.current();
             }
             return { ...prev, currentHp: nextHp };
           });
@@ -729,6 +902,7 @@ export const App: React.FC = () => {
           setIsAwakeningCasting(false);
           setIsCasting(false);
           isCastingRef.current = false;
+          lastSkillEndTimeRef.current = Date.now();
           setCastingSkillId(null);
           setCastingSkillType(null);
         }, 820);
@@ -738,7 +912,7 @@ export const App: React.FC = () => {
           2,
           Math.round(castSkill.cooldown * (1 - (currentCalc.promoCdReduction || 0)) * 10) / 10
         );
-        const reducedCd = saveData.skillCooldownOff ? 0.05 : baseReducedCd;
+        const reducedCd = saveDataRef.current.skillCooldownOff ? 0.05 : baseReducedCd;
         setSkillCooldowns((prev) => ({
           ...prev,
           [castSkill.id]: reducedCd,
@@ -757,7 +931,8 @@ export const App: React.FC = () => {
           setScreenShake(shake);
           setIsHitStop(true);
           setIsMonsterHit(true);
-          addDamageNumber(skillDamage, true, false, true, synergyBanner || castSkill.name);
+          addDamageNumberRef.current(skillDamage, true, false, true, synergyBanner || castSkill.name);
+          recentDamageLogRef.current.push({ time: Date.now(), amount: skillDamage });
 
           // Apply Status Effects to Monster
           if (castSkill.mechanics?.includes('burn')) {
@@ -793,37 +968,76 @@ export const App: React.FC = () => {
           setCurrentMonster((prev) => {
             const nextHp = Math.max(0, prev.currentHp - skillDamage);
             if (nextHp <= 0) {
-              handleMonsterDefeat();
+              handleMonsterDefeatRef.current();
             }
             return { ...prev, currentHp: nextHp };
           });
         }, 260);
 
-        // Phase 4: Recovery Completes (520ms)
+        // Phase 4: Recovery Completes (480ms)
         setTimeout(() => {
           setActiveSkillVfx((prev) => (prev?.id === vfxId ? null : prev));
           setIsCasting(false);
           isCastingRef.current = false;
+          lastSkillEndTimeRef.current = Date.now();
           setCastingSkillId(null);
           setCastingSkillType(null);
-        }, 520);
+        }, 480);
       }
     }, 100);
 
     return () => clearInterval(timer);
-  }, [handleMonsterDefeat, addDamageNumber]);
+  }, []);
 
-  // --- Status Effect Decay & Burn DoT Tick ---
+  // --- 3. Active Pet Companion Auto-Assist Loop (Every 2.2s) ---
+  useEffect(() => {
+    const petTimer = setInterval(() => {
+      const pet = activePetRef.current;
+      if (!pet || isMonsterDefeatedRef.current || currentMonsterRef.current.currentHp <= 0) return;
+
+      const now = Date.now();
+      setIsPetAttacking(true);
+      setPetAttackEvent({ id: `pet_${now}`, petId: pet.id });
+
+      setTimeout(() => {
+        if (isMonsterDefeatedRef.current || currentMonsterRef.current.currentHp <= 0) {
+          setIsPetAttacking(false);
+          return;
+        }
+        const petMult = 0.38 + (pet.level - 1) * 0.08;
+        const petDmg = Math.max(1, Math.floor(combatCalcRef.current.totalAtk * petMult));
+        addDamageNumberRef.current(petDmg, false, false, true, `🐾 ${pet.name}`);
+        recentDamageLogRef.current.push({ time: Date.now(), amount: petDmg });
+
+        setCurrentMonster((prev) => {
+          const nextHp = Math.max(0, prev.currentHp - petDmg);
+          if (nextHp <= 0) {
+            handleMonsterDefeatRef.current();
+          }
+          return { ...prev, currentHp: nextHp };
+        });
+      }, 190);
+
+      setTimeout(() => {
+        setIsPetAttacking(false);
+      }, 390);
+    }, 2200);
+
+    return () => clearInterval(petTimer);
+  }, []);
+
+  // --- 4. Status Effect Decay, Burn DoT & Live DPS Meter Tick (Every 500ms) ---
   useEffect(() => {
     const dotTimer = setInterval(() => {
       // 1. Burn DoT Tick
-      if (monsterStatusesRef.current.some((s) => s.type === 'burn')) {
+      if (!isMonsterDefeatedRef.current && monsterStatusesRef.current.some((s) => s.type === 'burn')) {
         const burnDmg = Math.max(1, Math.floor(combatCalcRef.current.totalAtk * 0.15));
-        addDamageNumber(burnDmg, false, false, true, '🔥 화상');
+        addDamageNumberRef.current(burnDmg, false, false, true, '🔥 화상');
+        recentDamageLogRef.current.push({ time: Date.now(), amount: burnDmg });
         setCurrentMonster((prev) => {
           const nextHp = Math.max(0, prev.currentHp - burnDmg);
           if (nextHp <= 0) {
-            handleMonsterDefeat();
+            handleMonsterDefeatRef.current();
           }
           return { ...prev, currentHp: nextHp };
         });
@@ -833,29 +1047,42 @@ export const App: React.FC = () => {
       setMonsterStatuses((prev) => {
         if (prev.length === 0) return prev;
         return prev
-          .map((s) => ({ ...s, duration: s.duration - 0.5 }))
+          .map((s) => ({ ...s, duration: Math.round((s.duration - 0.5) * 10) / 10 }))
           .filter((s) => s.duration > 0);
       });
+
+      // 3. Calculate Rolling 4-Second Live DPS
+      const cutoff = Date.now() - 4000;
+      recentDamageLogRef.current = recentDamageLogRef.current.filter((entry) => entry.time >= cutoff);
+      const sumDmg = recentDamageLogRef.current.reduce((acc, item) => acc + item.amount, 0);
+      setCurrentDps(Math.round(sumDmg / 4));
     }, 500);
 
     return () => clearInterval(dotTimer);
-  }, [handleMonsterDefeat, addDamageNumber]);
+  }, []);
 
-  // --- Monster Attack Tick (Every 2.4s) ---
+  // --- 5. CC-Aware Monster Attack Tick (Every 2.4s) ---
   useEffect(() => {
-    if (isMonsterDefeated || currentMonster.currentHp <= 0) return;
-
     const timer = setInterval(() => {
-      if (isMonsterDefeated) return;
+      if (isMonsterDefeatedRef.current || currentMonsterRef.current.currentHp <= 0) return;
+
+      // Freeze / Stun CC prevents Monster from attacking!
+      if (monsterStatusesRef.current.some((s) => s.type === 'freeze' || s.type === 'stun')) {
+        return;
+      }
 
       setIsMonsterAttacking(true);
       setTimeout(() => {
-        const monsterDmg = Math.floor(
-          Math.max(1, currentMonster.atk - combatCalculations.totalDef * 0.35)
-        );
+        if (isMonsterDefeatedRef.current) {
+          setIsMonsterAttacking(false);
+          return;
+        }
+        const mon = currentMonsterRef.current;
+        const calc = combatCalcRef.current;
+        const monsterDmg = Math.floor(Math.max(1, mon.atk - calc.totalDef * 0.35));
 
         setIsPlayerHit(true);
-        addDamageNumber(monsterDmg, false, true);
+        addDamageNumberRef.current(monsterDmg, false, true);
 
         setSaveData((prev) => {
           const nextHp = Math.max(0, prev.stats.currentHp - monsterDmg);
@@ -863,7 +1090,7 @@ export const App: React.FC = () => {
             sound.playMonsterDefeat();
             return {
               ...prev,
-              stats: { ...prev.stats, currentHp: combatCalculations.totalMaxHp },
+              stats: { ...prev.stats, currentHp: calc.totalMaxHp },
               stage: { ...prev.stage, inBossFight: false },
             };
           }
@@ -879,7 +1106,7 @@ export const App: React.FC = () => {
     }, 2400);
 
     return () => clearInterval(timer);
-  }, [currentMonster, combatCalculations, isMonsterDefeated, addDamageNumber]);
+  }, []);
 
   // --- Boss Battle Timer (30s) ---
   useEffect(() => {
@@ -1802,6 +2029,12 @@ export const App: React.FC = () => {
           awakeningUnlocked={awakeningUnlocked}
           awakeningGauge={awakeningGauge}
           awakeningSkill={awakeningSkill}
+          basicAttackEvent={basicAttackEvent}
+          petAttackEvent={petAttackEvent}
+          isPetAttacking={isPetAttacking}
+          basicComboStep={basicComboStep}
+          monsterStatuses={monsterStatuses}
+          currentDps={currentDps}
         />
 
         {/* Quest Parchment Ribbon (Displayed only in main Adventure tab) */}
