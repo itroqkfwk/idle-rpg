@@ -76,6 +76,8 @@ interface BattleSceneProps {
   basicComboStep?: 1 | 2 | 3;
   comboCompletedCount?: 0 | 1 | 2;
   isFinisherHit?: boolean;
+  hitComboStep?: 1 | 2 | 3 | null;
+  isCriticalHit?: boolean;
   monsterStatuses?: MonsterStatusEffect[];
   currentDps?: number;
 }
@@ -122,6 +124,8 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
   basicComboStep = 1,
   comboCompletedCount = 0,
   isFinisherHit = false,
+  hitComboStep = null,
+  isCriticalHit = false,
   monsterStatuses = [],
   currentDps = 0,
 }) => {
@@ -296,6 +300,8 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
             damages={damages.filter((d) => !d.isPlayer)}
             monsterStatuses={monsterStatuses}
             isFinisherHit={isFinisherHit}
+            hitComboStep={hitComboStep}
+            isCriticalHit={isCriticalHit}
           />
         </div>
       </div>

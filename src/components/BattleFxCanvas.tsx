@@ -950,67 +950,70 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
 
     if (atkClass === 'warrior') {
       if (comboStep === 1) {
-        // ⚔️ Warrior Combo 1: Crisp Cyan-Silver Diagonal Slash
+        // ⚔️ Warrior Combo 1: Crisp Cyan-Silver Horizontal Slash (75ms Windup, 120ms Impact Peak)
         setTimeout(() => {
           slashesRef.current.push({
             id: `w_basic1_${Date.now()}`,
             x: monsterX - 6,
             y: monsterY,
-            radius: 76,
-            startAngle: -Math.PI * 0.78,
-            endAngle: Math.PI * 0.28,
+            radius: 78,
+            startAngle: -Math.PI * 0.70,
+            endAngle: Math.PI * 0.20,
             maxThickness: 20,
             color: '#38bdf8',
             glowColor: '#0284c7',
             life: 0,
-            maxLife: 0.21,
-            rotation: 0.25,
+            maxLife: 0.19,
+            rotation: 0.12,
           });
-          spawnDirectionalSparks(monsterX, monsterY, 16, '#38bdf8', Math.PI * 0.25, 1.1, 8, groundY);
-        }, 95);
+          spawnDirectionalSparks(monsterX, monsterY, 16, '#38bdf8', Math.PI * 0.2, 1.0, 8, groundY);
+        }, 75);
       } else if (comboStep === 2) {
-        // ⚔️ Warrior Combo 2: Reverse Upward Golden-Amber Slash
+        // ⚔️ Warrior Combo 2: Reverse Upward Golden-Amber Slash (100ms Windup, 150ms Impact Peak)
         setTimeout(() => {
           slashesRef.current.push({
             id: `w_basic2_${Date.now()}`,
             x: monsterX + 4,
             y: monsterY - 4,
-            radius: 82,
-            startAngle: Math.PI * 0.72,
-            endAngle: -Math.PI * 0.32,
-            maxThickness: 23,
+            radius: 84,
+            startAngle: Math.PI * 0.78,
+            endAngle: -Math.PI * 0.28,
+            maxThickness: 24,
             color: '#fbbf24',
             glowColor: '#d97706',
             life: 0,
-            maxLife: 0.22,
-            rotation: -0.3,
+            maxLife: 0.21,
+            rotation: -0.32,
           });
           spawnShockwave(monsterX, monsterY, 55, 360, '#fde047', 0.85, 4);
-          spawnDirectionalSparks(monsterX, monsterY, 20, '#fbbf24', -Math.PI * 0.3, 1.2, 8.8, groundY);
-        }, 95);
+          spawnDirectionalSparks(monsterX, monsterY, 20, '#fbbf24', -Math.PI * 0.35, 1.2, 8.8, groundY);
+        }, 100);
       } else {
-        // 💥 Warrior Combo 3 (Finisher): Crimson-Gold X-Cross Cleave + Sword Wave + Shockwave
-        projectilesRef.current.push({
-          id: `w_basic3_wave_${Date.now()}`,
-          type: 'sword_wave',
-          startX: heroX + 20,
-          startY: heroY,
-          targetX: monsterX,
-          targetY: monsterY,
-          currentX: heroX + 20,
-          currentY: heroY,
-          progress: 0,
-          speed: 0.11,
-          color: '#f97316',
-          size: 22,
-          trail: [],
-        });
+        // 💥 Warrior Combo 3 (Finisher): Crimson-Gold X-Cross Cleave + Forward Sword Wave (125ms Cleave, 190ms Heavy Impact)
+        setTimeout(() => {
+          projectilesRef.current.push({
+            id: `w_basic3_wave_${Date.now()}`,
+            type: 'sword_wave',
+            startX: heroX + 26,
+            startY: heroY,
+            targetX: monsterX,
+            targetY: monsterY,
+            currentX: heroX + 26,
+            currentY: heroY,
+            progress: 0,
+            speed: 0.11,
+            color: '#f97316',
+            size: 22,
+            trail: [],
+          });
+        }, 80);
+
         setTimeout(() => {
           slashesRef.current.push({
             id: `w_basic3a_${Date.now()}`,
             x: monsterX,
             y: monsterY,
-            radius: 92,
+            radius: 94,
             startAngle: -Math.PI * 0.82,
             endAngle: Math.PI * 0.32,
             maxThickness: 26,
@@ -1024,7 +1027,7 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
             id: `w_basic3b_${Date.now()}`,
             x: monsterX,
             y: monsterY,
-            radius: 88,
+            radius: 90,
             startAngle: Math.PI * 0.82,
             endAngle: -Math.PI * 0.32,
             maxThickness: 24,
@@ -1036,7 +1039,7 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
           });
           spawnShockwave(monsterX, groundY, 78, 420, '#fbbf24', 0.45, 6);
           spawnDirectionalSparks(monsterX, monsterY, 28, '#f97316', Math.PI * 0.5, 1.8, 10, groundY);
-        }, 95);
+        }, 125);
 
         // ⚔️ Warrior 3-Hit Finisher: High-Speed Blade After-Image (검기 잔상)
         setTimeout(() => {
@@ -1054,68 +1057,79 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
             maxLife: 0.18,
             rotation: 0.35,
           });
-        }, 125);
+        }, 160);
       }
     } else {
-      // 🔮 Mage 3-Stage Arcane Bolt Combo
+      // 🔮 Mage 3-Stage Arcane Bolt Combo (Staff Anchor Coordinates)
+      const staffTipX = heroX + 10;
+      const staffTipY = heroY - 14;
+
       if (comboStep === 1) {
-        projectilesRef.current.push({
-          id: `m_basic1_${Date.now()}`,
-          type: 'mage_bolt',
-          startX: heroX,
-          startY: heroY,
-          targetX: monsterX,
-          targetY: monsterY,
-          currentX: heroX,
-          currentY: heroY,
-          progress: 0,
-          speed: 0.09,
-          color: '#38bdf8',
-          size: 12,
-          trail: [],
-        });
-      } else if (comboStep === 2) {
-        // Twin Helix Starlight Bolts
-        [-22, 22].forEach((offset, idx) => {
+        // 1타: 마력 집중 후 지팡이 끝에서 아케인 볼트 발사 (80ms 발사, 170ms 적중)
+        setTimeout(() => {
           projectilesRef.current.push({
-            id: `m_basic2_${Date.now()}_${idx}`,
-            type: 'magic_missile',
-            startX: heroX,
-            startY: heroY + (idx === 0 ? -10 : 10),
+            id: `m_basic1_${Date.now()}`,
+            type: 'mage_bolt',
+            startX: staffTipX,
+            startY: staffTipY,
             targetX: monsterX,
             targetY: monsterY,
-            currentX: heroX,
-            currentY: heroY,
+            currentX: staffTipX,
+            currentY: staffTipY,
             progress: 0,
-            speed: 0.088,
-            color: idx === 0 ? '#38bdf8' : '#c084fc',
-            size: 11,
-            waveOffset: offset,
-            wavePhase: idx * Math.PI,
+            speed: 0.12,
+            color: '#38bdf8',
+            size: 13,
             trail: [],
           });
-        });
-      } else {
-        // Empowered Grand Arcane Nova Orb Finisher
-        projectilesRef.current.push({
-          id: `m_basic3_${Date.now()}`,
-          type: 'fireball',
-          startX: heroX,
-          startY: heroY - 8,
-          targetX: monsterX,
-          targetY: monsterY,
-          currentX: heroX,
-          currentY: heroY - 8,
-          progress: 0,
-          speed: 0.095,
-          color: '#a855f7',
-          size: 18,
-          trail: [],
-        });
+        }, 80);
+      } else if (comboStep === 2) {
+        // 2타: 양손 집중 후 트윈 헬릭스 이중 투사체 발사 (100ms 발사, 190ms 적중)
         setTimeout(() => {
-          spawnShockwave(monsterX, monsterY, 72, 410, '#c084fc', 0.85, 6);
-          spawnDirectionalSparks(monsterX, monsterY, 24, '#38bdf8', 0, 2.4, 9.5, groundY);
-        }, 160);
+          [-20, 20].forEach((offset, idx) => {
+            projectilesRef.current.push({
+              id: `m_basic2_${Date.now()}_${idx}`,
+              type: 'magic_missile',
+              startX: staffTipX,
+              startY: staffTipY + (idx === 0 ? -8 : 8),
+              targetX: monsterX,
+              targetY: monsterY,
+              currentX: staffTipX,
+              currentY: staffTipY,
+              progress: 0,
+              speed: 0.115,
+              color: idx === 0 ? '#38bdf8' : '#c084fc',
+              size: 11,
+              waveOffset: offset,
+              wavePhase: idx * Math.PI,
+              trail: [],
+            });
+          });
+        }, 100);
+      } else {
+        // 3타: 공중 부유 후 강화 아케인 노바 구체 발사 (130ms 발사, 230ms 대폭발 착탄)
+        setTimeout(() => {
+          projectilesRef.current.push({
+            id: `m_basic3_${Date.now()}`,
+            type: 'fireball',
+            startX: staffTipX,
+            startY: staffTipY - 8,
+            targetX: monsterX,
+            targetY: monsterY,
+            currentX: staffTipX,
+            currentY: staffTipY - 8,
+            progress: 0,
+            speed: 0.10,
+            color: '#a855f7',
+            size: 19,
+            trail: [],
+          });
+        }, 130);
+
+        setTimeout(() => {
+          spawnShockwave(monsterX, monsterY, 78, 430, '#c084fc', 0.85, 6);
+          spawnDirectionalSparks(monsterX, monsterY, 26, '#38bdf8', 0, 2.4, 9.5, groundY);
+        }, 230);
       }
     }
   }, [basicAttackEvent]);

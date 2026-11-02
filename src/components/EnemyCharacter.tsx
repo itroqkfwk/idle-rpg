@@ -11,6 +11,8 @@ interface EnemyCharacterProps {
   damages?: DamageNumberData[];
   monsterStatuses?: MonsterStatusEffect[];
   isFinisherHit?: boolean;
+  hitComboStep?: 1 | 2 | 3 | null;
+  isCriticalHit?: boolean;
 }
 
 const STATUS_META: Record<MonsterStatusEffect['type'], { label: string; icon: string; color: string; bg: string }> = {
@@ -30,6 +32,8 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
   damages,
   monsterStatuses = [],
   isFinisherHit = false,
+  hitComboStep = null,
+  isCriticalHit = false,
 }) => {
   const [ghostHpPercent, setGhostHpPercent] = useState(100);
   const hpPercent = Math.max(0, Math.min(100, Math.round((monster.currentHp / monster.maxHp) * 100)));
@@ -62,6 +66,16 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
   };
 
   const monsterConfig = getMonsterType();
+
+  const getHitActionClass = () => {
+    if (isDefeated) return 'enemy-act-defeat';
+    if (isFinisherHit || hitComboStep === 3) return isBoss ? 'enemy-act-hit-3-boss' : 'enemy-act-hit-3';
+    if (hitComboStep === 2) return isBoss ? 'enemy-act-hit-2-boss' : 'enemy-act-hit-2';
+    if (hitComboStep === 1 || isHit) return isBoss ? 'enemy-act-hit-1-boss' : 'enemy-act-hit-1';
+    if (isFrozen || isStunned) return 'enemy-act-cc-frozen';
+    if (isAttacking) return 'enemy-act-attack';
+    return monsterConfig.idleClass;
+  };
 
   return (
     <div className={`enemy-character-box ${isBoss ? 'is-boss-combatant' : ''}`}>
@@ -135,19 +149,9 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
 
       {/* 2D Sprite Body Stage */}
       <div
-        className={`enemy-sprite-wrapper ${
-          isDefeated
-            ? 'enemy-act-defeat'
-            : isFinisherHit
-            ? 'enemy-act-finisher-hit'
-            : isHit
-            ? 'enemy-act-hit'
-            : isFrozen || isStunned
-            ? 'enemy-act-cc-frozen'
-            : isAttacking
-            ? 'enemy-act-attack'
-            : monsterConfig.idleClass
-        } ${isHitStop ? 'hit-stop-freeze' : ''} ${isFrozen ? 'status-tint-freeze' : isBurning ? 'status-tint-burn' : ''}`}
+        className={`enemy-sprite-wrapper ${getHitActionClass()} ${isCriticalHit ? 'hit-crit-recoil' : ''} ${
+          isHitStop ? 'hit-stop-freeze' : ''
+        } ${isFrozen ? 'status-tint-freeze' : isBurning ? 'status-tint-burn' : ''}`}
       >
         {/* Soft Ground Contact Shadow */}
         <div className={`character-ground-shadow ${isBoss ? 'boss-ground-shadow' : 'normal-ground-shadow'}`} />
@@ -570,32 +574,90 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           100% { transform: translateX(0); }
         }
 
-        /* Hit Knockback & Pure White Flash (Action RPG Contact Reaction) */
-        .enemy-act-hit {
-          animation: enemyKnockbackAnim 0.22s cubic-bezier(0.18, 0.9, 0.28, 1) forwards;
+        /* 💥 Distinct 3-Stage Monster Hit Reactions */
+        /* 1타: 미세한 밀림 (5px) 및 산뜻한 피격 플래시 (0.16s) */
+        .enemy-act-hit-1 {
+          animation: enemyHit1Anim 0.16s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+        }
+        .enemy-act-hit-1-boss {
+          animation: enemyHit1BossAnim 0.16s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+        }
+        .enemy-act-hit-1 .monster-2d-sprite,
+        .enemy-act-hit-1-boss .monster-2d-sprite {
+          animation: whiteFlashLight 0.15s ease-out forwards;
         }
 
-        .enemy-act-hit .monster-2d-sprite {
-          animation: whiteFlashPulse 0.2s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+        @keyframes enemyHit1Anim {
+          0% { transform: translateX(0); }
+          30% { transform: translateX(5px) scale(0.97, 1.03); }
+          100% { transform: translateX(0) scale(1); }
+        }
+        @keyframes enemyHit1BossAnim {
+          0% { transform: translateX(0); }
+          30% { transform: translateX(3px) scale(0.98, 1.02); }
+          100% { transform: translateX(0) scale(1); }
+        }
+        @keyframes whiteFlashLight {
+          0% { filter: brightness(6) contrast(1.8) drop-shadow(0 0 14px rgba(255, 255, 255, 0.8)); }
+          100% { filter: brightness(1) contrast(1) saturate(1); }
         }
 
-        /* 💥 3-Hit Finisher Heavy Stagger & Radiant White-Gold Flash */
+        /* 2타: 중간 밀림 (9px) 및 호박빛 타격 플래시 (0.20s) */
+        .enemy-act-hit-2 {
+          animation: enemyHit2Anim 0.2s cubic-bezier(0.18, 0.9, 0.28, 1) forwards;
+        }
+        .enemy-act-hit-2-boss {
+          animation: enemyHit2BossAnim 0.2s cubic-bezier(0.18, 0.9, 0.28, 1) forwards;
+        }
+        .enemy-act-hit-2 .monster-2d-sprite,
+        .enemy-act-hit-2-boss .monster-2d-sprite {
+          animation: amberFlashMedium 0.19s ease-out forwards;
+        }
+
+        @keyframes enemyHit2Anim {
+          0% { transform: translateX(0); }
+          28% { transform: translateX(9px) scale(0.93, 1.07); }
+          65% { transform: translateX(3px) scale(1.03, 0.98); }
+          100% { transform: translateX(0) scale(1); }
+        }
+        @keyframes enemyHit2BossAnim {
+          0% { transform: translateX(0); }
+          28% { transform: translateX(5.5px) scale(0.96, 1.04); }
+          65% { transform: translateX(2px) scale(1.02, 0.99); }
+          100% { transform: translateX(0) scale(1); }
+        }
+        @keyframes amberFlashMedium {
+          0% { filter: brightness(10) contrast(2.2) drop-shadow(0 0 20px rgba(251, 191, 36, 0.85)); }
+          100% { filter: brightness(1) contrast(1) saturate(1); }
+        }
+
+        /* 3타: 확실한 넉백 (16px) 및 백금광 대폭발 플래시 (0.28s) */
+        .enemy-act-hit-3,
         .enemy-act-finisher-hit {
-          animation: enemyFinisherStaggerAnim 0.28s cubic-bezier(0.18, 0.9, 0.28, 1) forwards;
+          animation: enemyHit3Anim 0.28s cubic-bezier(0.18, 0.9, 0.22, 1) forwards;
         }
-
+        .enemy-act-hit-3-boss {
+          animation: enemyHit3BossAnim 0.28s cubic-bezier(0.18, 0.9, 0.22, 1) forwards;
+        }
+        .enemy-act-hit-3 .monster-2d-sprite,
+        .enemy-act-hit-3-boss .monster-2d-sprite,
         .enemy-act-finisher-hit .monster-2d-sprite {
-          animation: whiteGoldFlashPulse 0.26s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+          animation: whiteGoldFlashHeavy 0.26s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
         }
 
-        @keyframes enemyFinisherStaggerAnim {
-          0% { transform: translateX(0) scale(1, 1); }
-          25% { transform: translateX(14px) scale(0.88, 1.12); }
-          65% { transform: translateX(5px) scale(1.05, 0.95); }
-          100% { transform: translateX(0) scale(1, 1); }
+        @keyframes enemyHit3Anim {
+          0% { transform: translateX(0); }
+          28% { transform: translateX(16px) scale(0.88, 1.12); }
+          65% { transform: translateX(6px) scale(1.05, 0.95); }
+          100% { transform: translateX(0) scale(1); }
         }
-
-        @keyframes whiteGoldFlashPulse {
+        @keyframes enemyHit3BossAnim {
+          0% { transform: translateX(0); }
+          28% { transform: translateX(10px) scale(0.92, 1.08); }
+          65% { transform: translateX(3px) scale(1.03, 0.97); }
+          100% { transform: translateX(0) scale(1); }
+        }
+        @keyframes whiteGoldFlashHeavy {
           0% {
             filter: brightness(22) contrast(3.5) saturate(0) drop-shadow(0 0 35px rgba(254, 240, 138, 0.95)) drop-shadow(0 0 16px rgba(249, 115, 22, 0.8));
             transform: scale(0.92) translateX(6px);
@@ -607,6 +669,11 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
             filter: brightness(1) contrast(1) saturate(1) drop-shadow(0 0 0 transparent);
             transform: scale(1) translateX(0);
           }
+        }
+
+        /* 치명타 추가 시각 리코일 */
+        .hit-crit-recoil .monster-2d-sprite {
+          filter: drop-shadow(0 0 18px rgba(249, 115, 22, 0.85)) !important;
         }
 
         @keyframes whiteFlashPulse {

@@ -65,7 +65,9 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
   } else if (isVictory) {
     actionClass = 'hero-act-victory';
   } else if (isAttacking) {
-    actionClass = isMage ? 'hero-act-mage-attack' : 'hero-act-warrior-attack';
+    actionClass = isMage
+      ? `hero-act-mage-attack hero-act-mage-attack-${basicComboStep}`
+      : `hero-act-warrior-attack hero-act-warrior-attack-${basicComboStep}`;
   } else if (isHit) {
     actionClass = 'hero-act-hit';
   }
@@ -547,32 +549,84 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           50% { transform: translateY(-2px) scale(0.995, 1.008); }
         }
 
-        /* Warrior 7-Stage Basic Attack */
-        .hero-act-warrior-attack {
-          animation: warriorFullAttackAnim 0.52s cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
+        /* ⚔️ Warrior 3-Combo Distinct Attack Animations */
+        /* 1타: 짧은 전진과 날렵한 수평 베기 (280ms) */
+        .hero-act-warrior-attack-1 {
+          animation: warriorAttack1Anim 0.28s cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
         }
 
-        @keyframes warriorFullAttackAnim {
-          0% { transform: translateX(0) translateY(0) scale(1); }
-          15% { transform: translateX(-12px) translateY(3px) rotate(-6deg) scale(0.95, 1.05); }
-          35% { transform: translateX(78px) translateY(-2px) rotate(9deg) scale(1.1, 0.93); }
-          50% { transform: translateX(82px) translateY(0) rotate(12deg) scale(1.05, 0.97); }
-          65% { transform: translateX(80px) translateY(0) rotate(10deg) scale(1.03, 0.98); }
-          85% { transform: translateX(25px) translateY(0) rotate(2deg) scale(0.98, 1.01); }
+        @keyframes warriorAttack1Anim {
+          0% { transform: translateX(0) translateY(0) rotate(0deg) scale(1); }
+          28% { transform: translateX(12px) translateY(2px) rotate(-8deg) scale(0.97, 1.03); }
+          45% { transform: translateX(46px) translateY(-1px) rotate(14deg) scale(1.08, 0.94); }
+          70% { transform: translateX(30px) translateY(0px) rotate(6deg) scale(1.02, 0.98); }
           100% { transform: translateX(0) translateY(0) rotate(0deg) scale(1); }
         }
 
-        /* Mage Ranged Basic Attack (Zero Forward Dash, Pure Stance Casting) */
-        .hero-act-mage-attack {
-          animation: mageCastAttackAnim 0.5s cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
+        /* 2타: 몸통 회전과 역방향 올려베기 (320ms) */
+        .hero-act-warrior-attack-2 {
+          animation: warriorAttack2Anim 0.32s cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
         }
 
-        @keyframes mageCastAttackAnim {
-          0% { transform: translateX(0) translateY(0) rotate(0deg); }
-          20% { transform: translateX(-8px) translateY(-3px) rotate(-4deg) scale(0.96, 1.03); }
-          45% { transform: translateX(0px) translateY(-15px) rotate(4deg) scale(1.07, 1.02); }
-          68% { transform: translateX(0px) translateY(-10px) rotate(2deg) scale(1.03, 1.0); }
+        @keyframes warriorAttack2Anim {
+          0% { transform: translateX(0) translateY(0) rotate(0deg) scale(1); }
+          30% { transform: translateX(8px) translateY(5px) rotate(-14deg) scale(0.94, 1.06); }
+          48% { transform: translateX(58px) translateY(-10px) rotate(-22deg) scale(1.12, 0.92); }
+          72% { transform: translateX(26px) translateY(-3px) rotate(-8deg) scale(1.02, 0.98); }
           100% { transform: translateX(0) translateY(0) rotate(0deg) scale(1); }
+        }
+
+        /* 3타: 강력한 전방 쇄도와 X자 피니시 강타 (420ms) */
+        .hero-act-warrior-attack-3 {
+          animation: warriorAttack3Anim 0.42s cubic-bezier(0.18, 0.9, 0.22, 1) forwards;
+        }
+
+        @keyframes warriorAttack3Anim {
+          0% { transform: translateX(0) translateY(0) rotate(0deg) scale(1); }
+          30% { transform: translateX(-16px) translateY(7px) rotate(-18deg) scale(0.92, 1.08); }
+          48% { transform: translateX(86px) translateY(-4px) rotate(16deg) scale(1.15, 0.9); }
+          70% { transform: translateX(44px) translateY(2px) rotate(6deg) scale(1.04, 0.98); }
+          100% { transform: translateX(0) translateY(0) rotate(0deg) scale(1); }
+        }
+
+        /* 🔮 Mage 3-Combo Distinct Stance Casting Animations */
+        /* 1타: 마력 집중 후 지팡이 아케인 볼트 방출 (300ms) */
+        .hero-act-mage-attack-1 {
+          animation: mageAttack1Anim 0.3s cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
+        }
+
+        @keyframes mageAttack1Anim {
+          0% { transform: translateX(0) translateY(0) rotate(0deg) scale(1); filter: brightness(1); }
+          28% { transform: translateX(6px) translateY(-4px) rotate(5deg) scale(1.02, 1.01); filter: brightness(1.2); }
+          50% { transform: translateX(14px) translateY(-7px) rotate(10deg) scale(1.06, 0.97); filter: brightness(1.35); }
+          74% { transform: translateX(6px) translateY(-2px) rotate(3deg) scale(1.01, 1.0); filter: brightness(1.1); }
+          100% { transform: translateX(0) translateY(0) rotate(0deg) scale(1); filter: brightness(1); }
+        }
+
+        /* 2타: 양손 집중 후 트윈 헬릭스 이중 투사체 시전 (340ms) */
+        .hero-act-mage-attack-2 {
+          animation: mageAttack2Anim 0.34s cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
+        }
+
+        @keyframes mageAttack2Anim {
+          0% { transform: translateX(0) translateY(0) rotate(0deg) scale(1); filter: brightness(1); }
+          30% { transform: translateX(-4px) translateY(-9px) rotate(-6deg) scale(1.04, 1.03); filter: brightness(1.25); }
+          52% { transform: translateX(18px) translateY(-13px) rotate(13deg) scale(1.08, 0.95); filter: brightness(1.4); }
+          76% { transform: translateX(8px) translateY(-5px) rotate(4deg) scale(1.02, 1.0); filter: brightness(1.15); }
+          100% { transform: translateX(0) translateY(0) rotate(0deg) scale(1); filter: brightness(1); }
+        }
+
+        /* 3타: 공중 부유 후 강화 아케인 노바 집중 방출 (440ms) */
+        .hero-act-mage-attack-3 {
+          animation: mageAttack3Anim 0.44s cubic-bezier(0.18, 0.9, 0.25, 1) forwards;
+        }
+
+        @keyframes mageAttack3Anim {
+          0% { transform: translateX(0) translateY(0) rotate(0deg) scale(1); filter: brightness(1); }
+          30% { transform: translateY(-22px) rotate(-3deg) scale(1.1, 1.08); filter: brightness(1.4) drop-shadow(0 0 16px #c084fc); }
+          50% { transform: translateX(16px) translateY(-15px) rotate(14deg) scale(1.12, 0.94); filter: brightness(1.6) drop-shadow(0 0 24px #a855f7); }
+          75% { transform: translateX(6px) translateY(-8px) rotate(4deg) scale(1.04, 1.0); filter: brightness(1.25); }
+          100% { transform: translateX(0) translateY(0) rotate(0deg) scale(1); filter: brightness(1); }
         }
 
         /* Warrior Skill Cast Pose */

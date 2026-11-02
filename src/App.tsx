@@ -139,6 +139,8 @@ export const App: React.FC = () => {
   const [basicComboStep, setBasicComboStep] = useState<1 | 2 | 3>(1);
   const [comboCompletedCount, setComboCompletedCount] = useState<0 | 1 | 2>(0);
   const [isFinisherHit, setIsFinisherHit] = useState<boolean>(false);
+  const [hitComboStep, setHitComboStep] = useState<1 | 2 | 3 | null>(null);
+  const [isCriticalHit, setIsCriticalHit] = useState<boolean>(false);
   const [basicAttackEvent, setBasicAttackEvent] = useState<{
     id: string;
     comboStep: 1 | 2 | 3;
@@ -502,6 +504,8 @@ export const App: React.FC = () => {
       setIsPlayerAttacking(false);
       isBasicAttackingRef.current = false;
       setIsFinisherHit(false);
+      setHitComboStep(null);
+      setIsCriticalHit(false);
       setIsMonsterDefeated(false);
       isMonsterDefeatedRef.current = false;
       lastMonsterAttackTimeRef.current = Date.now();
@@ -701,12 +705,41 @@ export const App: React.FC = () => {
       });
       totalBasicAttacksRef.current += 1;
 
-      const contactDelay = curClass === 'mage' ? 180 : 160;
+      const speedScale = Math.min(1.4, Math.max(0.85, (combatCalcRef.current?.totalAtkSpeed || 1.2) / 1.2));
+      const baseContactDelay =
+        curClass === 'mage'
+          ? combo === 1 ? 170 : combo === 2 ? 190 : 230
+          : combo === 1 ? 120 : combo === 2 ? 150 : 190;
+      const baseAnimDuration =
+        curClass === 'mage'
+          ? combo === 1 ? 300 : combo === 2 ? 340 : 440
+          : combo === 1 ? 280 : combo === 2 ? 320 : 420;
+
+      const contactDelay = Math.round(baseContactDelay / speedScale);
+      const animDuration = Math.round(baseAnimDuration / speedScale);
+
+      // End player attack animation at the end of swing duration
+      setTimeout(() => {
+        setIsPlayerAttacking(false);
+        if (combo === 1) {
+          comboCompletedCountRef.current = 1;
+          setComboCompletedCount(1);
+        } else if (combo === 2) {
+          comboCompletedCountRef.current = 2;
+          setComboCompletedCount(2);
+        } else {
+          comboCompletedCountRef.current = 0;
+          setComboCompletedCount(0);
+          setBasicComboStep(1);
+        }
+      }, animDuration);
 
       setTimeout(() => {
         if (isMonsterDefeatedRef.current || currentMonsterRef.current.currentHp <= 0) {
           setIsPlayerAttacking(false);
           isBasicAttackingRef.current = false;
+          setHitComboStep(null);
+          setIsCriticalHit(false);
           return;
         }
 
@@ -740,6 +773,8 @@ export const App: React.FC = () => {
 
         setIsHitStop(true);
         setIsMonsterHit(true);
+        setHitComboStep(combo);
+        setIsCriticalHit(isCrit);
         if (combo === 3) {
           setIsFinisherHit(true);
         }
@@ -777,27 +812,14 @@ export const App: React.FC = () => {
         setTimeout(() => {
           setIsMonsterHit(false);
           setIsFinisherHit(false);
-        }, 160);
+          setHitComboStep(null);
+          setIsCriticalHit(false);
+        }, hitStopDuration + 80);
 
         // Release action lock quickly after impact so skills/next swings weave seamlessly
         setTimeout(() => {
           isBasicAttackingRef.current = false;
-        }, 85);
-
-        setTimeout(() => {
-          setIsPlayerAttacking(false);
-          if (combo === 1) {
-            comboCompletedCountRef.current = 1;
-            setComboCompletedCount(1);
-          } else if (combo === 2) {
-            comboCompletedCountRef.current = 2;
-            setComboCompletedCount(2);
-          } else {
-            comboCompletedCountRef.current = 0;
-            setComboCompletedCount(0);
-            setBasicComboStep(1);
-          }
-        }, 210);
+        }, 60);
       }, contactDelay);
     }, 50);
 
@@ -935,13 +957,21 @@ export const App: React.FC = () => {
           sound.playCriticalHit();
           setIsHitStop(true);
           setIsMonsterHit(true);
+          setIsFinisherHit(true);
+          setHitComboStep(3);
+          setIsCriticalHit(true);
           setScreenShake('boss');
           addDamageNumberRef.current(skillDamage, true, false, true, synergyBanner || `👑 ${castSkill.name}`);
           recentDamageLogRef.current.push({ time: Date.now(), amount: skillDamage });
 
           setTimeout(() => setIsHitStop(false), 130);
           setTimeout(() => setScreenShake('none'), 240);
-          setTimeout(() => setIsMonsterHit(false), 280);
+          setTimeout(() => {
+            setIsMonsterHit(false);
+            setIsFinisherHit(false);
+            setHitComboStep(null);
+            setIsCriticalHit(false);
+          }, 280);
 
           setCurrentMonster((prev) => {
             const nextHp = Math.max(0, prev.currentHp - skillDamage);
@@ -987,6 +1017,8 @@ export const App: React.FC = () => {
           setScreenShake(shake);
           setIsHitStop(true);
           setIsMonsterHit(true);
+          setHitComboStep(2);
+          setIsCriticalHit(true);
           addDamageNumberRef.current(skillDamage, true, false, true, synergyBanner || castSkill.name);
           recentDamageLogRef.current.push({ time: Date.now(), amount: skillDamage });
 
@@ -1019,7 +1051,11 @@ export const App: React.FC = () => {
 
           setTimeout(() => setIsHitStop(false), 70);
           setTimeout(() => setScreenShake('none'), 160);
-          setTimeout(() => setIsMonsterHit(false), 200);
+          setTimeout(() => {
+            setIsMonsterHit(false);
+            setHitComboStep(null);
+            setIsCriticalHit(false);
+          }, 200);
 
           setCurrentMonster((prev) => {
             const nextHp = Math.max(0, prev.currentHp - skillDamage);
@@ -2127,6 +2163,8 @@ export const App: React.FC = () => {
           basicComboStep={basicComboStep}
           comboCompletedCount={comboCompletedCount}
           isFinisherHit={isFinisherHit}
+          hitComboStep={hitComboStep}
+          isCriticalHit={isCriticalHit}
           monsterStatuses={monsterStatuses}
           currentDps={currentDps}
         />
