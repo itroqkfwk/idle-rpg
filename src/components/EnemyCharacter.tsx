@@ -10,6 +10,7 @@ interface EnemyCharacterProps {
   isHitStop?: boolean;
   damages?: DamageNumberData[];
   monsterStatuses?: MonsterStatusEffect[];
+  isFinisherHit?: boolean;
 }
 
 const STATUS_META: Record<MonsterStatusEffect['type'], { label: string; icon: string; color: string; bg: string }> = {
@@ -28,6 +29,7 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
   isHitStop,
   damages,
   monsterStatuses = [],
+  isFinisherHit = false,
 }) => {
   const [ghostHpPercent, setGhostHpPercent] = useState(100);
   const hpPercent = Math.max(0, Math.min(100, Math.round((monster.currentHp / monster.maxHp) * 100)));
@@ -136,6 +138,8 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
         className={`enemy-sprite-wrapper ${
           isDefeated
             ? 'enemy-act-defeat'
+            : isFinisherHit
+            ? 'enemy-act-finisher-hit'
             : isHit
             ? 'enemy-act-hit'
             : isFrozen || isStunned
@@ -308,10 +312,10 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           margin-top: 2px;
         }
 
-        /* 💥 Overhead Damage Numbers strictly anchored to Monster Head */
+        /* 💥 Overhead Damage Numbers strictly elevated above Status Pills */
         .monster-damage-anchor-layer {
           position: absolute;
-          top: -20px;
+          top: -46px;
           left: 50%;
           transform: translateX(-50%);
           pointer-events: none;
@@ -573,6 +577,36 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
 
         .enemy-act-hit .monster-2d-sprite {
           animation: whiteFlashPulse 0.2s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+        }
+
+        /* 💥 3-Hit Finisher Heavy Stagger & Radiant White-Gold Flash */
+        .enemy-act-finisher-hit {
+          animation: enemyFinisherStaggerAnim 0.28s cubic-bezier(0.18, 0.9, 0.28, 1) forwards;
+        }
+
+        .enemy-act-finisher-hit .monster-2d-sprite {
+          animation: whiteGoldFlashPulse 0.26s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+        }
+
+        @keyframes enemyFinisherStaggerAnim {
+          0% { transform: translateX(0) scale(1, 1); }
+          25% { transform: translateX(14px) scale(0.88, 1.12); }
+          65% { transform: translateX(5px) scale(1.05, 0.95); }
+          100% { transform: translateX(0) scale(1, 1); }
+        }
+
+        @keyframes whiteGoldFlashPulse {
+          0% {
+            filter: brightness(22) contrast(3.5) saturate(0) drop-shadow(0 0 35px rgba(254, 240, 138, 0.95)) drop-shadow(0 0 16px rgba(249, 115, 22, 0.8));
+            transform: scale(0.92) translateX(6px);
+          }
+          40% {
+            filter: brightness(9) contrast(2.2) saturate(0.3) drop-shadow(0 0 20px rgba(251, 191, 36, 0.7));
+          }
+          100% {
+            filter: brightness(1) contrast(1) saturate(1) drop-shadow(0 0 0 transparent);
+            transform: scale(1) translateX(0);
+          }
         }
 
         @keyframes whiteFlashPulse {

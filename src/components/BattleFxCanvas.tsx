@@ -1037,6 +1037,24 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
           spawnShockwave(monsterX, groundY, 78, 420, '#fbbf24', 0.45, 6);
           spawnDirectionalSparks(monsterX, monsterY, 28, '#f97316', Math.PI * 0.5, 1.8, 10, groundY);
         }, 95);
+
+        // ⚔️ Warrior 3-Hit Finisher: High-Speed Blade After-Image (검기 잔상)
+        setTimeout(() => {
+          slashesRef.current.push({
+            id: `w_basic3_ghost_${Date.now()}`,
+            x: monsterX + 3,
+            y: monsterY,
+            radius: 104,
+            startAngle: -Math.PI * 0.78,
+            endAngle: Math.PI * 0.28,
+            maxThickness: 16,
+            color: '#fef08a',
+            glowColor: '#f97316',
+            life: 0,
+            maxLife: 0.18,
+            rotation: 0.35,
+          });
+        }, 125);
       }
     } else {
       // 🔮 Mage 3-Stage Arcane Bolt Combo
@@ -1119,28 +1137,32 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
       ? '#ef4444'
       : '#38bdf8';
 
-    projectilesRef.current.push({
-      id: `pet_proj_${petAttackEvent.id}`,
-      type: 'magic_missile',
-      startX: heroX - 24,
-      startY: groundY - 26,
-      targetX: monsterX,
-      targetY: monsterY + 8,
-      currentX: heroX - 24,
-      currentY: groundY - 26,
-      progress: 0,
-      speed: 0.085,
-      color: petColor,
-      size: 10,
-      waveOffset: -18,
-      wavePhase: 0.5,
-      trail: [],
-    });
-
+    // Launch projectile at 80ms when pet reaches leap forward apex
     setTimeout(() => {
-      spawnShockwave(monsterX, monsterY + 8, 42, 320, petColor, 0.85, 3.5);
-      spawnDirectionalSparks(monsterX, monsterY + 8, 12, petColor, 0, 2.0, 7, groundY);
-    }, 180);
+      projectilesRef.current.push({
+        id: `pet_proj_${petAttackEvent.id}`,
+        type: 'magic_missile',
+        startX: heroX - 20,
+        startY: groundY - 26,
+        targetX: monsterX,
+        targetY: monsterY + 8,
+        currentX: heroX - 20,
+        currentY: groundY - 26,
+        progress: 0,
+        speed: 0.11,
+        color: petColor,
+        size: 11,
+        waveOffset: -16,
+        wavePhase: 0.5,
+        trail: [],
+      });
+    }, 80);
+
+    // Impact at 240ms exactly synchronized with App.tsx damage application
+    setTimeout(() => {
+      spawnShockwave(monsterX, monsterY + 8, 48, 340, petColor, 0.85, 3.5);
+      spawnDirectionalSparks(monsterX, monsterY + 8, 14, petColor, 0, 2.0, 7.5, groundY);
+    }, 240);
   }, [petAttackEvent]);
 
   // ==========================================

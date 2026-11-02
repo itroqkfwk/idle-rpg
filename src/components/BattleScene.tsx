@@ -74,6 +74,8 @@ interface BattleSceneProps {
   petAttackEvent?: { id: string; petId: string } | null;
   isPetAttacking?: boolean;
   basicComboStep?: 1 | 2 | 3;
+  comboCompletedCount?: 0 | 1 | 2;
+  isFinisherHit?: boolean;
   monsterStatuses?: MonsterStatusEffect[];
   currentDps?: number;
 }
@@ -118,6 +120,8 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
   petAttackEvent = null,
   isPetAttacking = false,
   basicComboStep = 1,
+  comboCompletedCount = 0,
+  isFinisherHit = false,
   monsterStatuses = [],
   currentDps = 0,
 }) => {
@@ -183,14 +187,22 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         </div>
         <div className="combo-pips-row" title="기본 평타 3연격 콤보">
           <span className="combo-label">평타</span>
-          {[1, 2, 3].map((step) => (
-            <span
-              key={step}
-              className={`combo-pip ${basicComboStep === step && isPlayerAttacking ? 'pip-active' : basicComboStep > step ? 'pip-filled' : ''}`}
-            >
-              {step}
-            </span>
-          ))}
+          {[1, 2, 3].map((step) => {
+            const isAttackingThis = isPlayerAttacking && basicComboStep === step;
+            const isCompletedThis = comboCompletedCount >= step;
+            const pipClass = isAttackingThis
+              ? step === 3
+                ? 'pip-active pip-finisher'
+                : 'pip-active'
+              : isCompletedThis
+              ? 'pip-filled'
+              : '';
+            return (
+              <span key={step} className={`combo-pip ${pipClass}`}>
+                {step}
+              </span>
+            );
+          })}
         </div>
       </div>
 
@@ -283,6 +295,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
             isHitStop={isHitStop}
             damages={damages.filter((d) => !d.isPlayer)}
             monsterStatuses={monsterStatuses}
+            isFinisherHit={isFinisherHit}
           />
         </div>
       </div>
@@ -639,6 +652,19 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           color: #ffffff;
           transform: scale(1.18);
           box-shadow: 0 0 8px rgba(245, 158, 11, 0.8);
+        }
+
+        .combo-pip.pip-finisher {
+          background: linear-gradient(135deg, #ef4444, #f59e0b) !important;
+          border-color: #fef08a !important;
+          transform: scale(1.24) !important;
+          box-shadow: 0 0 12px rgba(239, 68, 68, 0.9), 0 0 4px #fbbf24 !important;
+          animation: finisherPipPulse 0.4s ease-in-out infinite alternate;
+        }
+
+        @keyframes finisherPipPulse {
+          0% { transform: scale(1.2); }
+          100% { transform: scale(1.3); }
         }
 
         /* Center Boss Alert */
