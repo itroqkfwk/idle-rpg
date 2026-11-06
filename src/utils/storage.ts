@@ -9,6 +9,7 @@ const SAVE_KEY = 'COZY_IDLE_RPG_SAVE_V1';
 export const DEFAULT_PRESTIGE_UPGRADES: PrestigeUpgrades = {
   atkLevel: 0,
   hpLevel: 0,
+  defLevel: 0,
   goldLevel: 0,
   expLevel: 0,
   critDmgLevel: 0,

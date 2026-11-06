@@ -130,6 +130,8 @@ export const App: React.FC = () => {
         const updated: GameSaveData = {
           ...prev,
           hasPrestigeUnlocked: true,
+          promotion: prev.classId === 'mage' ? 'archmage' : 'sword_master',
+          awakeningUnlocked: true,
           stats: {
             ...prev.stats,
             level: 35,
@@ -284,7 +286,8 @@ export const App: React.FC = () => {
     }
 
     const classConf = CLASS_CONFIGS[classId];
-    const isPromoted = promotion !== 'none';
+    // 전직 시스템 환생 처리: 전직 자격(promotion)은 유지하되 stats.level < 30 일 때는 비활성화, 레벨 30 재도달 시 자동 복구
+    const isPromoted = promotion !== 'none' && stats.level >= 30;
 
     // Layered Base stat adjustments by class (Zero double counting)
     const rawHpBase = stats.baseHp + (stats.hpLevel - 1) * 35 + equipHp + equipOwnedBonus.ownedHp + skillOwnedBonus.ownedHp;
@@ -295,23 +298,24 @@ export const App: React.FC = () => {
     const baseClassDef = rawDefBase * classConf.statBuffs.defMult;
     const baseClassAtk = rawAtkBase * classConf.statBuffs.atkMult;
 
-    // Promotion passive bonuses
+    // Promotion passive bonuses (Active only when level >= 30)
     const promoAtkSpeed = isPromoted ? classConf.promotionBuffs.atkSpeedBonus : 0;
     const promoCritRate = isPromoted ? classConf.promotionBuffs.critRateBonus : 0;
     const promoSkillDmg = isPromoted ? classConf.promotionBuffs.skillDamageBonus : 0;
     const promoCdReduction = isPromoted ? classConf.promotionBuffs.cooldownReduction : 0;
 
-    // Prestige Permanent Upgrades Multipliers
+    // Prestige Permanent Upgrades Multipliers (6 Core Stats)
     const pUpgrades = saveData.prestigeUpgrades || DEFAULT_PRESTIGE_UPGRADES;
     const prestigeAtkMult = (pUpgrades.atkLevel || 0) * 0.10;
     const prestigeHpMult = (pUpgrades.hpLevel || 0) * 0.10;
+    const prestigeDefMult = (pUpgrades.defLevel || 0) * 0.10;
     const prestigeGoldMult = (pUpgrades.goldLevel || 0) * 0.08;
     const prestigeExpMult = (pUpgrades.expLevel || 0) * 0.08;
     const prestigeCritDmgBonus = (pUpgrades.critDmgLevel || 0) * 0.05;
 
     const totalAtk = Math.floor(baseClassAtk * (1 + petAtkMult) * (1 + prestigeAtkMult));
     const totalMaxHp = Math.floor(baseClassHp * (1 + prestigeHpMult));
-    const totalDef = Math.floor(baseClassDef);
+    const totalDef = Math.floor(baseClassDef * (1 + prestigeDefMult));
     const totalCritRate = Math.min(
       0.85,
       stats.critRate + equipCritRate + (equipOwnedBonus.ownedCritRate / 100) + petCritRateMult + classConf.statBuffs.critRateBonus + promoCritRate
@@ -334,10 +338,14 @@ export const App: React.FC = () => {
       petGoldMult,
       prestigeGoldMult,
       prestigeExpMult,
+      prestigeDefMult,
+      prestigeAtkMult,
+      prestigeHpMult,
       promoSkillDmg,
       promoCdReduction,
       equipOwnedBonus,
       skillOwnedBonus,
+      isPromoted,
     };
   }, [stats, equipped, equipmentCatalog, skills, activePet, classId, promotion, saveData.prestigeUpgrades]);
 
@@ -530,8 +538,8 @@ export const App: React.FC = () => {
           goldSpentOnAuto = res.goldSpent;
         }
 
-        // Charge Awakening Gauge on monster kill (+10%)
-        const nextAwakening = prev.awakeningUnlocked
+        // Charge Awakening Gauge on monster kill (+10%, only if level >= 30)
+        const nextAwakening = (prev.awakeningUnlocked && newLevel >= 30)
           ? Math.min(100, Math.round(((prev.awakeningGauge ?? 0) + 10) * 10) / 10)
           : 0;
 
@@ -852,10 +860,10 @@ export const App: React.FC = () => {
         addDamageNumberRef.current(damage, isCrit, false, combo === 3, comboBanner);
         recentDamageLogRef.current.push({ time: Date.now(), amount: damage });
 
-        // Charge Awakening Gauge on basic attack hit (+2.5%, or +5% on 3rd-hit finisher)
+        // Charge Awakening Gauge on basic attack hit (+2.5%, or +5% on 3rd-hit finisher, only when Lv >= 30)
         const awkGain = combo === 3 ? 5.0 : 2.5;
         setSaveData((prev) => {
-          if (!prev.awakeningUnlocked) return prev;
+          if (!prev.awakeningUnlocked || (prev.stats?.level ?? 1) < 30) return prev;
           return {
             ...prev,
             awakeningGauge: Math.min(100, Math.round(((prev.awakeningGauge ?? 0) + awkGain) * 10) / 10),
@@ -935,7 +943,12 @@ export const App: React.FC = () => {
       let candidate: Skill | null = null;
       let isAwakeningCast = false;
 
-      if (awakeningUnlockedRef.current && (awakeningGaugeRef.current ?? 0) >= 100 && awakeningSkillRef.current) {
+      if (
+        awakeningUnlockedRef.current &&
+        (saveDataRef.current.stats?.level ?? 1) >= 30 &&
+        (awakeningGaugeRef.current ?? 0) >= 100 &&
+        awakeningSkillRef.current
+      ) {
         candidate = awakeningSkillRef.current;
         isAwakeningCast = true;
       } else {
@@ -1102,9 +1115,9 @@ export const App: React.FC = () => {
             setMonsterStatuses((prev) => [...prev.filter((s) => s.type !== 'stun'), { type: 'stun', duration: 2.0 }]);
           }
 
-          // Charge Awakening gauge on skill hit (+7%, or 100% if infiniteAwakening cheat is ON)
+          // Charge Awakening gauge on skill hit (+7%, or 100% if infiniteAwakening cheat is ON, only when Lv >= 30)
           setSaveData((prev) => {
-            if (!prev.awakeningUnlocked) return prev;
+            if (!prev.awakeningUnlocked || (prev.stats?.level ?? 1) < 30) return prev;
             if (prev.infiniteAwakening) return { ...prev, awakeningGauge: 100 };
             return {
               ...prev,
@@ -2361,12 +2374,12 @@ export const App: React.FC = () => {
           activeQuest={activeQuest}
           onClaimQuest={handleClaimQuest}
           classId={classId}
-          promotion={promotion}
+          promotion={combatCalculations.isPromoted ? promotion : 'none'}
           isCasting={isCasting}
           castingSkillType={castingSkillType}
           isAwakeningCasting={isAwakeningCasting}
-          awakeningUnlocked={awakeningUnlocked}
-          awakeningGauge={awakeningGauge}
+          awakeningUnlocked={awakeningUnlocked && stats.level >= 30}
+          awakeningGauge={stats.level >= 30 ? awakeningGauge : 0}
           awakeningSkill={awakeningSkill}
           basicAttackEvent={basicAttackEvent}
           petAttackEvent={petAttackEvent}

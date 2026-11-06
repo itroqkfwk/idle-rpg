@@ -122,12 +122,12 @@ export const PrestigeModal: React.FC<PrestigeModalProps> = ({
                 <span>영구 유지 항목</span>
               </div>
               <ul className="policy-list">
-                <li><span className="dot dot-green" />별가루 및 5대 영구 강화 효과</li>
+                <li><span className="dot dot-green" />별가루 및 6대 영구 강화 효과 (공/체/방/골드/경험치/치명피해)</li>
                 <li><span className="dot dot-green" />보유 장비 및 도감 보유 효과 전체</li>
                 <li><span className="dot dot-green" />보유 펫 및 펫 육성 레벨</li>
                 <li><span className="dot dot-green" />스킬 카드 및 스킬 강화 레벨</li>
                 <li><span className="dot dot-green" />다이아몬드 (유료 보석 재화)</li>
-                <li><span className="dot dot-green" />전직 상태 (소드마스터/아크메이지)</li>
+                <li><span className="dot dot-green" />전직 자격 영구 보존 (Lv.30 달성 시 자동 복구)</li>
               </ul>
             </div>
           </div>
@@ -135,7 +135,7 @@ export const PrestigeModal: React.FC<PrestigeModalProps> = ({
           <div className="prestige-notice-box">
             <AlertCircle size={15} color="#f59e0b" style={{ flexShrink: 0 }} />
             <span>
-              환생을 진행하면 영웅 레벨과 스테이지가 1로 초기화되지만, 획득한 별가루로 <strong>공격력, 체력, 골드, 경험치, 치명 피해</strong>를 영구 증폭하여 이전보다 훨씬 빠르고 강력하게 성장할 수 있습니다.
+              환생을 진행하면 영웅 레벨과 스테이지가 1로 초기화되지만, 획득한 별가루로 <strong>공격력, 방어력, 체력, 골드, 경험치, 치명타 피해</strong>를 영구 증폭하여 이전보다 훨씬 빠르고 강력하게 성장할 수 있습니다.
             </span>
           </div>
         </div>

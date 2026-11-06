@@ -43,8 +43,9 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
   }, [hpPercent]);
 
   const isMage = classId === 'mage';
-  const isSwordMaster = promotion === 'sword_master';
-  const isArchmage = promotion === 'archmage';
+  const isPromotedActive = promotion !== 'none' && stats.level >= 30;
+  const isSwordMaster = isPromotedActive && promotion === 'sword_master';
+  const isArchmage = isPromotedActive && promotion === 'archmage';
 
   const roleTitle = isSwordMaster
     ? '소드 마스터'
@@ -91,7 +92,7 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
       <div className="combatant-hp-cluster">
         <div className="combatant-name-tag">
           <span className="lvl-badge">Lv.{stats.level}</span>
-          <span className={`name-text ${promotion !== 'none' ? 'promoted-name-text' : ''}`}>
+          <span className={`name-text ${isPromotedActive ? 'promoted-name-text' : ''}`}>
             {roleTitle}
           </span>
           {isAttacking && (

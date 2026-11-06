@@ -39,29 +39,40 @@ export const TopHUD: React.FC<TopHUDProps> = ({
   };
 
   const isMage = classId === 'mage';
-  const isPromoted = promotion !== 'none';
-  const classNameText =
-    promotion === 'sword_master'
+  const isPromoted = promotion !== 'none' && stats.level >= 30;
+  const isPendingPromotion = promotion !== 'none' && stats.level < 30;
+  const classNameText = isPromoted
+    ? promotion === 'sword_master'
       ? '소드 마스터'
-      : promotion === 'archmage'
-      ? '아크메이지'
-      : isMage
-      ? '마법사'
-      : '전사';
+      : '아크메이지'
+    : isPendingPromotion
+    ? `${isMage ? '마법사' : '전사'} (Lv.30 복구)`
+    : isMage
+    ? '마법사'
+    : '전사';
 
   const avatarSrc = isMage ? './assets/hero_mage.png' : './assets/hero_knight.png';
 
   return (
     <header className="game-top-hud">
       {/* 🛡️ Left Zone: Hero Profile Capsule */}
-      <div className={`profile-capsule-btn ${isPromoted ? 'promoted-profile-glow' : ''}`} onClick={onOpenProfile} title="영웅 프로필">
-        <div className={`profile-avatar-thumb ${isPromoted ? 'promoted-avatar-ring' : ''}`}>
+      <div
+        className={`profile-capsule-btn ${isPromoted ? 'promoted-profile-glow' : isPendingPromotion ? 'pending-profile-glow' : ''}`}
+        onClick={onOpenProfile}
+        title={isPendingPromotion ? '전직 자격 보존 중 (Lv.30 달성 시 자동 복구)' : '영웅 프로필'}
+      >
+        <div className={`profile-avatar-thumb ${isPromoted ? 'promoted-avatar-ring' : isPendingPromotion ? 'pending-avatar-ring' : ''}`}>
           <img
             src={avatarSrc}
             alt="Hero Avatar"
             className="avatar-img-crop"
           />
           {isPromoted && <div className="promoted-crown-pip">👑</div>}
+          {isPendingPromotion && (
+            <div className="promoted-crown-pip" style={{ filter: 'grayscale(0.6) opacity(0.8)' }} title="Lv.30 복구 대기">
+              ⏳
+            </div>
+          )}
         </div>
         <div className="profile-info-col">
           <div className="profile-row-top">
@@ -71,7 +82,7 @@ export const TopHUD: React.FC<TopHUDProps> = ({
                 ★{prestigeCount}
               </span>
             )}
-            <span className={`profile-name ${isPromoted ? 'promoted-name-gold' : ''}`}>
+            <span className={`profile-name ${isPromoted ? 'promoted-name-gold' : isPendingPromotion ? 'pending-name-txt' : ''}`}>
               {classNameText}
             </span>
           </div>

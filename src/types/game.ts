@@ -267,6 +267,7 @@ export interface GameSettings {
 export interface PrestigeUpgrades {
   atkLevel: number;     // +10% ATK per level
   hpLevel: number;      // +10% Max HP per level
+  defLevel: number;     // +10% DEF per level
   goldLevel: number;    // +8% Gold Gain per level
   expLevel: number;     // +8% Exp Gain per level
   critDmgLevel: number; // +5% Crit Dmg per level

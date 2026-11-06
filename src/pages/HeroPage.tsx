@@ -78,7 +78,9 @@ export const HeroPage: React.FC<HeroPageProps> = ({
 
   const currentClassConfig = CLASS_CONFIGS[classId];
   const isMage = classId === 'mage';
-  const isPromoted = promotion !== 'none';
+  const hasPromotionQualification = promotion !== 'none';
+  const isPromoted = hasPromotionQualification && stats.level >= 30;
+  const isPromotionPending = hasPromotionQualification && stats.level < 30;
 
   // Filter skills strictly to active class and non-awakening for regular 4 slots
   const classSkills = skills.filter((s) => s.classId === classId && !s.isAwakening);
@@ -158,9 +160,9 @@ export const HeroPage: React.FC<HeroPageProps> = ({
     {
       key: 'atkLevel' as const,
       name: '공격력 증폭',
-      level: prestigeUpgrades.atkLevel,
-      currentDesc: `기본 공격력 +${prestigeUpgrades.atkLevel * 10}%`,
-      nextDesc: `+${(prestigeUpgrades.atkLevel + 1) * 10}%`,
+      level: prestigeUpgrades.atkLevel || 0,
+      currentDesc: `기본 공격력 +${(prestigeUpgrades.atkLevel || 0) * 10}%`,
+      nextDesc: `+${((prestigeUpgrades.atkLevel || 0) + 1) * 10}%`,
       icon: <Swords size={17} />,
       iconBg: 'rgba(239, 68, 68, 0.15)',
       iconColor: '#f87171',
@@ -168,19 +170,29 @@ export const HeroPage: React.FC<HeroPageProps> = ({
     {
       key: 'hpLevel' as const,
       name: '최대 체력 증폭',
-      level: prestigeUpgrades.hpLevel,
-      currentDesc: `최대 체력 +${prestigeUpgrades.hpLevel * 10}%`,
-      nextDesc: `+${(prestigeUpgrades.hpLevel + 1) * 10}%`,
+      level: prestigeUpgrades.hpLevel || 0,
+      currentDesc: `최대 체력 +${(prestigeUpgrades.hpLevel || 0) * 10}%`,
+      nextDesc: `+${((prestigeUpgrades.hpLevel || 0) + 1) * 10}%`,
       icon: <Heart size={17} />,
       iconBg: 'rgba(16, 185, 129, 0.15)',
       iconColor: '#34d399',
     },
     {
+      key: 'defLevel' as const,
+      name: '방어력 증폭',
+      level: prestigeUpgrades.defLevel || 0,
+      currentDesc: `기본 방어력 +${(prestigeUpgrades.defLevel || 0) * 10}%`,
+      nextDesc: `+${((prestigeUpgrades.defLevel || 0) + 1) * 10}%`,
+      icon: <Shield size={17} />,
+      iconBg: 'rgba(59, 130, 246, 0.15)',
+      iconColor: '#60a5fa',
+    },
+    {
       key: 'goldLevel' as const,
       name: '골드 획득량 증가',
-      level: prestigeUpgrades.goldLevel,
-      currentDesc: `골드 획득 +${prestigeUpgrades.goldLevel * 8}%`,
-      nextDesc: `+${(prestigeUpgrades.goldLevel + 1) * 8}%`,
+      level: prestigeUpgrades.goldLevel || 0,
+      currentDesc: `골드 획득 +${(prestigeUpgrades.goldLevel || 0) * 8}%`,
+      nextDesc: `+${((prestigeUpgrades.goldLevel || 0) + 1) * 8}%`,
       icon: <Coins size={17} />,
       iconBg: 'rgba(245, 158, 11, 0.15)',
       iconColor: '#fbbf24',
@@ -188,9 +200,9 @@ export const HeroPage: React.FC<HeroPageProps> = ({
     {
       key: 'expLevel' as const,
       name: '경험치 획득량 증가',
-      level: prestigeUpgrades.expLevel,
-      currentDesc: `경험치 획득 +${prestigeUpgrades.expLevel * 8}%`,
-      nextDesc: `+${(prestigeUpgrades.expLevel + 1) * 8}%`,
+      level: prestigeUpgrades.expLevel || 0,
+      currentDesc: `경험치 획득 +${(prestigeUpgrades.expLevel || 0) * 8}%`,
+      nextDesc: `+${((prestigeUpgrades.expLevel || 0) + 1) * 8}%`,
       icon: <Sparkles size={17} />,
       iconBg: 'rgba(56, 189, 248, 0.15)',
       iconColor: '#38bdf8',
@@ -198,9 +210,9 @@ export const HeroPage: React.FC<HeroPageProps> = ({
     {
       key: 'critDmgLevel' as const,
       name: '치명타 피해 증폭',
-      level: prestigeUpgrades.critDmgLevel,
-      currentDesc: `치명타 피해 +${prestigeUpgrades.critDmgLevel * 5}%`,
-      nextDesc: `+${(prestigeUpgrades.critDmgLevel + 1) * 5}%`,
+      level: prestigeUpgrades.critDmgLevel || 0,
+      currentDesc: `치명타 피해 +${(prestigeUpgrades.critDmgLevel || 0) * 5}%`,
+      nextDesc: `+${((prestigeUpgrades.critDmgLevel || 0) + 1) * 5}%`,
       icon: <Zap size={17} />,
       iconBg: 'rgba(168, 85, 247, 0.15)',
       iconColor: '#c084fc',
@@ -217,7 +229,7 @@ export const HeroPage: React.FC<HeroPageProps> = ({
           </div>
           <span>영웅 성장 & 전직</span>
           <span className="hero-level-chip">Lv.{stats.level}</span>
-          <span className="hero-class-tag">{isPromoted ? currentClassConfig.promotionName : currentClassConfig.name}</span>
+          <span className="hero-class-tag">{isPromoted ? currentClassConfig.promotionName : isPromotionPending ? `${currentClassConfig.promotionName} (대기)` : currentClassConfig.name}</span>
         </div>
         {onClose && (
           <button className="drawer-close-btn" onClick={onClose} title="닫기">
@@ -745,10 +757,10 @@ export const HeroPage: React.FC<HeroPageProps> = ({
               <div className="class-current-info-col">
                 <div className="class-badge-title-row">
                   <span className="class-title-large">
-                    {isPromoted ? currentClassConfig.promotionName : currentClassConfig.name}
+                    {isPromoted ? currentClassConfig.promotionName : isPromotionPending ? `${currentClassConfig.promotionName} (대기)` : currentClassConfig.name}
                   </span>
-                  <span className={`class-rank-badge ${isPromoted ? 'rank-promoted' : 'rank-base'}`}>
-                    {isPromoted ? '각성 달성 👑' : '기본 직업'}
+                  <span className={`class-rank-badge ${isPromoted ? 'rank-promoted' : isPromotionPending ? 'rank-pending' : 'rank-base'}`}>
+                    {isPromoted ? '각성 달성 👑' : isPromotionPending ? '자격 보존 (Lv.30 복구)' : '기본 직업'}
                   </span>
                 </div>
                 <span className="class-motto-txt">
@@ -809,8 +821,8 @@ export const HeroPage: React.FC<HeroPageProps> = ({
                 </div>
               )}
 
-              {/* Promotion Requirements Checklist (When not yet promoted) */}
-              {!isPromoted && (
+              {/* Promotion Requirements Checklist (When not yet promoted and no qualification) */}
+              {!hasPromotionQualification && (
                 <div className="promotion-checklist-box">
                   <span className="checklist-heading">전직 심사 조건</span>
                   <div className="checklist-item-row">
@@ -857,6 +869,35 @@ export const HeroPage: React.FC<HeroPageProps> = ({
                     <Crown size={15} />
                     <span>{currentClassConfig.promotionName}(으)로 전직하기</span>
                   </button>
+                </div>
+              )}
+
+              {/* Promotion Qualified but waiting for Lv. 30 post-prestige */}
+              {isPromotionPending && (
+                <div className="promotion-pending-box" style={{
+                  padding: '14px 16px',
+                  background: 'linear-gradient(135deg, rgba(30, 27, 75, 0.75) 0%, rgba(15, 23, 42, 0.85) 100%)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(251, 191, 36, 0.35)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  marginTop: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#fbbf24', fontWeight: 700, fontSize: '13.5px' }}>
+                    <Crown size={16} />
+                    <span>전직 자격 영구 보존 중 ({currentClassConfig.promotionName})</span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: '11.5px', color: '#94a3b8', lineHeight: 1.45 }}>
+                    환생 전 획득한 전직 자격이 안전하게 보존되었습니다. 재시험이나 추가 비용 없이, 영웅 레벨 30 재달성 시 기존 전직의 스탯 버프와 궁극 각성기가 즉시 자동 복구됩니다!
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: '#e2e8f0' }}>
+                    <span>레벨 30 복구 진행도</span>
+                    <strong style={{ color: '#fbbf24' }}>Lv.{stats.level} / 30 ({Math.min(100, Math.floor((stats.level / 30) * 100))}%)</strong>
+                  </div>
+                  <div style={{ width: '100%', height: '7px', background: 'rgba(255,255,255,0.08)', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ width: `${Math.min(100, (stats.level / 30) * 100)}%`, height: '100%', background: 'linear-gradient(90deg, #f59e0b, #fbbf24)', borderRadius: '4px', transition: 'width 0.3s ease' }} />
+                  </div>
                 </div>
               )}
 
@@ -1104,11 +1145,21 @@ export const HeroPage: React.FC<HeroPageProps> = ({
                 </div>
               )}
 
-              {prestigeUpgrades && (breakdownStat === 'atk' ? prestigeUpgrades.atkLevel > 0 : breakdownStat === 'hp' ? prestigeUpgrades.hpLevel > 0 : false) && (
+              {prestigeUpgrades && (
+                breakdownStat === 'atk'
+                  ? (prestigeUpgrades.atkLevel || 0) > 0
+                  : breakdownStat === 'hp'
+                  ? (prestigeUpgrades.hpLevel || 0) > 0
+                  : (prestigeUpgrades.defLevel || 0) > 0
+              ) && (
                 <div className="source-row">
                   <span className="source-name">8. 별빛 환생 영구 증폭</span>
                   <strong className="source-val text-yellow">
-                    +{breakdownStat === 'atk' ? prestigeUpgrades.atkLevel * 10 : prestigeUpgrades.hpLevel * 10}%
+                    +{breakdownStat === 'atk'
+                      ? (prestigeUpgrades.atkLevel || 0) * 10
+                      : breakdownStat === 'hp'
+                      ? (prestigeUpgrades.hpLevel || 0) * 10
+                      : (prestigeUpgrades.defLevel || 0) * 10}%
                   </strong>
                 </div>
               )}
