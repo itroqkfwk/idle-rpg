@@ -80,6 +80,7 @@ interface BattleSceneProps {
   isCriticalHit?: boolean;
   monsterStatuses?: MonsterStatusEffect[];
   currentDps?: number;
+  prestigeVfxEvent?: { id: string } | null;
 }
 
 export const BattleScene: React.FC<BattleSceneProps> = ({
@@ -128,6 +129,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
   isCriticalHit = false,
   monsterStatuses = [],
   currentDps = 0,
+  prestigeVfxEvent = null,
 }) => {
   const isBossFight = stage.stage === 10 && stage.inBossFight;
   const stageEnv = getStageEnvironment(stage.chapter, stage.stage, isBossFight);
@@ -180,6 +182,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         ambientType={stageEnv.ambientParticleType}
         basicAttackEvent={basicAttackEvent}
         petAttackEvent={petAttackEvent}
+        prestigeVfxEvent={prestigeVfxEvent}
       />
 
       {/* ⚔️ Live DPS & 3-Hit Basic Attack Combo HUD Pill */}

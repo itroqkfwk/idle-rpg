@@ -16,8 +16,16 @@ import {
   MonsterStatusEffect,
   CharacterClassId,
   PromotionId,
+  PrestigeUpgrades,
 } from './types/game';
-import { loadGameData, saveGameData, getDefaultSaveData } from './utils/storage';
+import {
+  loadGameData,
+  saveGameData,
+  getDefaultSaveData,
+  calculatePrestigeStardustReward,
+  getPrestigeUpgradeCost,
+  DEFAULT_PRESTIGE_UPGRADES,
+} from './utils/storage';
 import { getMonsterForStage } from './data/monsters';
 import {
   generateRandomEquipment,
@@ -51,6 +59,7 @@ import { GachaModal } from './components/GachaModal';
 import { SettingsModal } from './components/SettingsModal';
 import { DeveloperTestModal } from './components/DeveloperTestModal';
 import { ClassSelectScreen } from './components/ClassSelectScreen';
+import { PrestigeModal } from './components/PrestigeModal';
 
 import { HeroPage } from './pages/HeroPage';
 import { EquipmentPage } from './pages/EquipmentPage';
@@ -73,6 +82,8 @@ export const App: React.FC = () => {
   const [revealedItem, setRevealedItem] = useState<Equipment | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showDevModal, setShowDevModal] = useState(false);
+  const [showPrestigeModal, setShowPrestigeModal] = useState(false);
+  const [prestigeVfxEvent, setPrestigeVfxEvent] = useState<{ id: string } | null>(null);
   const [screenShake, setScreenShake] = useState<'none' | 'normal' | 'crit' | 'boss'>('none');
   const [isHitStop, setIsHitStop] = useState(false);
 
@@ -94,6 +105,10 @@ export const App: React.FC = () => {
   const awakeningUnlocked = saveData.awakeningUnlocked ?? false;
   const awakeningGauge = saveData.awakeningGauge ?? 0;
   const promotionSeals = saveData.promotionSeals ?? 1;
+  const prestigeCount = saveData.prestigeCount ?? 0;
+  const stardust = saveData.stardust ?? 0;
+  const prestigeUpgrades = saveData.prestigeUpgrades ?? DEFAULT_PRESTIGE_UPGRADES;
+  const hasPrestigeUnlocked = saveData.hasPrestigeUnlocked ?? false;
 
   // Live Auto Skill & Awakening Timeline Engine State
   const [skillCooldowns, setSkillCooldowns] = useState<Record<string, number>>({});
@@ -109,6 +124,28 @@ export const App: React.FC = () => {
   useEffect(() => {
     (window as any).__triggerSkillVfx = (type: SkillEffectType) => {
       setActiveSkillVfx({ id: `manual_${Date.now()}`, type });
+    };
+    (window as any).__testPrestigeUnlock = () => {
+      setSaveData((prev) => {
+        const updated: GameSaveData = {
+          ...prev,
+          hasPrestigeUnlocked: true,
+          stats: {
+            ...prev.stats,
+            level: 35,
+            gold: prev.stats.gold + 50000,
+          },
+          stage: {
+            ...prev.stage,
+            chapter: 4,
+            stage: 1,
+            highestChapter: 4,
+            highestStage: 1,
+          },
+        };
+        saveGameData(updated);
+        return updated;
+      });
     };
   }, []);
 
@@ -264,14 +301,22 @@ export const App: React.FC = () => {
     const promoSkillDmg = isPromoted ? classConf.promotionBuffs.skillDamageBonus : 0;
     const promoCdReduction = isPromoted ? classConf.promotionBuffs.cooldownReduction : 0;
 
-    const totalAtk = Math.floor(baseClassAtk * (1 + petAtkMult));
-    const totalMaxHp = Math.floor(baseClassHp);
+    // Prestige Permanent Upgrades Multipliers
+    const pUpgrades = saveData.prestigeUpgrades || DEFAULT_PRESTIGE_UPGRADES;
+    const prestigeAtkMult = (pUpgrades.atkLevel || 0) * 0.10;
+    const prestigeHpMult = (pUpgrades.hpLevel || 0) * 0.10;
+    const prestigeGoldMult = (pUpgrades.goldLevel || 0) * 0.08;
+    const prestigeExpMult = (pUpgrades.expLevel || 0) * 0.08;
+    const prestigeCritDmgBonus = (pUpgrades.critDmgLevel || 0) * 0.05;
+
+    const totalAtk = Math.floor(baseClassAtk * (1 + petAtkMult) * (1 + prestigeAtkMult));
+    const totalMaxHp = Math.floor(baseClassHp * (1 + prestigeHpMult));
     const totalDef = Math.floor(baseClassDef);
     const totalCritRate = Math.min(
       0.85,
       stats.critRate + equipCritRate + (equipOwnedBonus.ownedCritRate / 100) + petCritRateMult + classConf.statBuffs.critRateBonus + promoCritRate
     );
-    const totalCritDmg = stats.critDmg + (skillOwnedBonus.ownedCritDmg / 100) + petCritDmgMult;
+    const totalCritDmg = stats.critDmg + (skillOwnedBonus.ownedCritDmg / 100) + petCritDmgMult + prestigeCritDmgBonus;
     const totalAtkSpeed = stats.atkSpeed * (1 + petAtkSpeedMult + promoAtkSpeed);
 
     const combatPower = Math.floor(
@@ -287,12 +332,14 @@ export const App: React.FC = () => {
       totalAtkSpeed,
       combatPower,
       petGoldMult,
+      prestigeGoldMult,
+      prestigeExpMult,
       promoSkillDmg,
       promoCdReduction,
       equipOwnedBonus,
       skillOwnedBonus,
     };
-  }, [stats, equipped, equipmentCatalog, skills, activePet, classId, promotion]);
+  }, [stats, equipped, equipmentCatalog, skills, activePet, classId, promotion, saveData.prestigeUpgrades]);
 
 
   // Combat Power Growth Tracking & Floating Chip
@@ -370,9 +417,9 @@ export const App: React.FC = () => {
     sound.playMonsterDefeat();
     setIsMonsterDefeated(true);
 
-    const { petGoldMult } = combatCalculations;
-    const earnedGold = Math.floor(currentMonster.goldReward * (1 + petGoldMult));
-    const earnedExp = currentMonster.expReward;
+    const { petGoldMult, prestigeGoldMult = 0, prestigeExpMult = 0 } = combatCalculations;
+    const earnedGold = Math.floor(currentMonster.goldReward * (1 + petGoldMult + prestigeGoldMult));
+    const earnedExp = Math.floor(currentMonster.expReward * (1 + prestigeExpMult));
 
     // 🪙 Trigger Floating Gold Drop FX on Monster defeat
     const dropId = `gold_${Date.now()}`;
@@ -451,13 +498,26 @@ export const App: React.FC = () => {
           }
         }
 
-        // Track highest chapter & stage for promotion checklist
+        // Track highest chapter & stage for promotion checklist & prestige unlock
         if (
           newStage.chapter > newStage.highestChapter ||
           (newStage.chapter === newStage.highestChapter && newStage.stage > newStage.highestStage)
         ) {
           newStage.highestChapter = Math.max(newStage.highestChapter, newStage.chapter);
           newStage.highestStage = Math.max(newStage.highestStage, newStage.stage);
+        }
+
+        const hasUnlockedPrestigeNow =
+          prev.hasPrestigeUnlocked ||
+          (prev.prestigeCount ?? 0) > 0 ||
+          newStage.highestChapter >= 4 ||
+          (newStage.highestChapter === 3 && newStage.highestStage >= 10);
+
+        if (!prev.hasPrestigeUnlocked && hasUnlockedPrestigeNow) {
+          setTimeout(() => {
+            setStageNotice('🎉 [환생] 시스템 해금! 영구적인 별가루 성장이 가능합니다.');
+            setTimeout(() => setStageNotice(null), 3000);
+          }, 600);
         }
 
         let currentCatalog = prev.equipmentCatalog;
@@ -477,6 +537,7 @@ export const App: React.FC = () => {
 
         return {
           ...prev,
+          hasPrestigeUnlocked: hasUnlockedPrestigeNow,
           awakeningGauge: nextAwakening,
           equipmentCatalog: currentCatalog,
           equipped: currentEquipped,
@@ -1323,6 +1384,105 @@ export const App: React.FC = () => {
     });
   };
 
+  // --- Prestige Permanent Growth & Ascension Handlers ---
+  const handleUpgradePrestige = (type: keyof PrestigeUpgrades) => {
+    setSaveData((prev) => {
+      const currentPUpgrades = prev.prestigeUpgrades || { ...DEFAULT_PRESTIGE_UPGRADES };
+      const currentLvl = currentPUpgrades[type] || 0;
+      const cost = getPrestigeUpgradeCost(currentLvl);
+      const currentStardust = prev.stardust ?? 0;
+      if (currentStardust < cost) return prev;
+
+      sound.playPowerUp();
+      const updated: GameSaveData = {
+        ...prev,
+        stardust: Math.max(0, currentStardust - cost),
+        prestigeUpgrades: {
+          ...currentPUpgrades,
+          [type]: currentLvl + 1,
+        },
+      };
+      saveGameData(updated);
+      return updated;
+    });
+  };
+
+  const handleConfirmPrestige = () => {
+    const highestCh = Math.max(stage.highestChapter || 1, stage.chapter);
+    const highestSt = Math.max(stage.highestStage || 1, stage.stage);
+    const rewardStardust = calculatePrestigeStardustReward(highestCh, highestSt, stats.level, prestigeCount);
+
+    sound.playFanfare();
+    confetti({ particleCount: 140, spread: 100, origin: { y: 0.45 } });
+    setPrestigeVfxEvent({ id: `prestige_${Date.now()}` });
+    setStageNotice(`🌟 환생 완료! 별가루 +${rewardStardust.toLocaleString()} 획득과 함께 새롭게 각성합니다.`);
+    setTimeout(() => setStageNotice(null), 3200);
+
+    setSaveData((prev) => {
+      const newPrestigeCount = (prev.prestigeCount ?? 0) + 1;
+      const newStardust = (prev.stardust ?? 0) + rewardStardust;
+      const newTotalStardust = (prev.totalStardustEarned ?? 0) + rewardStardust;
+
+      const resetStats: CharacterStats = {
+        ...prev.stats,
+        level: 1,
+        exp: 0,
+        maxExp: 100,
+        gold: 500,
+        atkLevel: 1,
+        hpLevel: 1,
+        defLevel: 1,
+        currentHp: prev.stats.baseHp,
+      };
+
+      const resetStage: StageState = {
+        ...prev.stage,
+        chapter: 1,
+        stage: 1,
+        killCount: 0,
+        killsRequired: 5,
+        isBossStage: false,
+        bossTimeLeft: 30,
+        bossMaxTime: 30,
+        inBossFight: false,
+        highestChapter: Math.max(prev.stage.highestChapter || 1, prev.stage.chapter),
+        highestStage: Math.max(prev.stage.highestStage || 1, prev.stage.stage),
+      };
+
+      const updated: GameSaveData = {
+        ...prev,
+        stats: resetStats,
+        stage: resetStage,
+        prestigeCount: newPrestigeCount,
+        stardust: newStardust,
+        totalStardustEarned: newTotalStardust,
+        hasPrestigeUnlocked: true,
+        awakeningGauge: 0,
+      };
+      saveGameData(updated);
+      return updated;
+    });
+
+    // Reset battle loop combat state to Stage 1-1
+    const firstMon = getMonsterForStage(1, 1);
+    currentMonsterRef.current = firstMon;
+    setCurrentMonster(firstMon);
+    setMonsterStatuses([]);
+    monsterStatusesRef.current = [];
+    basicComboRef.current = 1;
+    setBasicComboStep(1);
+    comboCompletedCountRef.current = 0;
+    setComboCompletedCount(0);
+    setIsPlayerAttacking(false);
+    isBasicAttackingRef.current = false;
+    setIsFinisherHit(false);
+    setHitComboStep(null);
+    setIsCriticalHit(false);
+    setIsMonsterDefeated(false);
+    isMonsterDefeatedRef.current = false;
+    lastMonsterAttackTimeRef.current = Date.now();
+  };
+
   // --- Unified Equipment Acquisition & Piece Processing ---
   const processEquipmentAcquisition = (
     item: Equipment,
@@ -2162,6 +2322,9 @@ export const App: React.FC = () => {
         stage={stage}
         classId={classId}
         promotion={promotion}
+        prestigeCount={prestigeCount}
+        stardust={stardust}
+        hasPrestigeUnlocked={hasPrestigeUnlocked}
         onOpenSettings={() => setShowSettings(true)}
         onOpenProfile={() => setActiveTab('hero')}
       />
@@ -2215,6 +2378,7 @@ export const App: React.FC = () => {
           isCriticalHit={isCriticalHit}
           monsterStatuses={monsterStatuses}
           currentDps={currentDps}
+          prestigeVfxEvent={prestigeVfxEvent}
         />
 
         {/* Quest Parchment Ribbon (Displayed only in main Adventure tab) */}
@@ -2259,6 +2423,12 @@ export const App: React.FC = () => {
             stage={stage}
             onPromote={handlePromote}
             onSwitchClass={handleSwitchClass}
+            prestigeCount={prestigeCount}
+            stardust={stardust}
+            prestigeUpgrades={prestigeUpgrades}
+            hasPrestigeUnlocked={hasPrestigeUnlocked}
+            onOpenPrestigeModal={() => setShowPrestigeModal(true)}
+            onUpgradePrestige={handleUpgradePrestige}
             onClose={() => setActiveTab('adventure')}
           />
         )}
@@ -2367,6 +2537,17 @@ export const App: React.FC = () => {
           onUpdateSaveData={(updater) => setSaveData(updater)}
           onResetSave={handleResetData}
           onTriggerBoss={handleChallengeBoss}
+        />
+      )}
+
+      {showPrestigeModal && (
+        <PrestigeModal
+          isOpen={showPrestigeModal}
+          onClose={() => setShowPrestigeModal(false)}
+          onConfirmPrestige={handleConfirmPrestige}
+          stage={stage}
+          stats={stats}
+          prestigeCount={prestigeCount}
         />
       )}
     </div>

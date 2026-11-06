@@ -234,6 +234,32 @@ export const DeveloperTestModal: React.FC<DeveloperTestModalProps> = ({
                 }
               />
               <CheatButton
+                label="✨ 별가루 +5,000"
+                desc="환생 영구 재화 5,000개 획득"
+                onClick={() =>
+                  applyCheat('별가루 +5,000', (prev) => ({
+                    ...prev,
+                    stardust: (prev.stardust ?? 0) + 5000,
+                    totalStardustEarned: (prev.totalStardustEarned ?? 0) + 5000,
+                  }))
+                }
+              />
+              <CheatButton
+                label="🌟 챕터 3 완료 및 환생 해금"
+                desc="최고 챕터를 4-1로 설정하여 환생 조건 즉시 해금"
+                onClick={() =>
+                  applyCheat('환생 시스템 즉시 해금', (prev) => ({
+                    ...prev,
+                    hasPrestigeUnlocked: true,
+                    stage: {
+                      ...prev.stage,
+                      highestChapter: Math.max(prev.stage.highestChapter || 1, 4),
+                      highestStage: Math.max(prev.stage.highestStage || 1, 1),
+                    },
+                  }))
+                }
+              />
+              <CheatButton
                 label="재화 99,999,999 풀충전"
                 desc="골드 & 다이아 9999만"
                 highlight

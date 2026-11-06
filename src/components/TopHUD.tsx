@@ -8,6 +8,9 @@ interface TopHUDProps {
   stage: StageState;
   classId?: CharacterClassId;
   promotion?: PromotionId;
+  prestigeCount?: number;
+  stardust?: number;
+  hasPrestigeUnlocked?: boolean;
   onOpenSettings: () => void;
   onOpenProfile?: () => void;
 }
@@ -17,6 +20,9 @@ export const TopHUD: React.FC<TopHUDProps> = ({
   stage,
   classId = 'warrior',
   promotion = 'none',
+  prestigeCount = 0,
+  stardust = 0,
+  hasPrestigeUnlocked = false,
   onOpenSettings,
   onOpenProfile,
 }) => {
@@ -60,6 +66,11 @@ export const TopHUD: React.FC<TopHUDProps> = ({
         <div className="profile-info-col">
           <div className="profile-row-top">
             <span className="profile-lvl-tag">Lv.{stats.level}</span>
+            {prestigeCount > 0 && (
+              <span className="profile-prestige-tag" title={`환생 ${prestigeCount}회`}>
+                ★{prestigeCount}
+              </span>
+            )}
             <span className={`profile-name ${isPromoted ? 'promoted-name-gold' : ''}`}>
               {classNameText}
             </span>
@@ -110,6 +121,14 @@ export const TopHUD: React.FC<TopHUDProps> = ({
           <span className="currency-icon">💎</span>
           <span className="currency-val">{formatNumber(stats.gems)}</span>
         </div>
+
+        {/* Stardust Capsule (shows when unlocked or has prestige history) */}
+        {(prestigeCount > 0 || hasPrestigeUnlocked || stardust > 0) && (
+          <div className="currency-pill stardust-pill" title="별가루 (환생 영구 재화)">
+            <span className="currency-icon">✨</span>
+            <span className="currency-val">{formatNumber(stardust)}</span>
+          </div>
+        )}
 
         {/* Settings Circular Button */}
         <button className="settings-circle-btn" onClick={onOpenSettings} title="설정">
@@ -208,6 +227,17 @@ export const TopHUD: React.FC<TopHUDProps> = ({
           font-size: 9px;
           font-weight: 800;
           color: #fef08a;
+        }
+
+        .profile-prestige-tag {
+          font-size: 8px;
+          font-weight: 800;
+          color: #fde047;
+          background: rgba(168, 85, 247, 0.35);
+          border: 1px solid rgba(251, 191, 36, 0.6);
+          padding: 1px 4px;
+          border-radius: 4px;
+          line-height: 1;
         }
 
         .profile-name {
@@ -333,6 +363,16 @@ export const TopHUD: React.FC<TopHUDProps> = ({
 
         .gem-pill .currency-val {
           color: #67e8f9;
+        }
+
+        .stardust-pill {
+          background: rgba(88, 28, 135, 0.45);
+          border-color: rgba(192, 132, 252, 0.45);
+        }
+
+        .stardust-pill .currency-val {
+          color: #d8b4fe;
+          text-shadow: 0 0 6px rgba(168, 85, 247, 0.5);
         }
 
         .settings-circle-btn {

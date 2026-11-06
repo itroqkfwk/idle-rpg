@@ -1,10 +1,36 @@
-import { GameSaveData, CharacterStats, StageState, GameSettings } from '../types/game';
+import { GameSaveData, CharacterStats, StageState, GameSettings, PrestigeUpgrades } from '../types/game';
 import { STARTER_EQUIPMENT, createDefaultEquipmentCatalog, getEquipmentPiecesRequired } from '../data/equipment';
 import { INITIAL_PETS } from '../data/pets';
 import { INITIAL_QUESTS } from '../data/quests';
 import { INITIAL_SKILLS, STARTER_EQUIPPED_SKILLS, getSkillPiecesRequired } from '../data/skills';
 
 const SAVE_KEY = 'COZY_IDLE_RPG_SAVE_V1';
+
+export const DEFAULT_PRESTIGE_UPGRADES: PrestigeUpgrades = {
+  atkLevel: 0,
+  hpLevel: 0,
+  goldLevel: 0,
+  expLevel: 0,
+  critDmgLevel: 0,
+};
+
+export function calculatePrestigeStardustReward(
+  highestChapter: number,
+  highestStage: number,
+  level: number,
+  prestigeCount: number
+): number {
+  const chapterPoints = Math.max(0, highestChapter - 1) * 120;
+  const stagePoints = Math.max(0, highestStage) * 12;
+  const levelPoints = Math.floor(Math.max(1, level) * 1.5);
+  const prestigeMultiplier = 1 + Math.max(0, prestigeCount) * 0.15;
+  const calculated = Math.floor((chapterPoints + stagePoints + levelPoints) * prestigeMultiplier);
+  return Math.max(50, calculated);
+}
+
+export function getPrestigeUpgradeCost(level: number): number {
+  return Math.floor(25 * Math.pow(1.30, Math.max(0, level)));
+}
 
 export function getDefaultSaveData(): GameSaveData {
   const initialStats: CharacterStats = {
@@ -77,6 +103,11 @@ export function getDefaultSaveData(): GameSaveData {
     questCollapsed: false,
     skillCooldownOff: false,
     infiniteAwakening: false,
+    prestigeCount: 0,
+    stardust: 0,
+    totalStardustEarned: 0,
+    prestigeUpgrades: { ...DEFAULT_PRESTIGE_UPGRADES },
+    hasPrestigeUnlocked: false,
   };
 }
 
@@ -144,6 +175,14 @@ export function loadGameData(): { data: GameSaveData; offlineSeconds: number } {
     if (mergedData.infiniteAwakening === undefined) {
       mergedData.infiniteAwakening = false;
     }
+    mergedData.prestigeCount = parsed.prestigeCount ?? 0;
+    mergedData.stardust = parsed.stardust ?? 0;
+    mergedData.totalStardustEarned = parsed.totalStardustEarned ?? 0;
+    mergedData.prestigeUpgrades = {
+      ...DEFAULT_PRESTIGE_UPGRADES,
+      ...(parsed.prestigeUpgrades || {}),
+    };
+    mergedData.hasPrestigeUnlocked = parsed.hasPrestigeUnlocked ?? (mergedData.prestigeCount > 0);
     if (!mergedData.activePetId || !mergedData.pets?.some((p) => p.id === mergedData.activePetId)) {
       mergedData.activePetId = 'pet_fox';
     }

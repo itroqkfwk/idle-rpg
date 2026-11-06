@@ -11,6 +11,7 @@ interface BattleFxCanvasProps {
   ambientType?: AmbientParticleType;
   basicAttackEvent?: { id: string; comboStep: 1 | 2 | 3; classId: CharacterClassId } | null;
   petAttackEvent?: { id: string; petId: string } | null;
+  prestigeVfxEvent?: { id: string } | null;
 }
 
 // 💥 Directional Velocity-Stretched Physics Spark
@@ -239,6 +240,7 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
   ambientType = 'leaves',
   basicAttackEvent = null,
   petAttackEvent = null,
+  prestigeVfxEvent = null,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animFrameRef = useRef<number | null>(null);
@@ -251,6 +253,17 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
   const projectilesRef = useRef<ActiveProjectile[]>([]);
   const fissuresRef = useRef<GroundFissure[]>([]);
   const ambientParticlesRef = useRef<AmbientParticle[]>([]);
+
+  // Prestige Sequence Ref
+  const lastPrestigeEventIdRef = useRef<string | null>(null);
+  const prestigeVfxRef = useRef<{
+    id: string;
+    startTime: number;
+    duration: number;
+    heroX: number;
+    heroY: number;
+    groundY: number;
+  } | null>(null);
 
   // Awakening Sequence Timer / Progress
   const awakeningAnimRef = useRef<{
@@ -1201,6 +1214,70 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
   }, [isMonsterHit, classId]);
 
   // ==========================================
+  // Trigger Celestial Prestige Ascension & Star Motes VFX
+  // ==========================================
+  useEffect(() => {
+    if (!prestigeVfxEvent) return;
+    if (lastPrestigeEventIdRef.current === prestigeVfxEvent.id) return;
+    lastPrestigeEventIdRef.current = prestigeVfxEvent.id;
+
+    const { heroX, heroY, groundY } = getAnchors();
+    prestigeVfxRef.current = {
+      id: prestigeVfxEvent.id,
+      startTime: performance.now(),
+      duration: 2000,
+      heroX,
+      heroY,
+      groundY,
+    };
+
+    // Ascending radiant sparks and star motes
+    for (let i = 0; i < 48; i++) {
+      sparksRef.current.push({
+        x: heroX + (Math.random() - 0.5) * 44,
+        y: groundY - Math.random() * 25,
+        vx: (Math.random() - 0.5) * 2.4,
+        vy: -(4.0 + Math.random() * 5.0),
+        life: 0,
+        maxLife: 45 + Math.floor(Math.random() * 35),
+        color: i % 2 === 0 ? '#fbbf24' : '#c084fc',
+        coreColor: '#ffffff',
+        width: 2.8 + Math.random() * 2.0,
+        gravity: -0.05,
+        drag: 0.985,
+        bounceGroundY: 9999,
+        bouncesLeft: 0,
+      });
+    }
+
+    // Expanding celestial ground shockwaves
+    shockwavesRef.current.push({
+      x: heroX,
+      y: groundY,
+      currentRadius: 10,
+      maxRadius: 150,
+      speed: 4.8,
+      thickness: 4.5,
+      color: '#fbbf24',
+      aspectY: 0.42,
+      life: 0,
+      maxLife: 35,
+    });
+    shockwavesRef.current.push({
+      x: heroX,
+      y: groundY,
+      currentRadius: 10,
+      maxRadius: 120,
+      speed: 3.6,
+      thickness: 3.5,
+      color: '#a855f7',
+      aspectY: 0.42,
+      life: 0,
+      maxLife: 32,
+    });
+  }, [prestigeVfxEvent]);
+
+  // ==========================================
   // Main Canvas Render Loop (60 FPS)
   // ==========================================
   useEffect(() => {
@@ -1316,6 +1393,80 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
       // SWITCH TO ADDITIVE (LIGHTER) BLENDING FOR ALL ENERGY EFFECTS!
       // ----------------------------------------------------
       ctx.globalCompositeOperation = 'lighter';
+
+      // ----------------------------------------------------
+      // 1.5. Celestial Prestige Ascension Pillar & Ground Runic Star
+      // ----------------------------------------------------
+      if (prestigeVfxRef.current) {
+        const pv = prestigeVfxRef.current;
+        const elapsed = performance.now() - pv.startTime;
+        if (elapsed >= pv.duration) {
+          prestigeVfxRef.current = null;
+        } else {
+          const progress = elapsed / pv.duration;
+          const alpha = progress < 0.2 ? progress / 0.2 : progress > 0.7 ? (1 - progress) / 0.3 : 1;
+
+          ctx.save();
+          // A. Ascending Celestial Light Pillar (Top to Ground)
+          const pillarWidth = 56 + Math.sin(progress * Math.PI) * 20;
+          const beamGrad = ctx.createLinearGradient(pv.heroX, 0, pv.heroX, pv.groundY);
+          beamGrad.addColorStop(0, `rgba(251, 191, 36, ${0.15 * alpha})`);
+          beamGrad.addColorStop(0.35, `rgba(251, 191, 36, ${0.45 * alpha})`);
+          beamGrad.addColorStop(0.7, `rgba(168, 85, 247, ${0.4 * alpha})`);
+          beamGrad.addColorStop(1, `rgba(251, 191, 36, ${0.75 * alpha})`);
+
+          ctx.fillStyle = beamGrad;
+          ctx.fillRect(pv.heroX - pillarWidth / 2, 0, pillarWidth, pv.groundY);
+
+          // B. Inner Bright Core Beam
+          const coreWidth = pillarWidth * 0.35;
+          const coreGrad = ctx.createLinearGradient(pv.heroX, 0, pv.heroX, pv.groundY);
+          coreGrad.addColorStop(0, `rgba(255, 255, 255, ${0.2 * alpha})`);
+          coreGrad.addColorStop(0.5, `rgba(255, 255, 255, ${0.65 * alpha})`);
+          coreGrad.addColorStop(1, `rgba(255, 255, 255, ${0.9 * alpha})`);
+          ctx.fillStyle = coreGrad;
+          ctx.fillRect(pv.heroX - coreWidth / 2, 0, coreWidth, pv.groundY);
+
+          // C. Rotating Runic Star Circle on Ground
+          const circleRadius = 55 + Math.sin(progress * Math.PI) * 10;
+          const rotation = (elapsed / 1000) * 1.6;
+          ctx.save();
+          ctx.translate(pv.heroX, pv.groundY);
+          ctx.scale(1, 0.42); // Ground perspective ellipse
+          ctx.rotate(rotation);
+          ctx.strokeStyle = `rgba(251, 191, 36, ${0.75 * alpha})`;
+          ctx.lineWidth = 2.5;
+          ctx.shadowColor = '#fbbf24';
+          ctx.shadowBlur = 12;
+
+          // Outer circle
+          ctx.beginPath();
+          ctx.arc(0, 0, circleRadius, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Inner concentric circle
+          ctx.beginPath();
+          ctx.arc(0, 0, circleRadius * 0.7, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Runic 6-pointed Star (Hexagram)
+          for (let t = 0; t < 2; t++) {
+            const offset = (t * Math.PI) / 3;
+            ctx.beginPath();
+            for (let k = 0; k < 3; k++) {
+              const theta = offset + (k * 2 * Math.PI) / 3;
+              const rx = Math.cos(theta) * circleRadius * 0.95;
+              const ry = Math.sin(theta) * circleRadius * 0.95;
+              if (k === 0) ctx.moveTo(rx, ry);
+              else ctx.lineTo(rx, ry);
+            }
+            ctx.closePath();
+            ctx.stroke();
+          }
+          ctx.restore();
+          ctx.restore();
+        }
+      }
 
       // ----------------------------------------------------
       // 2. Ground Fissure Cracks

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { CharacterStats, Equipment, Pet, Skill, CharacterClassId, PromotionId, StageState } from '../types/game';
-import { Sparkles, Shield, Zap, Heart, Swords, X, Wand2, Plus, Check, Crown, ArrowRight, BookOpen, Layers, ChevronsUp, Info, HelpCircle } from 'lucide-react';
+import { CharacterStats, Equipment, Pet, Skill, CharacterClassId, PromotionId, StageState, PrestigeUpgrades } from '../types/game';
+import { Sparkles, Shield, Zap, Heart, Swords, X, Wand2, Plus, Check, Crown, ArrowRight, BookOpen, Layers, ChevronsUp, Info, HelpCircle, Coins, Lock, Star } from 'lucide-react';
 import { CLASS_CONFIGS, PROMOTION_REQUIREMENTS } from '../data/classes';
 import { calculateSkillOwnedStats, calculateTotalSkillOwnedBonus, getSkillPiecesRequired } from '../data/skills';
+import { calculatePrestigeStardustReward, getPrestigeUpgradeCost, DEFAULT_PRESTIGE_UPGRADES } from '../utils/storage';
 import { sound } from '../utils/audio';
 
 interface HeroPageProps {
@@ -30,6 +31,12 @@ interface HeroPageProps {
   stage?: StageState;
   onPromote?: () => void;
   onSwitchClass?: (newClassId: CharacterClassId) => void;
+  prestigeCount?: number;
+  stardust?: number;
+  prestigeUpgrades?: PrestigeUpgrades;
+  hasPrestigeUnlocked?: boolean;
+  onOpenPrestigeModal?: () => void;
+  onUpgradePrestige?: (stat: keyof PrestigeUpgrades) => void;
 }
 
 export const HeroPage: React.FC<HeroPageProps> = ({
@@ -57,8 +64,14 @@ export const HeroPage: React.FC<HeroPageProps> = ({
   stage = { chapter: 1, stage: 1, killCount: 0, killsRequired: 5, isBossStage: false, bossTimeLeft: 30, bossMaxTime: 30, inBossFight: false, highestChapter: 1, highestStage: 1 },
   onPromote,
   onSwitchClass,
+  prestigeCount = 0,
+  stardust = 0,
+  prestigeUpgrades = DEFAULT_PRESTIGE_UPGRADES,
+  hasPrestigeUnlocked = false,
+  onOpenPrestigeModal,
+  onUpgradePrestige,
 }) => {
-  const [subTab, setSubTab] = useState<'stats' | 'skills' | 'promotion'>('stats');
+  const [subTab, setSubTab] = useState<'stats' | 'skills' | 'promotion' | 'prestige'>('stats');
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number>(0);
   const [multiplier, setMultiplier] = useState<1 | 10 | 'max'>(1);
   const [breakdownStat, setBreakdownStat] = useState<'atk' | 'hp' | 'def' | null>(null);
@@ -132,6 +145,68 @@ export const HeroPage: React.FC<HeroPageProps> = ({
   const reqSealMet = promotionSeals >= PROMOTION_REQUIREMENTS.requiredSeals;
   const canPromote = reqLevelMet && reqStageMet && reqGoldMet && reqSealMet && !isPromoted;
 
+  const isPrestigeUnlocked =
+    hasPrestigeUnlocked ||
+    prestigeCount > 0 ||
+    stage.highestChapter >= 4 ||
+    (stage.highestChapter === 3 && stage.highestStage >= 10);
+  const highestCh = Math.max(stage.highestChapter || 1, stage.chapter);
+  const highestSt = Math.max(stage.highestStage || 1, stage.stage);
+  const expectedReward = calculatePrestigeStardustReward(highestCh, highestSt, stats.level, prestigeCount);
+
+  const prestigeUpgradeItems = [
+    {
+      key: 'atkLevel' as const,
+      name: '공격력 증폭',
+      level: prestigeUpgrades.atkLevel,
+      currentDesc: `기본 공격력 +${prestigeUpgrades.atkLevel * 10}%`,
+      nextDesc: `+${(prestigeUpgrades.atkLevel + 1) * 10}%`,
+      icon: <Swords size={17} />,
+      iconBg: 'rgba(239, 68, 68, 0.15)',
+      iconColor: '#f87171',
+    },
+    {
+      key: 'hpLevel' as const,
+      name: '최대 체력 증폭',
+      level: prestigeUpgrades.hpLevel,
+      currentDesc: `최대 체력 +${prestigeUpgrades.hpLevel * 10}%`,
+      nextDesc: `+${(prestigeUpgrades.hpLevel + 1) * 10}%`,
+      icon: <Heart size={17} />,
+      iconBg: 'rgba(16, 185, 129, 0.15)',
+      iconColor: '#34d399',
+    },
+    {
+      key: 'goldLevel' as const,
+      name: '골드 획득량 증가',
+      level: prestigeUpgrades.goldLevel,
+      currentDesc: `골드 획득 +${prestigeUpgrades.goldLevel * 8}%`,
+      nextDesc: `+${(prestigeUpgrades.goldLevel + 1) * 8}%`,
+      icon: <Coins size={17} />,
+      iconBg: 'rgba(245, 158, 11, 0.15)',
+      iconColor: '#fbbf24',
+    },
+    {
+      key: 'expLevel' as const,
+      name: '경험치 획득량 증가',
+      level: prestigeUpgrades.expLevel,
+      currentDesc: `경험치 획득 +${prestigeUpgrades.expLevel * 8}%`,
+      nextDesc: `+${(prestigeUpgrades.expLevel + 1) * 8}%`,
+      icon: <Sparkles size={17} />,
+      iconBg: 'rgba(56, 189, 248, 0.15)',
+      iconColor: '#38bdf8',
+    },
+    {
+      key: 'critDmgLevel' as const,
+      name: '치명타 피해 증폭',
+      level: prestigeUpgrades.critDmgLevel,
+      currentDesc: `치명타 피해 +${prestigeUpgrades.critDmgLevel * 5}%`,
+      nextDesc: `+${(prestigeUpgrades.critDmgLevel + 1) * 5}%`,
+      icon: <Zap size={17} />,
+      iconBg: 'rgba(168, 85, 247, 0.15)',
+      iconColor: '#c084fc',
+    },
+  ];
+
   return (
     <div className="half-sheet-drawer">
       {/* Drawer Header */}
@@ -187,6 +262,17 @@ export const HeroPage: React.FC<HeroPageProps> = ({
             <Crown size={13} />
             <span>전직 & 각성</span>
             {canPromote && <span className="subtab-badge-dot" />}
+          </button>
+          <button
+            className={`hero-subtab-btn ${subTab === 'prestige' ? 'subtab-active subtab-prestige-active' : ''}`}
+            onClick={() => {
+              sound.playTap();
+              setSubTab('prestige');
+            }}
+          >
+            <Sparkles size={13} color={subTab === 'prestige' ? '#fbbf24' : '#c084fc'} />
+            <span>환생</span>
+            {isPrestigeUnlocked && <span className="subtab-badge-dot dot-star" />}
           </button>
         </div>
 
@@ -783,6 +869,111 @@ export const HeroPage: React.FC<HeroPageProps> = ({
             </div>
           </div>
         )}
+
+        {/* ========================================================
+            TAB 4: PRESTIGE & PERMANENT UPGRADES
+           ======================================================== */}
+        {subTab === 'prestige' && (
+          <div className="prestige-subtab-container">
+            {/* 1. Prestige Status & Stardust Balance Card */}
+            <div className="parchment-panel prestige-summary-card">
+              <div className="prestige-summary-header">
+                <div className="prestige-badge-pill">
+                  <Sparkles size={14} color="#fbbf24" />
+                  <span>환생 {prestigeCount}회 완료</span>
+                </div>
+                <div className="stardust-balance-pill">
+                  <span className="balance-label">보유 별가루</span>
+                  <span className="balance-val">✨ {stardust.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Unlock / Progress Banner */}
+              {isPrestigeUnlocked ? (
+                <div className="prestige-ready-banner">
+                  <div className="ready-text-col">
+                    <div className="ready-title">🌟 환생 준비 완료</div>
+                    <div className="ready-desc">
+                      현재 성장치 기준 예상 별가루: <strong>+{expectedReward.toLocaleString()}</strong>
+                    </div>
+                  </div>
+                  <button
+                    className="btn-prestige-action"
+                    onClick={() => {
+                      sound.playTap();
+                      if (onOpenPrestigeModal) onOpenPrestigeModal();
+                    }}
+                  >
+                    <Sparkles size={14} />
+                    <span>환생하기</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="prestige-locked-banner">
+                  <Lock size={16} color="#94a3b8" />
+                  <div className="locked-text-col">
+                    <div className="locked-title">환생 조건 미달성</div>
+                    <div className="locked-desc">
+                      챕터 3 보스(3-10) 격파 시 해금 (현재 최고: {stage.highestChapter}-{stage.highestStage})
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 2. 5 Permanent Stardust Upgrades Section */}
+            <div className="prestige-upgrades-section">
+              <div className="section-title-row">
+                <span className="section-title-text">✨ 별빛 영구 강화 (Permanent Upgrades)</span>
+                <span className="section-subtitle-text">환생 후에도 영구히 유지되는 절대적 힘</span>
+              </div>
+
+              <div className="prestige-upgrades-list">
+                {prestigeUpgradeItems.map((item) => {
+                  const cost = getPrestigeUpgradeCost(item.level);
+                  const canAfford = stardust >= cost;
+
+                  return (
+                    <div key={item.key} className="prestige-upgrade-card">
+                      <div className="upgrade-icon-box" style={{ background: item.iconBg, color: item.iconColor }}>
+                        {item.icon}
+                      </div>
+
+                      <div className="upgrade-info-col">
+                        <div className="upgrade-name-row">
+                          <span className="upgrade-name">{item.name}</span>
+                          <span className="upgrade-lvl">Lv.{item.level}</span>
+                        </div>
+                        <div className="upgrade-effect-row">
+                          <span className="upgrade-effect-current">{item.currentDesc}</span>
+                          <ArrowRight size={11} color="#64748b" />
+                          <span className="upgrade-effect-next">{item.nextDesc}</span>
+                        </div>
+                      </div>
+
+                      <button
+                        className={`upgrade-buy-btn ${canAfford ? 'can-buy' : 'cant-buy'}`}
+                        disabled={!canAfford}
+                        onClick={() => {
+                          if (canAfford && onUpgradePrestige) {
+                            sound.playPowerUp();
+                            onUpgradePrestige(item.key);
+                          }
+                        }}
+                      >
+                        <span className="upgrade-btn-label">강화</span>
+                        <div className="upgrade-btn-cost">
+                          <Sparkles size={11} />
+                          <span>{cost.toLocaleString()}</span>
+                        </div>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Stat Breakdown Modal */}
@@ -909,6 +1100,15 @@ export const HeroPage: React.FC<HeroPageProps> = ({
                   <span className="source-name">7. 승급 보너스</span>
                   <strong className="source-val text-yellow">
                     +{breakdownStat === 'atk' ? Math.round(currentClassConfig.promotionBuffs.skillDamageBonus * 100) : 0}%
+                  </strong>
+                </div>
+              )}
+
+              {prestigeUpgrades && (breakdownStat === 'atk' ? prestigeUpgrades.atkLevel > 0 : breakdownStat === 'hp' ? prestigeUpgrades.hpLevel > 0 : false) && (
+                <div className="source-row">
+                  <span className="source-name">8. 별빛 환생 영구 증폭</span>
+                  <strong className="source-val text-yellow">
+                    +{breakdownStat === 'atk' ? prestigeUpgrades.atkLevel * 10 : prestigeUpgrades.hpLevel * 10}%
                   </strong>
                 </div>
               )}
@@ -1427,6 +1627,314 @@ export const HeroPage: React.FC<HeroPageProps> = ({
           border-radius: 50%;
           background: #ef4444;
           box-shadow: 0 0 6px #ef4444;
+        }
+
+        .subtab-prestige-active {
+          background: rgba(124, 58, 237, 0.25) !important;
+          color: #c084fc !important;
+          border: 1px solid rgba(168, 85, 247, 0.5) !important;
+        }
+
+        .dot-star {
+          background: #fbbf24 !important;
+          box-shadow: 0 0 6px #fbbf24 !important;
+        }
+
+        /* --- Prestige Subtab Styles --- */
+        .prestige-subtab-container {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .prestige-summary-card {
+          padding: 12px 14px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          border-color: rgba(168, 85, 247, 0.35);
+          background: linear-gradient(135deg, rgba(30, 27, 75, 0.5) 0%, rgba(15, 23, 42, 0.8) 100%);
+        }
+
+        .prestige-summary-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .prestige-badge-pill {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 0.78rem;
+          font-weight: 700;
+          color: #f1f5f9;
+          background: rgba(124, 58, 237, 0.2);
+          border: 1px solid rgba(168, 85, 247, 0.4);
+          padding: 3px 10px;
+          border-radius: 9999px;
+        }
+
+        .stardust-balance-pill {
+          display: flex;
+          align-items: baseline;
+          gap: 6px;
+        }
+
+        .balance-label {
+          font-size: 0.72rem;
+          color: #94a3b8;
+        }
+
+        .balance-val {
+          font-size: 0.95rem;
+          font-weight: 800;
+          color: #d8b4fe;
+          text-shadow: 0 0 8px rgba(168, 85, 247, 0.4);
+        }
+
+        .prestige-ready-banner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          background: linear-gradient(135deg, rgba(88, 28, 135, 0.35) 0%, rgba(245, 158, 11, 0.15) 100%);
+          border: 1px solid rgba(251, 191, 36, 0.4);
+          border-radius: 10px;
+          padding: 10px 12px;
+        }
+
+        .ready-text-col {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .ready-title {
+          font-size: 0.82rem;
+          font-weight: 800;
+          color: #fbbf24;
+        }
+
+        .ready-desc {
+          font-size: 0.73rem;
+          color: #cbd5e1;
+        }
+
+        .ready-desc strong {
+          color: #fef08a;
+        }
+
+        .btn-prestige-action {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          height: 34px;
+          padding: 0 14px;
+          background: linear-gradient(135deg, #7c3aed 0%, #d97706 100%);
+          border: 1px solid rgba(251, 191, 36, 0.6);
+          color: #ffffff;
+          font-size: 0.8rem;
+          font-weight: 800;
+          border-radius: 8px;
+          cursor: pointer;
+          white-space: nowrap;
+          box-shadow: 0 2px 10px rgba(124, 58, 237, 0.4);
+          transition: transform 0.1s ease;
+        }
+
+        .btn-prestige-action:hover {
+          filter: brightness(1.1);
+        }
+
+        .btn-prestige-action:active {
+          transform: scale(0.96);
+        }
+
+        .prestige-locked-banner {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          background: rgba(15, 23, 42, 0.6);
+          border: 1px dashed rgba(255, 255, 255, 0.15);
+          border-radius: 10px;
+          padding: 10px 12px;
+        }
+
+        .locked-text-col {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .locked-title {
+          font-size: 0.8rem;
+          font-weight: 700;
+          color: #94a3b8;
+        }
+
+        .locked-desc {
+          font-size: 0.72rem;
+          color: #64748b;
+        }
+
+        .prestige-upgrades-section {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .section-title-row {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          padding: 0 2px;
+        }
+
+        .section-title-text {
+          font-size: 0.84rem;
+          font-weight: 800;
+          color: #e2e8f0;
+        }
+
+        .section-subtitle-text {
+          font-size: 0.72rem;
+          color: #94a3b8;
+        }
+
+        .prestige-upgrades-list {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .prestige-upgrade-card {
+          background: rgba(15, 23, 42, 0.75);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 12px;
+          padding: 8px 12px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          transition: border-color 0.15s ease;
+        }
+
+        .prestige-upgrade-card:hover {
+          border-color: rgba(168, 85, 247, 0.35);
+        }
+
+        .upgrade-icon-box {
+          width: 38px;
+          height: 38px;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .upgrade-info-col {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+          min-width: 0;
+        }
+
+        .upgrade-name-row {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .upgrade-name {
+          font-size: 0.82rem;
+          font-weight: 800;
+          color: #f1f5f9;
+        }
+
+        .upgrade-lvl {
+          font-size: 0.72rem;
+          font-weight: 700;
+          color: #c084fc;
+          background: rgba(168, 85, 247, 0.15);
+          padding: 1px 6px;
+          border-radius: 4px;
+        }
+
+        .upgrade-effect-row {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          font-size: 0.73rem;
+        }
+
+        .upgrade-effect-current {
+          color: #cbd5e1;
+        }
+
+        .upgrade-effect-next {
+          color: #fbbf24;
+          font-weight: 700;
+        }
+
+        .upgrade-buy-btn {
+          height: 36px;
+          min-width: 74px;
+          padding: 0 8px;
+          border-radius: 8px;
+          border: 1px solid transparent;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          gap: 1px;
+          transition: all 0.15s ease;
+          flex-shrink: 0;
+        }
+
+        .upgrade-buy-btn.can-buy {
+          background: linear-gradient(135deg, rgba(124, 58, 237, 0.8) 0%, rgba(88, 28, 135, 0.9) 100%);
+          border-color: rgba(192, 132, 252, 0.5);
+          color: #ffffff;
+          box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
+        }
+
+        .upgrade-buy-btn.can-buy:hover {
+          filter: brightness(1.15);
+          transform: translateY(-1px);
+        }
+
+        .upgrade-buy-btn.can-buy:active {
+          transform: translateY(0);
+        }
+
+        .upgrade-buy-btn.cant-buy {
+          background: rgba(30, 41, 59, 0.5);
+          border-color: rgba(255, 255, 255, 0.05);
+          color: #64748b;
+          cursor: not-allowed;
+        }
+
+        .upgrade-btn-label {
+          font-size: 0.7rem;
+          font-weight: 800;
+          line-height: 1;
+        }
+
+        .upgrade-btn-cost {
+          display: flex;
+          align-items: center;
+          gap: 3px;
+          font-size: 0.7rem;
+          font-weight: 700;
+          line-height: 1;
+        }
+
+        .upgrade-buy-btn.can-buy .upgrade-btn-cost {
+          color: #fde047;
         }
 
         /* --- Skills Deck --- */
