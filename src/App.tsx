@@ -161,6 +161,7 @@ export const App: React.FC = () => {
   const recentDamageLogRef = useRef<{ time: number; amount: number }[]>([]);
   const lastMonsterAttackTimeRef = useRef<number>(Date.now());
   const lastBurnTickTimeRef = useRef<number>(0);
+  const lastShockTickTimeRef = useRef<number>(0);
 
   // Reward Feedback & Combat Power FX States
   const [floatingGold, setFloatingGold] = useState<{ id: string; gold: number }[]>([]);
@@ -492,7 +493,8 @@ export const App: React.FC = () => {
         };
       });
 
-      const nextMon = getMonsterForStage(nextChapter, nextStageNum);
+      const monStage = (nextStageNum === 10 && !stage.inBossFight) ? 9 : nextStageNum;
+      const nextMon = getMonsterForStage(nextChapter, monStage);
       currentMonsterRef.current = nextMon;
       setCurrentMonster(nextMon);
       setMonsterStatuses([]);
@@ -683,7 +685,7 @@ export const App: React.FC = () => {
       if (isBasicAttackingRef.current || isCastingRef.current) return;
 
       const calc = combatCalcRef.current;
-      const intervalMs = Math.max(460, Math.floor(1000 / calc.totalAtkSpeed));
+      const intervalMs = Math.max(300, Math.floor(1000 / calc.totalAtkSpeed));
 
       if (now - lastBasicAttackTimeRef.current < intervalMs) return;
 
@@ -1124,7 +1126,7 @@ export const App: React.FC = () => {
     const dotTimer = setInterval(() => {
       const now = Date.now();
 
-      // 1. Burn DoT Tick (every 500ms)
+      // 1.1 Burn DoT Tick (every 500ms)
       if (
         !isMonsterDefeatedRef.current &&
         monsterStatusesRef.current.some((s) => s.type === 'burn') &&
@@ -1136,6 +1138,25 @@ export const App: React.FC = () => {
         recentDamageLogRef.current.push({ time: now, amount: burnDmg });
         setCurrentMonster((prev) => {
           const nextHp = Math.max(0, prev.currentHp - burnDmg);
+          if (nextHp <= 0) {
+            handleMonsterDefeatRef.current();
+          }
+          return { ...prev, currentHp: nextHp };
+        });
+      }
+
+      // 1.2 Shock DoT Tick (every 500ms)
+      if (
+        !isMonsterDefeatedRef.current &&
+        monsterStatusesRef.current.some((s) => s.type === 'shock') &&
+        now - lastShockTickTimeRef.current >= 500
+      ) {
+        lastShockTickTimeRef.current = now;
+        const shockDmg = Math.max(1, Math.floor(combatCalcRef.current.totalAtk * 0.12));
+        addDamageNumberRef.current(shockDmg, false, false, true, '⚡ 감전');
+        recentDamageLogRef.current.push({ time: now, amount: shockDmg });
+        setCurrentMonster((prev) => {
+          const nextHp = Math.max(0, prev.currentHp - shockDmg);
           if (nextHp <= 0) {
             handleMonsterDefeatRef.current();
           }
@@ -1209,10 +1230,17 @@ export const App: React.FC = () => {
           const nextHp = Math.max(0, prev.stats.currentHp - monsterDmg);
           if (nextHp <= 0) {
             sound.playMonsterDefeat();
+            if (prev.stage.inBossFight) {
+              const retreatMon = getMonsterForStage(prev.stage.chapter, 9);
+              currentMonsterRef.current = retreatMon;
+              setCurrentMonster(retreatMon);
+              setStageNotice('💀 보스에게 패배했습니다. 일반 스테이지로 복귀합니다.');
+              setTimeout(() => setStageNotice(null), 2000);
+            }
             return {
               ...prev,
               stats: { ...prev.stats, currentHp: calc.totalMaxHp },
-              stage: { ...prev.stage, inBossFight: false },
+              stage: { ...prev.stage, inBossFight: false, bossTimeLeft: prev.stage.bossMaxTime },
             };
           }
           return {
@@ -1236,8 +1264,14 @@ export const App: React.FC = () => {
     const timer = setInterval(() => {
       setSaveData((prev) => {
         if (!prev.stage.inBossFight) return prev;
+        if (isMonsterDefeatedRef.current) return prev;
         const newTime = prev.stage.bossTimeLeft - 1;
         if (newTime <= 0) {
+          const retreatMon = getMonsterForStage(prev.stage.chapter, 9);
+          currentMonsterRef.current = retreatMon;
+          setCurrentMonster(retreatMon);
+          setStageNotice('⏰ 보스 제한시간 초과! 일반 스테이지로 복귀합니다.');
+          setTimeout(() => setStageNotice(null), 2000);
           return {
             ...prev,
             stage: {
@@ -2057,14 +2091,28 @@ export const App: React.FC = () => {
   const handleClaimOfflineReward = () => {
     if (!offlineReward) return;
     sound.playFanfare();
-    setSaveData((prev) => ({
-      ...prev,
-      stats: {
-        ...prev.stats,
-        gold: prev.stats.gold + offlineReward.gold,
-        exp: prev.stats.exp + offlineReward.exp,
-      },
-    }));
+    setSaveData((prev) => {
+      let newExp = prev.stats.exp + offlineReward.exp;
+      let newLevel = prev.stats.level;
+      let newMaxExp = prev.stats.maxExp;
+      while (newExp >= newMaxExp) {
+        newExp -= newMaxExp;
+        newLevel++;
+        newMaxExp = Math.floor(newMaxExp * 1.35);
+      }
+      const updated: GameSaveData = {
+        ...prev,
+        stats: {
+          ...prev.stats,
+          gold: prev.stats.gold + offlineReward.gold,
+          exp: newExp,
+          level: newLevel,
+          maxExp: newMaxExp,
+        },
+      };
+      saveGameData(updated);
+      return updated;
+    });
     setOfflineReward(null);
   };
 

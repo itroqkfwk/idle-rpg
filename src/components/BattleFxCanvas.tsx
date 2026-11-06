@@ -1251,6 +1251,20 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+      // 🛡️ Long-run Memory Safety Caps (Prevents unbounded growth under extreme multi-hit / idle conditions)
+      if (sparksRef.current.length > 150) {
+        sparksRef.current.splice(0, sparksRef.current.length - 120);
+      }
+      if (shockwavesRef.current.length > 25) {
+        shockwavesRef.current.splice(0, shockwavesRef.current.length - 20);
+      }
+      if (projectilesRef.current.length > 35) {
+        projectilesRef.current.splice(0, projectilesRef.current.length - 25);
+      }
+      if (slashesRef.current.length > 25) {
+        slashesRef.current.splice(0, slashesRef.current.length - 15);
+      }
+
       // ----------------------------------------------------
       // 1. Draw Ambient Particles (Natural Blending)
       // ----------------------------------------------------
