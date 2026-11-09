@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { SkillEffectType, CharacterClassId } from '../types/game';
+import { SkillEffectType, CharacterClassId, EquipmentRarity } from '../types/game';
 import { AmbientParticleType } from '../data/stages';
 
 interface BattleFxCanvasProps {
@@ -13,7 +13,424 @@ interface BattleFxCanvasProps {
   petAttackEvent?: { id: string; petId: string } | null;
   prestigeVfxEvent?: { id: string } | null;
   dungeonVfxEvent?: { id: string; type: 'gold_burst' | 'wave_clear' | 'ruins_clear' } | null;
+  summonVfxEvent?: { id: string; rarity: EquipmentRarity; count: number } | null;
 }
+
+/**
+ * Pure Canvas 2D procedural renderer for Equipment Summon VFX (Zero Text Emojis).
+ * Differentiates Common, Rare, Epic, Legendary, and Mythic summon presentations
+ * while capping particle counts to keep mobile GPU load minimal.
+ */
+export function drawEquipmentSummonRitual(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  rarity: EquipmentRarity,
+  progress: number, // 0 ~ 1
+  elapsedSec: number,
+  scale: number = 1.0
+) {
+  const clampedProg = Math.max(0, Math.min(1, progress));
+  const fadeAlpha = clampedProg < 0.12 ? clampedProg / 0.12 : clampedProg > 0.82 ? (1 - clampedProg) / 0.18 : 1;
+  const baseRadius = 56 * scale;
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+
+  // 1. Common: Soft silver-white glow & gentle small particles
+  if (rarity === 'common') {
+    const grad = ctx.createRadialGradient(cx, cy, 4, cx, cy, baseRadius * 1.15);
+    grad.addColorStop(0, `rgba(248, 250, 252, ${0.55 * fadeAlpha})`);
+    grad.addColorStop(0.5, `rgba(148, 163, 184, ${0.28 * fadeAlpha})`);
+    grad.addColorStop(1, 'rgba(100, 116, 139, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, baseRadius * 1.15, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Soft ring
+    ctx.strokeStyle = `rgba(203, 213, 225, ${0.5 * fadeAlpha})`;
+    ctx.lineWidth = 1.8 * scale;
+    ctx.beginPath();
+    ctx.arc(cx, cy, baseRadius * (0.45 + clampedProg * 0.45), 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 14 small drifting motes
+    const particleCount = 14;
+    for (let i = 0; i < particleCount; i++) {
+      const angle = (i / particleCount) * Math.PI * 2 + elapsedSec * 0.8;
+      const dist = baseRadius * (0.2 + ((clampedProg * 0.7 + (i % 3) * 0.18) % 0.85));
+      const px = cx + Math.cos(angle) * dist;
+      const py = cy + Math.sin(angle) * dist - clampedProg * 14 * scale;
+      const pSize = (2.0 + (i % 2) * 1.2) * scale;
+
+      ctx.fillStyle = `rgba(241, 245, 249, ${0.75 * fadeAlpha})`;
+      ctx.beginPath();
+      ctx.arc(px, py, pSize, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+    return;
+  }
+
+  // 2. Rare: Azure magic circle & cyan luminescence
+  if (rarity === 'rare') {
+    const grad = ctx.createRadialGradient(cx, cy, 6, cx, cy, baseRadius * 1.35);
+    grad.addColorStop(0, `rgba(224, 242, 254, ${0.75 * fadeAlpha})`);
+    grad.addColorStop(0.45, `rgba(56, 189, 248, ${0.42 * fadeAlpha})`);
+    grad.addColorStop(1, 'rgba(2, 132, 199, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, baseRadius * 1.35, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Rotating Blue Magic Circle
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(elapsedSec * 1.6);
+    ctx.strokeStyle = `rgba(56, 189, 248, ${0.85 * fadeAlpha})`;
+    ctx.shadowColor = '#38bdf8';
+    ctx.shadowBlur = 10;
+    ctx.lineWidth = 2.2 * scale;
+
+    const rRing = baseRadius * (0.75 + Math.sin(clampedProg * Math.PI) * 0.12);
+    ctx.beginPath();
+    ctx.arc(0, 0, rRing, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(0, 0, rRing * 0.72, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Inscribed rotated squares (Octagram)
+    for (let s = 0; s < 2; s++) {
+      ctx.beginPath();
+      for (let k = 0; k < 4; k++) {
+        const th = (s * Math.PI) / 4 + (k * Math.PI) / 2;
+        const rx = Math.cos(th) * rRing * 0.72;
+        const ry = Math.sin(th) * rRing * 0.72;
+        if (k === 0) ctx.moveTo(rx, ry);
+        else ctx.lineTo(rx, ry);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // 22 glowing azure particles
+    const particleCount = 22;
+    for (let i = 0; i < particleCount; i++) {
+      const angle = (i / particleCount) * Math.PI * 2 - elapsedSec * 1.2;
+      const dist = baseRadius * (0.18 + ((clampedProg * 0.95 + (i % 4) * 0.2) % 1.05));
+      const px = cx + Math.cos(angle) * dist;
+      const py = cy + Math.sin(angle) * dist;
+      const pSize = (2.4 + (i % 3) * 1.1) * scale;
+
+      ctx.fillStyle = i % 2 === 0 ? `rgba(125, 211, 252, ${0.85 * fadeAlpha})` : `rgba(255, 255, 255, ${0.85 * fadeAlpha})`;
+      ctx.beginPath();
+      ctx.arc(px, py, pSize, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+    return;
+  }
+
+  // 3. Epic: Violet magic circle & radial purple particle burst
+  if (rarity === 'epic') {
+    const grad = ctx.createRadialGradient(cx, cy, 8, cx, cy, baseRadius * 1.55);
+    grad.addColorStop(0, `rgba(243, 232, 255, ${0.85 * fadeAlpha})`);
+    grad.addColorStop(0.4, `rgba(192, 132, 252, ${0.52 * fadeAlpha})`);
+    grad.addColorStop(0.75, `rgba(147, 51, 234, ${0.25 * fadeAlpha})`);
+    grad.addColorStop(1, 'rgba(88, 28, 135, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, baseRadius * 1.55, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Expanding Violet Pulse Wave
+    const waveR = baseRadius * (0.3 + clampedProg * 1.25);
+    ctx.strokeStyle = `rgba(192, 132, 252, ${(1 - clampedProg * 0.7) * fadeAlpha})`;
+    ctx.lineWidth = 3.0 * (1 - clampedProg * 0.5) * scale;
+    ctx.beginPath();
+    ctx.arc(cx, cy, waveR, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Rotating Hexagram Circle
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(-elapsedSec * 2.0);
+    ctx.strokeStyle = `rgba(216, 180, 254, ${0.9 * fadeAlpha})`;
+    ctx.shadowColor = '#a855f7';
+    ctx.shadowBlur = 12;
+    ctx.lineWidth = 2.4 * scale;
+
+    const rRing = baseRadius * 0.86;
+    ctx.beginPath();
+    ctx.arc(0, 0, rRing, 0, Math.PI * 2);
+    ctx.stroke();
+
+    for (let t = 0; t < 2; t++) {
+      ctx.beginPath();
+      for (let k = 0; k < 3; k++) {
+        const th = (t * Math.PI) / 3 + (k * 2 * Math.PI) / 3;
+        const rx = Math.cos(th) * rRing * 0.92;
+        const ry = Math.sin(th) * rRing * 0.92;
+        if (k === 0) ctx.moveTo(rx, ry);
+        else ctx.lineTo(rx, ry);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // 32 radial violet-magenta particles spreading outward
+    const particleCount = 32;
+    for (let i = 0; i < particleCount; i++) {
+      const seed = (i * 137.5) % 360;
+      const angle = (seed * Math.PI) / 180 + elapsedSec * (i % 2 === 0 ? 0.9 : -0.9);
+      const speedFactor = 0.35 + ((i * 29) % 100) / 100;
+      const dist = baseRadius * (0.15 + clampedProg * 1.35 * speedFactor);
+      const px = cx + Math.cos(angle) * dist;
+      const py = cy + Math.sin(angle) * dist;
+      const pSize = (2.2 + (i % 3) * 1.3) * scale;
+
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(angle);
+      ctx.fillStyle = i % 3 === 0 ? '#ffffff' : i % 2 === 0 ? '#e879f9' : '#c084fc';
+      ctx.globalAlpha = fadeAlpha * (1 - clampedProg * 0.35);
+      // Diamond crystal particle
+      ctx.beginPath();
+      ctx.moveTo(pSize * 1.5, 0);
+      ctx.lineTo(0, -pSize * 0.8);
+      ctx.lineTo(-pSize * 1.5, 0);
+      ctx.lineTo(0, pSize * 0.8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+    return;
+  }
+
+  // 4. Legendary: Golden light pillar & shockwave rings
+  if (rarity === 'legendary') {
+    // Vertical Golden Light Pillar
+    const pillarW = (46 + Math.sin(clampedProg * Math.PI) * 26) * scale;
+    const pillarH = 260 * scale;
+    const pillarGrad = ctx.createLinearGradient(cx - pillarW / 2, cy, cx + pillarW / 2, cy);
+    pillarGrad.addColorStop(0, 'rgba(245, 158, 11, 0)');
+    pillarGrad.addColorStop(0.25, `rgba(251, 191, 36, ${0.45 * fadeAlpha})`);
+    pillarGrad.addColorStop(0.5, `rgba(255, 255, 255, ${0.88 * fadeAlpha})`);
+    pillarGrad.addColorStop(0.75, `rgba(251, 191, 36, ${0.45 * fadeAlpha})`);
+    pillarGrad.addColorStop(1, 'rgba(245, 158, 11, 0)');
+
+    ctx.fillStyle = pillarGrad;
+    ctx.fillRect(cx - pillarW / 2, cy - pillarH * 0.65, pillarW, pillarH);
+
+    // Radial Golden Sunburst
+    const sunGrad = ctx.createRadialGradient(cx, cy, 8, cx, cy, baseRadius * 1.75);
+    sunGrad.addColorStop(0, `rgba(255, 255, 255, ${0.95 * fadeAlpha})`);
+    sunGrad.addColorStop(0.35, `rgba(253, 224, 71, ${0.65 * fadeAlpha})`);
+    sunGrad.addColorStop(0.7, `rgba(217, 119, 6, ${0.3 * fadeAlpha})`);
+    sunGrad.addColorStop(1, 'rgba(180, 83, 9, 0)');
+    ctx.fillStyle = sunGrad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, baseRadius * 1.75, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Twin Expanding Shockwaves
+    for (let w = 0; w < 2; w++) {
+      const wProg = Math.max(0, Math.min(1, (clampedProg - w * 0.18) * 1.25));
+      if (wProg <= 0) continue;
+      const swR = baseRadius * (0.25 + wProg * 1.55);
+      ctx.save();
+      ctx.strokeStyle = w === 0 ? '#fde047' : '#f59e0b';
+      ctx.globalAlpha = (1 - wProg) * fadeAlpha;
+      ctx.lineWidth = (4.2 - wProg * 2.5) * scale;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, swR, swR * (w === 0 ? 0.55 : 1), 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Rotating Golden Sun Crest Circle
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(elapsedSec * 2.4);
+    ctx.strokeStyle = `rgba(254, 240, 138, ${0.92 * fadeAlpha})`;
+    ctx.shadowColor = '#f59e0b';
+    ctx.shadowBlur = 14;
+    ctx.lineWidth = 2.5 * scale;
+
+    const rRing = baseRadius * 0.95;
+    ctx.beginPath();
+    ctx.arc(0, 0, rRing, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 8-Pointed Starburst Rays
+    ctx.beginPath();
+    for (let k = 0; k < 16; k++) {
+      const th = (k * Math.PI) / 8;
+      const r = k % 2 === 0 ? rRing * 1.12 : rRing * 0.52;
+      const rx = Math.cos(th) * r;
+      const ry = Math.sin(th) * r;
+      if (k === 0) ctx.moveTo(rx, ry);
+      else ctx.lineTo(rx, ry);
+    }
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+
+    // 42 Golden Sparks
+    const particleCount = 42;
+    for (let i = 0; i < particleCount; i++) {
+      const angle = (i / particleCount) * Math.PI * 2 + elapsedSec * 1.5;
+      const speed = 0.3 + ((i * 37) % 100) / 90;
+      const dist = baseRadius * (0.12 + clampedProg * 1.5 * speed);
+      const px = cx + Math.cos(angle) * dist;
+      const py = cy + Math.sin(angle) * dist - (i % 3 === 0 ? clampedProg * 28 * scale : 0);
+      const len = (6 + (i % 3) * 4) * scale;
+
+      ctx.save();
+      ctx.strokeStyle = i % 2 === 0 ? '#ffffff' : '#fde047';
+      ctx.globalAlpha = fadeAlpha * (1 - clampedProg * 0.3);
+      ctx.lineWidth = 2.2 * scale;
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(px - Math.cos(angle) * len, py - Math.sin(angle) * len);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+    return;
+  }
+
+  // 5. Mythic: Multi-layered magic circles, intense crimson-gold light pillar, central brilliance & particle burst
+  const pillarW = (68 + Math.sin(clampedProg * Math.PI * 2) * 24) * scale;
+  const pillarH = 300 * scale;
+
+  // A. Outer Crimson-Gold Light Pillar
+  const outerBeam = ctx.createLinearGradient(cx - pillarW / 2, cy, cx + pillarW / 2, cy);
+  outerBeam.addColorStop(0, 'rgba(225, 29, 72, 0)');
+  outerBeam.addColorStop(0.2, `rgba(244, 63, 94, ${0.55 * fadeAlpha})`);
+  outerBeam.addColorStop(0.4, `rgba(251, 191, 36, ${0.75 * fadeAlpha})`);
+  outerBeam.addColorStop(0.5, `rgba(255, 255, 255, ${0.98 * fadeAlpha})`);
+  outerBeam.addColorStop(0.6, `rgba(251, 191, 36, ${0.75 * fadeAlpha})`);
+  outerBeam.addColorStop(0.8, `rgba(244, 63, 94, ${0.55 * fadeAlpha})`);
+  outerBeam.addColorStop(1, 'rgba(225, 29, 72, 0)');
+  ctx.fillStyle = outerBeam;
+  ctx.fillRect(cx - pillarW / 2, cy - pillarH * 0.68, pillarW, pillarH);
+
+  // B. Central Supernova Core Brilliance
+  const coreGlow = ctx.createRadialGradient(cx, cy, 6, cx, cy, baseRadius * 2.05);
+  coreGlow.addColorStop(0, `rgba(255, 255, 255, ${1.0 * fadeAlpha})`);
+  coreGlow.addColorStop(0.25, `rgba(254, 240, 138, ${0.85 * fadeAlpha})`);
+  coreGlow.addColorStop(0.55, `rgba(244, 63, 94, ${0.55 * fadeAlpha})`);
+  coreGlow.addColorStop(0.82, `rgba(168, 85, 247, ${0.28 * fadeAlpha})`);
+  coreGlow.addColorStop(1, 'rgba(136, 19, 55, 0)');
+  ctx.fillStyle = coreGlow;
+  ctx.beginPath();
+  ctx.arc(cx, cy, baseRadius * 2.05, 0, Math.PI * 2);
+  ctx.fill();
+
+  // C. Multi-Layered Counter-Rotating Runic Magic Circles (3 concentric layers)
+  const layerConfigs = [
+    { radius: baseRadius * 1.25, speed: 1.8, color: '#f43f5e', points: 12, lineWidth: 2.6 },
+    { radius: baseRadius * 0.92, speed: -2.6, color: '#fbbf24', points: 6, lineWidth: 2.4 },
+    { radius: baseRadius * 0.58, speed: 3.4, color: '#ffffff', points: 8, lineWidth: 2.0 },
+  ];
+
+  for (const layer of layerConfigs) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(elapsedSec * layer.speed);
+    ctx.strokeStyle = layer.color;
+    ctx.shadowColor = layer.color;
+    ctx.shadowBlur = 14;
+    ctx.globalAlpha = 0.9 * fadeAlpha;
+    ctx.lineWidth = layer.lineWidth * scale;
+
+    ctx.beginPath();
+    ctx.arc(0, 0, layer.radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Inscribed Star Polygon
+    ctx.beginPath();
+    for (let k = 0; k < layer.points; k++) {
+      const th = (k * 2 * Math.PI) / layer.points;
+      const nextTh = (((k + 2) % layer.points) * 2 * Math.PI) / layer.points;
+      ctx.moveTo(Math.cos(th) * layer.radius, Math.sin(th) * layer.radius);
+      ctx.lineTo(Math.cos(nextTh) * layer.radius, Math.sin(nextTh) * layer.radius);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // D. Triple Expanding Mythic Shockwaves
+  const waveColors = ['#f43f5e', '#fbbf24', '#c084fc'];
+  for (let w = 0; w < 3; w++) {
+    const wProg = Math.max(0, Math.min(1, (clampedProg - w * 0.14) * 1.35));
+    if (wProg <= 0) continue;
+    const swR = baseRadius * (0.2 + wProg * 1.8);
+    ctx.save();
+    ctx.strokeStyle = waveColors[w];
+    ctx.globalAlpha = (1 - wProg) * fadeAlpha;
+    ctx.lineWidth = (4.8 - wProg * 3.0) * scale;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, swR, swR * (w === 1 ? 0.5 : 1), 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // E. Central Cross Starlight Flare
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(elapsedSec * 0.6);
+  ctx.fillStyle = `rgba(255, 255, 255, ${0.92 * fadeAlpha})`;
+  for (let ray = 0; ray < 4; ray++) {
+    ctx.save();
+    ctx.rotate((ray * Math.PI) / 4);
+    const rayLen = (ray % 2 === 0 ? 1.55 : 1.05) * baseRadius;
+    const rayThick = (ray % 2 === 0 ? 5.5 : 3.2) * scale;
+    ctx.beginPath();
+    ctx.moveTo(0, -rayLen);
+    ctx.quadraticCurveTo(rayThick, 0, 0, rayLen);
+    ctx.quadraticCurveTo(-rayThick, 0, 0, -rayLen);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+
+  // F. 56 High-Energy Mythic Particles (Capped for Mobile GPU safety)
+  const particleCount = 56;
+  for (let i = 0; i < particleCount; i++) {
+    const angle = (i / particleCount) * Math.PI * 2 + elapsedSec * (i % 2 === 0 ? 1.8 : -1.4);
+    const speed = 0.25 + ((i * 43) % 100) / 80;
+    const dist = baseRadius * (0.1 + clampedProg * 1.85 * speed);
+    const px = cx + Math.cos(angle) * dist;
+    const py = cy + Math.sin(angle) * dist - (i % 4 === 0 ? clampedProg * 36 * scale : 0);
+    const pSize = (2.6 + (i % 3) * 1.4) * scale;
+
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(angle);
+    ctx.fillStyle = i % 3 === 0 ? '#ffffff' : i % 2 === 0 ? '#fda4af' : '#fde047';
+    ctx.globalAlpha = fadeAlpha * (1 - clampedProg * 0.25);
+    ctx.beginPath();
+    ctx.moveTo(pSize * 1.8, 0);
+    ctx.lineTo(0, -pSize * 0.85);
+    ctx.lineTo(-pSize * 1.8, 0);
+    ctx.lineTo(0, pSize * 0.85);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
 
 interface GoldCoinParticle {
   x: number;
@@ -257,6 +674,7 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
   petAttackEvent = null,
   prestigeVfxEvent = null,
   dungeonVfxEvent = null,
+  summonVfxEvent = null,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animFrameRef = useRef<number | null>(null);
@@ -271,9 +689,19 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
   const ambientParticlesRef = useRef<AmbientParticle[]>([]);
   const coinsRef = useRef<GoldCoinParticle[]>([]);
 
-  // Prestige & Dungeon Sequence Ref
+  // Prestige, Dungeon & Summon Sequence Refs
   const lastPrestigeEventIdRef = useRef<string | null>(null);
   const lastDungeonEventIdRef = useRef<string | null>(null);
+  const lastSummonEventIdRef = useRef<string | null>(null);
+  const summonVfxRef = useRef<{
+    id: string;
+    rarity: EquipmentRarity;
+    startTime: number;
+    duration: number;
+    heroX: number;
+    heroY: number;
+  } | null>(null);
+
   const prestigeVfxRef = useRef<{
     id: string;
     startTime: number;
@@ -1342,6 +1770,46 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
   }, [dungeonVfxEvent]);
 
   // ==========================================
+  // Trigger Equipment Summon Canvas 2D VFX
+  // ==========================================
+  useEffect(() => {
+    if (!summonVfxEvent) return;
+    if (lastSummonEventIdRef.current === summonVfxEvent.id) return;
+    lastSummonEventIdRef.current = summonVfxEvent.id;
+
+    const { heroX, heroY, groundY } = getAnchors();
+    summonVfxRef.current = {
+      id: summonVfxEvent.id,
+      rarity: summonVfxEvent.rarity,
+      startTime: performance.now(),
+      duration: summonVfxEvent.rarity === 'mythic' ? 1600 : summonVfxEvent.rarity === 'legendary' ? 1400 : 1100,
+      heroX,
+      heroY,
+    };
+
+    const colorByRarity: Record<EquipmentRarity, string> = {
+      common: '#cbd5e1',
+      rare: '#38bdf8',
+      epic: '#c084fc',
+      legendary: '#fbbf24',
+      mythic: '#f43f5e',
+    };
+    const col = colorByRarity[summonVfxEvent.rarity] || '#38bdf8';
+    spawnShockwave(heroX, heroY, summonVfxEvent.rarity === 'mythic' ? 130 : 90, 420, col, 0.75, 5);
+    spawnDirectionalSparks(
+      heroX,
+      heroY,
+      summonVfxEvent.rarity === 'mythic' ? 28 : summonVfxEvent.rarity === 'legendary' ? 20 : 12,
+      col,
+      -Math.PI * 0.5,
+      2.6,
+      8.5,
+      groundY
+    );
+  }, [summonVfxEvent]);
+
+
+  // ==========================================
   // Main Canvas Render Loop (60 FPS)
   // ==========================================
   useEffect(() => {
@@ -1533,7 +2001,29 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
       }
 
       // ----------------------------------------------------
+      // 1.6. Equipment Summon Ritual Canvas 2D VFX
+      // ----------------------------------------------------
+      if (summonVfxRef.current) {
+        const sv = summonVfxRef.current;
+        const elapsed = performance.now() - sv.startTime;
+        if (elapsed >= sv.duration) {
+          summonVfxRef.current = null;
+        } else {
+          drawEquipmentSummonRitual(
+            ctx,
+            sv.heroX,
+            sv.heroY,
+            sv.rarity,
+            elapsed / sv.duration,
+            elapsed / 1000,
+            1.0
+          );
+        }
+      }
+
+      // ----------------------------------------------------
       // 2. Ground Fissure Cracks
+
       // ----------------------------------------------------
       for (let i = fissuresRef.current.length - 1; i >= 0; i--) {
         const fis = fissuresRef.current[i];

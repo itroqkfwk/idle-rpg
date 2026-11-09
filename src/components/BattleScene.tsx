@@ -2,6 +2,7 @@ import React from 'react';
 import {
   CharacterStats,
   Equipment,
+  EquipmentRarity,
   Monster,
   Pet,
   StageState,
@@ -14,6 +15,7 @@ import {
   MonsterStatusEffect,
   ActiveDungeonRun,
 } from '../types/game';
+
 import { RARITY_CONFIGS } from '../data/equipment';
 import { DUNGEONS_DATA, getDungeonDifficultyConfig } from '../data/dungeons';
 import { PlayerCharacter } from './PlayerCharacter';
@@ -86,6 +88,7 @@ interface BattleSceneProps {
   activeDungeonRun?: ActiveDungeonRun | null;
   onAbandonDungeon?: () => void;
   dungeonVfxEvent?: { id: string; type: 'gold_burst' | 'wave_clear' | 'ruins_clear' } | null;
+  summonVfxEvent?: { id: string; rarity: EquipmentRarity; count: number } | null;
 }
 
 export const BattleScene: React.FC<BattleSceneProps> = ({
@@ -138,7 +141,9 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
   activeDungeonRun = null,
   onAbandonDungeon,
   dungeonVfxEvent = null,
+  summonVfxEvent = null,
 }) => {
+
   const isBossFight = activeDungeonRun
     ? activeDungeonRun.dungeonId === 'ancient_ruins'
     : stage.stage === 10 && stage.inBossFight;
@@ -204,7 +209,9 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         petAttackEvent={petAttackEvent}
         prestigeVfxEvent={prestigeVfxEvent}
         dungeonVfxEvent={dungeonVfxEvent}
+        summonVfxEvent={summonVfxEvent}
       />
+
 
       {/* 🏰 Active Dungeon Dedicated Combat Status HUD */}
       {activeDungeonRun && (

@@ -27,6 +27,16 @@ export interface Equipment {
   description: string;
 }
 
+export interface SummonResultItem {
+  id: string;
+  item: Equipment;
+  isNew: boolean;
+  piecesGained: number;
+  isPityTriggered?: boolean;
+  isGuaranteedRarePlus?: boolean;
+}
+
+
 export type PetBuffType = 'atk' | 'gold' | 'critRate' | 'critDmg' | 'atkSpeed';
 
 export interface Pet {
@@ -340,6 +350,9 @@ export interface GameSaveData {
   hasPrestigeUnlocked?: boolean;
   enhancementStones?: number;
   dungeons?: DungeonSaveState;
+  equipmentPityCount?: number;
+  totalEquipmentSummons?: number;
 }
+
 
 

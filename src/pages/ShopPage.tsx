@@ -1,15 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { Gift, Sparkles, Gem, Clock, X, Store, Wand2 } from 'lucide-react';
+import { Gift, Sparkles, Gem, Clock, X, Store, Info } from 'lucide-react';
 import { CharacterClassId } from '../types/game';
+import {
+  RARITY_CONFIGS,
+  EQUIPMENT_RARITY_ORDER,
+  EQUIPMENT_SUMMON_PROBABILITIES,
+  EQUIPMENT_SUMMON_COST_1,
+  EQUIPMENT_SUMMON_COST_10,
+  EQUIPMENT_GOLD_CHEST_COST,
+  EQUIPMENT_PITY_LIMIT,
+  validateEquipmentSummonProbabilities,
+} from '../data/equipment';
 import { sound } from '../utils/audio';
 
 interface ShopPageProps {
   gold: number;
   gems: number;
   freeChestLastOpened: number;
+  equipmentPityCount?: number;
+  totalEquipmentSummons?: number;
   onOpenFreeChest: () => void;
   onOpenGoldChest: (cost: number) => void;
   onOpenGemChest: (cost: number) => void;
+  onSummonEquipment?: (count: 1 | 10) => void;
   onBuyGemsWithGold: (goldCost: number, gemGain: number) => void;
   onSummonSkill?: (count: 1 | 10) => void;
   onClose?: () => void;
@@ -20,9 +33,12 @@ export const ShopPage: React.FC<ShopPageProps> = ({
   gold,
   gems,
   freeChestLastOpened,
+  equipmentPityCount = 0,
+  totalEquipmentSummons = 0,
   onOpenFreeChest,
   onOpenGoldChest,
   onOpenGemChest,
+  onSummonEquipment,
   onBuyGemsWithGold,
   onSummonSkill,
   onClose,
@@ -30,6 +46,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
 }) => {
   const FREE_CHEST_COOLDOWN = 60; // 60 seconds
   const [secondsLeft, setSecondsLeft] = useState(0);
+  const [showRatesDetail, setShowRatesDetail] = useState(true);
 
   useEffect(() => {
     const updateCooldown = () => {
@@ -43,8 +60,10 @@ export const ShopPage: React.FC<ShopPageProps> = ({
     return () => clearInterval(interval);
   }, [freeChestLastOpened]);
 
-  const GOLD_CHEST_COST = 500;
-  const GEM_CHEST_COST = 100;
+  const GOLD_CHEST_COST = EQUIPMENT_GOLD_CHEST_COST;
+  const GEM_CHEST_COST_1 = EQUIPMENT_SUMMON_COST_1;
+  const GEM_CHEST_COST_10 = EQUIPMENT_SUMMON_COST_10;
+  const probCheck = validateEquipmentSummonProbabilities();
 
   const handleFreeChest = () => {
     if (secondsLeft === 0) {
@@ -60,10 +79,14 @@ export const ShopPage: React.FC<ShopPageProps> = ({
     }
   };
 
-  const handleGemChest = () => {
-    if (gems >= GEM_CHEST_COST) {
-      sound.playFanfare();
-      onOpenGemChest(GEM_CHEST_COST);
+  const handleEquipSummon = (count: 1 | 10) => {
+    const cost = count === 1 ? GEM_CHEST_COST_1 : GEM_CHEST_COST_10;
+    if (gems < cost) return;
+    sound.playFanfare();
+    if (onSummonEquipment) {
+      onSummonEquipment(count);
+    } else if (count === 1) {
+      onOpenGemChest(cost);
     }
   };
 
@@ -75,7 +98,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
           <div className="drawer-title-icon">
             <Store size={18} color="#f59e0b" />
           </div>
-          <span>신비한 숲속 잡화점</span>
+          <span>신비한 숲속 잡화점 & 소환 제단</span>
         </div>
         {onClose && (
           <button className="drawer-close-btn" onClick={onClose} title="닫기">
@@ -90,19 +113,109 @@ export const ShopPage: React.FC<ShopPageProps> = ({
           <div className="merchant-npc-icon-box">🐿️</div>
           <div className="merchant-speech-bubble">
             <span className="merchant-name">잡화점 상인 도토리</span>
-            <span className="merchant-quote">"오늘 들어온 보물 상자가 아주 실하다네!"</span>
+            <span className="merchant-quote">"10회 연속 소환 시 희귀 이상 보장, 30회마다 전설~신화 장비가 확정이라네!"</span>
           </div>
         </div>
 
         {/* Chests Showcase */}
         <div className="chests-parchment-list">
-          {/* 1. Free Supply Chest */}
+          {/* 1. Featured Gem Equipment Summon Altar (1x & 10x + Pity + Rates) */}
+          <div className="parchment-panel equip-summon-altar-panel gem-chest-theme" data-testid="shop-equip-summon-panel">
+            <div className="chest-badge-tag hot-tag">HOT! 장비 소환 제단</div>
+
+            <div className="summon-altar-top-row">
+              <div className="chest-visual-box">👑💎</div>
+              <div className="chest-details">
+                <span className="chest-headline">빛나는 유물 장비 소환</span>
+                <span className="chest-subtext">
+                  일반 ~ 신화 전 부위 장비 출현 · 10연차 희귀+ 보장 (누적 {totalEquipmentSummons}회)
+                </span>
+              </div>
+              <div className="skill-summon-btns-group">
+                <button
+                  type="button"
+                  data-testid="shop-summon-equip-1"
+                  className="btn-game btn-game-ruby chest-open-btn skill-half-btn"
+                  disabled={gems < GEM_CHEST_COST_1}
+                  onClick={() => handleEquipSummon(1)}
+                >
+                  <span>1회 소환</span>
+                  <span className="chest-price-text">💎 {GEM_CHEST_COST_1}</span>
+                </button>
+                <button
+                  type="button"
+                  data-testid="shop-summon-equip-10"
+                  className="btn-game btn-game-gold chest-open-btn skill-half-btn"
+                  disabled={gems < GEM_CHEST_COST_10}
+                  onClick={() => handleEquipSummon(10)}
+                >
+                  <span>10회 (-10%)</span>
+                  <span className="chest-price-text">💎 {GEM_CHEST_COST_10}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Pity Progress Bar */}
+            <div className="summon-pity-box" data-testid="shop-equip-pity-box">
+              <div className="pity-label-row">
+                <span>🌟 천장 마일리지 (30회 달성 시 전설~신화 확정!)</span>
+                <strong data-testid="shop-equip-pity-text">
+                  {equipmentPityCount} / {EQUIPMENT_PITY_LIMIT}
+                </strong>
+              </div>
+              <div className="pity-progress-track">
+                <div
+                  className="pity-progress-fill"
+                  style={{
+                    width: `${Math.min(100, (equipmentPityCount / EQUIPMENT_PITY_LIMIT) * 100)}%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Summon Rarity Probabilities Table (Single Source of Truth) */}
+            <div className="summon-rates-section">
+              <div
+                className="summon-rates-header"
+                onClick={() => setShowRatesDetail((prev) => !prev)}
+              >
+                <span className="rates-title">
+                  <Info size={12} color="#93c5fd" />
+                  등급별 등장 확률 안내 (합계 {probCheck.total}%)
+                </span>
+                <span className="rates-toggle-label">{showRatesDetail ? '접기 ▲' : '펼치기 ▼'}</span>
+              </div>
+              {showRatesDetail && (
+                <div className="summon-rates-pills" data-testid="shop-equip-rates-table">
+                  {EQUIPMENT_RARITY_ORDER.map((rarity) => {
+                    const conf = RARITY_CONFIGS[rarity];
+                    const prob = EQUIPMENT_SUMMON_PROBABILITIES[rarity];
+                    return (
+                      <div
+                        key={rarity}
+                        className="rate-pill-item"
+                        style={{ borderColor: conf.borderColor }}
+                        data-testid={`rate-pill-${rarity}`}
+                      >
+                        <span className="rate-rarity-name" style={{ color: conf.color }}>
+                          {conf.label}
+                        </span>
+                        <strong className="rate-rarity-val">{prob}%</strong>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 2. Free Supply Chest */}
           <div className="parchment-panel chest-row-panel">
             <div className="chest-badge-tag free-tag">무료 보급</div>
             <div className="chest-visual-box">🎁</div>
             <div className="chest-details">
               <span className="chest-headline">모험가 보급 상자</span>
-              <span className="chest-subtext">일반 ~ 희귀 장비 & 골드</span>
+              <span className="chest-subtext">일반 장비 & 조각 무료 보급 (60초 쿨타임)</span>
             </div>
             <button
               className={`btn-game ${secondsLeft === 0 ? 'btn-game-green' : 'btn-game-wood'} chest-open-btn`}
@@ -123,39 +236,21 @@ export const ShopPage: React.FC<ShopPageProps> = ({
             </button>
           </div>
 
-          {/* 2. Gold Chest */}
+          {/* 3. Gold Chest */}
           <div className="parchment-panel chest-row-panel">
             <div className="chest-visual-box">📦</div>
             <div className="chest-details">
               <span className="chest-headline">골드 장비 상자</span>
-              <span className="chest-subtext">일반 ~ 영웅 장비 랜덤 드랍</span>
+              <span className="chest-subtext">사냥 골드로 장비 1회 소환 (기본 확률 적용)</span>
             </div>
             <button
+              data-testid="shop-gold-chest-btn"
               className="btn-game btn-game-gold chest-open-btn"
               disabled={gold < GOLD_CHEST_COST}
               onClick={handleGoldChest}
             >
-              <span>소환</span>
+              <span>1회 소환</span>
               <span className="chest-price-text">🪙 {GOLD_CHEST_COST}</span>
-            </button>
-          </div>
-
-          {/* 3. Gem / Artifact Chest */}
-          <div className="parchment-panel chest-row-panel gem-chest-theme">
-            <div className="chest-badge-tag hot-tag">HOT! 고등급</div>
-            <div className="chest-visual-box">👑💎</div>
-            <div className="chest-details">
-              <span className="chest-headline">빛나는 유물 상자</span>
-              <span className="chest-subtext">희귀 ~ 신화 최고급 장비 출현!</span>
-            </div>
-            <button
-              className="btn-game btn-game-ruby chest-open-btn"
-              disabled={gems < GEM_CHEST_COST}
-              onClick={handleGemChest}
-            >
-              <Sparkles size={15} />
-              <span>보석 소환</span>
-              <span className="chest-price-text">💎 {GEM_CHEST_COST}</span>
             </button>
           </div>
 
@@ -212,6 +307,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
               <span className="exchange-note">사냥 골드를 모아 보석으로 교환하세요</span>
             </div>
             <button
+              data-testid="shop-exchange-gems-btn"
               className="btn-game btn-game-wood exchange-press-btn"
               disabled={gold < 2000}
               onClick={() => onBuyGemsWithGold(2000, 50)}
@@ -292,9 +388,112 @@ export const ShopPage: React.FC<ShopPageProps> = ({
           gap: 10px;
         }
 
+        .equip-summon-altar-panel {
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          padding: 14px;
+          gap: 10px;
+        }
+
+        .summon-altar-top-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+        }
+
+        .summon-pity-box {
+          background: rgba(15, 23, 42, 0.75);
+          border: 1px solid rgba(245, 158, 11, 0.35);
+          border-radius: 10px;
+          padding: 6px 10px;
+        }
+
+        .pity-label-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 10px;
+          color: #fde68a;
+          margin-bottom: 4px;
+        }
+
+        .pity-progress-track {
+          width: 100%;
+          height: 7px;
+          background: rgba(0, 0, 0, 0.55);
+          border-radius: 9999px;
+          overflow: hidden;
+        }
+
+        .pity-progress-fill {
+          height: 100%;
+          background: linear-gradient(90deg, #f59e0b, #ef4444);
+          border-radius: 9999px;
+          transition: width 0.25s ease;
+        }
+
+        .summon-rates-section {
+          background: rgba(15, 23, 42, 0.65);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 10px;
+          padding: 6px 10px;
+        }
+
+        .summon-rates-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          cursor: pointer;
+          font-size: 10px;
+          color: #cbd5e1;
+          font-weight: 700;
+        }
+
+        .rates-title {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+        }
+
+        .rates-toggle-label {
+          font-size: 9.5px;
+          color: #94a3b8;
+        }
+
+        .summon-rates-pills {
+          display: grid;
+          grid-template-columns: repeat(5, 1fr);
+          gap: 4px;
+          margin-top: 6px;
+        }
+
+        .rate-pill-item {
+          background: rgba(10, 15, 28, 0.85);
+          border: 1px solid;
+          border-radius: 6px;
+          padding: 3px 4px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 1px;
+        }
+
+        .rate-rarity-name {
+          font-size: 9px;
+          font-weight: 800;
+        }
+
+        .rate-rarity-val {
+          font-size: 10px;
+          color: #f8fafc;
+          font-weight: 900;
+        }
+
         .gem-chest-theme {
-          border-color: rgba(239, 68, 68, 0.4);
-          box-shadow: 0 0 16px rgba(239, 68, 68, 0.2);
+          border-color: rgba(239, 68, 68, 0.45);
+          box-shadow: 0 0 16px rgba(239, 68, 68, 0.22);
         }
 
         .skill-summon-theme {
@@ -320,17 +519,18 @@ export const ShopPage: React.FC<ShopPageProps> = ({
           display: flex;
           flex-direction: column;
           gap: 4px;
+          flex-shrink: 0;
         }
 
         .skill-half-btn {
-          min-width: 82px;
+          min-width: 86px;
           min-height: 32px;
-          padding: 2px 6px;
+          padding: 2px 8px;
           font-size: 10px;
         }
 
         .chest-visual-box {
-          font-size: 2.2rem;
+          font-size: 2.1rem;
           flex-shrink: 0;
         }
 
@@ -339,6 +539,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
           flex-direction: column;
           gap: 2px;
           flex: 1;
+          min-width: 0;
         }
 
         .chest-headline {

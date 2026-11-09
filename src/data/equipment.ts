@@ -620,6 +620,86 @@ export function calculateTotalEquipmentOwnedBonus(catalog: Record<string, Equipm
 }
 
 
+export const EQUIPMENT_RARITY_ORDER: EquipmentRarity[] = [
+  'common',
+  'rare',
+  'epic',
+  'legendary',
+  'mythic',
+];
+
+/**
+ * Single source of truth for equipment summon probabilities (must sum to 100%).
+ * Preserves the existing game balance: Common 55%, Rare 28%, Epic 12%, Legendary 4%, Mythic 1%.
+ */
+export const EQUIPMENT_SUMMON_PROBABILITIES: Record<EquipmentRarity, number> = {
+  common: 55,
+  rare: 28,
+  epic: 12,
+  legendary: 4,
+  mythic: 1,
+};
+
+export const EQUIPMENT_SUMMON_COST_1 = 100;
+export const EQUIPMENT_SUMMON_COST_10 = 900;
+export const EQUIPMENT_GOLD_CHEST_COST = 500;
+export const EQUIPMENT_PITY_LIMIT = 30;
+export const EQUIPMENT_SYNTHESIS_PIECES_REQUIRED = 5;
+
+export function validateEquipmentSummonProbabilities(): { valid: boolean; total: number } {
+  const total = EQUIPMENT_RARITY_ORDER.reduce((sum, r) => sum + (EQUIPMENT_SUMMON_PROBABILITIES[r] || 0), 0);
+  return {
+    valid: Math.abs(total - 100) < 1e-6,
+    total,
+  };
+}
+
+export function getEquipmentDuplicatePieceGain(rarity: EquipmentRarity): number {
+  return rarity === 'mythic' ? 1 : rarity === 'legendary' ? 2 : rarity === 'epic' ? 3 : 5;
+}
+
+export function getNextEquipmentRarity(rarity: EquipmentRarity): EquipmentRarity | null {
+  const idx = EQUIPMENT_RARITY_ORDER.indexOf(rarity);
+  if (idx === -1 || idx >= EQUIPMENT_RARITY_ORDER.length - 1) return null;
+  return EQUIPMENT_RARITY_ORDER[idx + 1];
+}
+
+export function getHighestEquipmentRarity(rarities: EquipmentRarity[]): EquipmentRarity {
+  if (!rarities || rarities.length === 0) return 'common';
+  let bestIdx = 0;
+  for (const r of rarities) {
+    const idx = EQUIPMENT_RARITY_ORDER.indexOf(r);
+    if (idx > bestIdx) bestIdx = idx;
+  }
+  return EQUIPMENT_RARITY_ORDER[bestIdx];
+}
+
+/**
+ * Rolls a rarity using the centralized EQUIPMENT_SUMMON_PROBABILITIES table.
+ * @param rollPercent optional 0~100 value for deterministic testing
+ * @param minRarity optional minimum rarity guarantee (e.g. 'rare' for 10-pull guarantee, 'legendary' for 30-pull pity)
+ */
+export function rollEquipmentSummonRarity(
+  rollPercent?: number,
+  minRarity?: EquipmentRarity
+): EquipmentRarity {
+  const minIdx = minRarity ? Math.max(0, EQUIPMENT_RARITY_ORDER.indexOf(minRarity)) : 0;
+  const eligibleRarities = EQUIPMENT_RARITY_ORDER.slice(minIdx);
+  const totalWeight = eligibleRarities.reduce((acc, r) => acc + EQUIPMENT_SUMMON_PROBABILITIES[r], 0);
+
+  const rawRoll = rollPercent !== undefined ? Math.max(0, Math.min(99.9999, rollPercent)) : Math.random() * 100;
+  const scaledRoll = (rawRoll / 100) * totalWeight;
+
+  let cumulative = 0;
+  for (const rarity of eligibleRarities) {
+    cumulative += EQUIPMENT_SUMMON_PROBABILITIES[rarity];
+    if (scaledRoll < cumulative) {
+      return rarity;
+    }
+  }
+  return eligibleRarities[eligibleRarities.length - 1] || 'common';
+}
+
 /**
  * Generates random equipment drop picking from the master catalog by weighted rarity.
  */
@@ -627,23 +707,18 @@ export function generateRandomEquipment(targetRarity?: EquipmentRarity, targetSl
   const slots: EquipmentSlot[] = ['weapon', 'helmet', 'armor', 'accessory'];
   const slot = targetSlot || slots[Math.floor(Math.random() * slots.length)];
 
-  let rarity: EquipmentRarity = targetRarity || 'common';
-  if (!targetRarity) {
-    const roll = Math.random() * 100;
-    if (roll < 55) rarity = 'common';
-    else if (roll < 83) rarity = 'rare';
-    else if (roll < 95) rarity = 'epic';
-    else if (roll < 99) rarity = 'legendary';
-    else rarity = 'mythic';
-  }
+  const rarity: EquipmentRarity = targetRarity || rollEquipmentSummonRarity();
 
   const matching = MASTER_EQUIPMENT_LIST.filter((e) => e.slot === slot && e.rarity === rarity);
   const picked = matching.length > 0 ? matching[Math.floor(Math.random() * matching.length)] : MASTER_EQUIPMENT_LIST[0];
 
   return {
     ...picked,
+    slot: picked.slot,
+    type: picked.slot,
     level: 1,
     pieces: 1,
     ownedCount: 1,
   };
 }
+

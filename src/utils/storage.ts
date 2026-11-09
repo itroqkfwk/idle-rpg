@@ -6,6 +6,9 @@ import { INITIAL_SKILLS, STARTER_EQUIPPED_SKILLS, getSkillPiecesRequired } from 
 import { createDefaultDungeonState, checkAndResetDailyDungeonTickets } from '../data/dungeons';
 
 const SAVE_KEY = 'COZY_IDLE_RPG_SAVE_V1';
+const SAVE_KEY_LOWER = 'cozy_idle_rpg_save_v1';
+export { SAVE_KEY, SAVE_KEY_LOWER };
+
 
 export const DEFAULT_PRESTIGE_UPGRADES: PrestigeUpgrades = {
   atkLevel: 0,
@@ -112,18 +115,42 @@ export function getDefaultSaveData(): GameSaveData {
     hasPrestigeUnlocked: false,
     enhancementStones: 0,
     dungeons: createDefaultDungeonState(),
+    equipmentPityCount: 0,
+    totalEquipmentSummons: 0,
   };
+}
+
+function tryParseSaveJson(raw: string | null): GameSaveData | null {
+  if (!raw) return null;
+  try {
+    const obj = JSON.parse(raw);
+    if (obj && typeof obj === 'object') {
+      return obj as GameSaveData;
+    }
+  } catch {
+    // Ignore malformed JSON on one key so the fallback key can be checked
+  }
+  return null;
 }
 
 export function loadGameData(): { data: GameSaveData; offlineSeconds: number } {
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) {
+    const parsedLower = tryParseSaveJson(localStorage.getItem(SAVE_KEY_LOWER));
+    const parsedUpper = tryParseSaveJson(localStorage.getItem(SAVE_KEY));
+
+    let parsed: GameSaveData | null = null;
+    if (parsedLower && parsedUpper) {
+      parsed = (parsedLower.lastOnlineTime || 0) >= (parsedUpper.lastOnlineTime || 0) ? parsedLower : parsedUpper;
+    } else {
+      parsed = parsedLower || parsedUpper;
+    }
+
+    if (!parsed) {
       return { data: getDefaultSaveData(), offlineSeconds: 0 };
     }
-    const parsed: GameSaveData = JSON.parse(raw);
     const now = Date.now();
     const elapsedSeconds = Math.max(0, Math.floor((now - (parsed.lastOnlineTime || now)) / 1000));
+
     
     // Cap at 12 hours (43,200 seconds)
     const cappedSeconds = Math.min(elapsedSeconds, 12 * 3600);
@@ -189,6 +216,8 @@ export function loadGameData(): { data: GameSaveData; offlineSeconds: number } {
     mergedData.hasPrestigeUnlocked = parsed.hasPrestigeUnlocked ?? (mergedData.prestigeCount > 0);
     mergedData.enhancementStones = Math.max(0, parsed.enhancementStones ?? 0);
     mergedData.dungeons = checkAndResetDailyDungeonTickets(parsed.dungeons);
+    mergedData.equipmentPityCount = Math.max(0, parsed.equipmentPityCount ?? 0);
+    mergedData.totalEquipmentSummons = Math.max(0, parsed.totalEquipmentSummons ?? 0);
 
     // 3-chapter upper bound consistency migration
     if (mergedData.stage) {
@@ -219,13 +248,21 @@ export function loadGameData(): { data: GameSaveData; offlineSeconds: number } {
         const saved = (parsed.equipmentCatalog as any[])?.find((eq: any) => eq.id === defItem.id);
         if (saved) {
           const level = Math.max(1, saved.level || 1);
+          const isOwned = !!saved.owned;
+          const pieces = Math.max(0, saved.pieces || 0);
+          const ownedCount = isOwned
+            ? Math.max(1, saved.ownedCount || 1)
+            : 0;
           return {
             ...defItem,
             ...saved,
+            slot: defItem.slot,
+            type: defItem.slot,
             level,
-            pieces: saved.pieces || 0,
+            pieces,
             piecesRequired: getEquipmentPiecesRequired(level, defItem.rarity),
-            owned: !!saved.owned,
+            owned: isOwned,
+            ownedCount,
             equipped: !!saved.equipped,
           };
         }
@@ -240,6 +277,7 @@ export function loadGameData(): { data: GameSaveData; offlineSeconds: number } {
           const match = catalog.find((c) => (c.slot === eq.slot || (c as any).type === eq.slot) && (c.id === eq.id || c.rarity === eq.rarity));
           if (match) {
             match.owned = true;
+            match.ownedCount = Math.max(1, match.ownedCount || 1);
             match.equipped = true;
             match.level = Math.max(match.level || 1, eq.level || 1);
           }
@@ -250,6 +288,7 @@ export function loadGameData(): { data: GameSaveData; offlineSeconds: number } {
           const match = catalog.find((c) => (c.slot === eq.slot || (c as any).type === eq.slot) && (c.id === eq.id || c.rarity === eq.rarity));
           if (match) {
             match.owned = true;
+            match.ownedCount = (match.ownedCount || 1) + 1;
             match.pieces = (match.pieces || 0) + 1;
           }
         });
@@ -308,9 +347,12 @@ export function saveGameData(data: GameSaveData): void {
       ...data,
       lastOnlineTime: Date.now(),
     };
-    localStorage.setItem(SAVE_KEY, JSON.stringify(toSave));
+    const serialized = JSON.stringify(toSave);
+    localStorage.setItem(SAVE_KEY, serialized);
+    localStorage.setItem(SAVE_KEY_LOWER, serialized);
   } catch (err) {
     console.error('Failed to save game data:', err);
   }
 }
+
 
