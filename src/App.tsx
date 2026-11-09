@@ -220,6 +220,8 @@ export const App: React.FC = () => {
   const [isPlayerHit, setIsPlayerHit] = useState(false);
   const [isMonsterHit, setIsMonsterHit] = useState(false);
   const [isMonsterDefeated, setIsMonsterDefeated] = useState(false);
+  const [isPlayerDefeated, setIsPlayerDefeated] = useState(false);
+  const [isMoving, setIsMoving] = useState(false);
   const [damages, setDamages] = useState<DamageNumberData[]>([]);
 
   // 3-Combo Basic Attack, Pet Assist & Live DPS States
@@ -232,6 +234,9 @@ export const App: React.FC = () => {
     id: string;
     comboStep: 1 | 2 | 3;
     classId: CharacterClassId;
+    contactDelayMs?: number;
+    animDurationMs?: number;
+    speedScale?: number;
   } | null>(null);
   const [petAttackEvent, setPetAttackEvent] = useState<{ id: string; petId: string } | null>(null);
   const [isPetAttacking, setIsPetAttacking] = useState(false);
@@ -997,6 +1002,8 @@ export const App: React.FC = () => {
       setIsCriticalHit(false);
       setIsMonsterDefeated(false);
       isMonsterDefeatedRef.current = false;
+      setIsMoving(true);
+      setTimeout(() => setIsMoving(false), 260);
       lastMonsterAttackTimeRef.current = Date.now();
     }, 380);
   }, [currentMonster, combatCalculations, stage, progressQuest]);
@@ -1190,13 +1197,6 @@ export const App: React.FC = () => {
       setIsPlayerAttacking(true);
 
       const curClass = classIdRef.current;
-      setBasicAttackEvent({
-        id: `ba_${now}_${combo}`,
-        comboStep: combo,
-        classId: curClass,
-      });
-      totalBasicAttacksRef.current += 1;
-
       const speedScale = Math.min(1.4, Math.max(0.85, (combatCalcRef.current?.totalAtkSpeed || 1.2) / 1.2));
       const baseContactDelay =
         curClass === 'mage'
@@ -1209,6 +1209,16 @@ export const App: React.FC = () => {
 
       const contactDelay = Math.round(baseContactDelay / speedScale);
       const animDuration = Math.round(baseAnimDuration / speedScale);
+
+      setBasicAttackEvent({
+        id: `ba_${now}_${combo}`,
+        comboStep: combo,
+        classId: curClass,
+        contactDelayMs: contactDelay,
+        animDurationMs: animDuration,
+        speedScale,
+      });
+      totalBasicAttacksRef.current += 1;
 
       // End player attack animation at the end of swing duration
       setTimeout(() => {
@@ -1725,6 +1735,8 @@ export const App: React.FC = () => {
           const nextHp = Math.max(0, prev.stats.currentHp - monsterDmg);
           if (nextHp <= 0) {
             sound.playMonsterDefeat();
+            setIsPlayerDefeated(true);
+            setTimeout(() => setIsPlayerDefeated(false), 450);
             if (activeDungeonRef.current) {
               setTimeout(() => {
                 finishDungeonRun('defeat');
@@ -3124,6 +3136,34 @@ export const App: React.FC = () => {
         setSaveData(snapshot);
       },
     };
+
+    (window as any).__animTestHelpers = {
+      setHeroMove: (v: boolean) => setIsMoving(v),
+      setHeroDefeat: (v: boolean) => setIsPlayerDefeated(v),
+      setHeroHit: (v: boolean) => setIsPlayerHit(v),
+      setMonsterDefeat: (v: boolean) => {
+        isMonsterDefeatedRef.current = v;
+        setIsMonsterDefeated(v);
+      },
+      setMonsterHitStep: (step: 1 | 2 | 3 | null, crit: boolean = false) => {
+        setIsMonsterHit(step !== null);
+        setHitComboStep(step);
+        setIsFinisherHit(step === 3);
+        setIsCriticalHit(crit);
+      },
+      triggerAwakeningNow: () => {
+        setSaveData((prev) => {
+          const updated: GameSaveData = {
+            ...prev,
+            awakeningUnlocked: true,
+            awakeningGauge: 100,
+            stats: { ...prev.stats, level: Math.max(30, prev.stats.level) },
+          };
+          saveDataRef.current = updated;
+          return updated;
+        });
+      },
+    };
   }, [
     handleEnterDungeon,
     handleAbandonDungeon,
@@ -3189,6 +3229,8 @@ export const App: React.FC = () => {
           isPlayerHit={isPlayerHit}
           isMonsterHit={isMonsterHit}
           isMonsterDefeated={isMonsterDefeated}
+          isPlayerDefeated={isPlayerDefeated}
+          isMoving={isMoving}
           isHitStop={isHitStop}
           screenShake={screenShake}
           damages={damages}

@@ -53,6 +53,18 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
   const isBurning = monsterStatuses.some((s) => s.type === 'burn');
   const isStunned = monsterStatuses.some((s) => s.type === 'stun');
 
+  // Strict death lock: once HP reaches 0 or isDefeated is active, suppress hit reactions
+  const isDeadState = isDefeated || monster.currentHp <= 0;
+  const activeHitStep: 1 | 2 | 3 | null = isDeadState
+    ? null
+    : isFinisherHit || hitComboStep === 3
+    ? 3
+    : hitComboStep === 2
+    ? 2
+    : hitComboStep === 1 || isHit
+    ? 1
+    : null;
+
   // Determine monster sprite & idle animation type (preserving original PNG assets)
   const getMonsterType = () => {
     if (isRuinsDungeonBoss || isBoss) {
@@ -81,19 +93,36 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
 
   const monsterConfig = getMonsterType();
 
+  const enemyAnimState = isDeadState
+    ? 'Defeat'
+    : activeHitStep === 3
+    ? 'Hit3'
+    : activeHitStep === 2
+    ? 'Hit2'
+    : activeHitStep === 1
+    ? 'Hit1'
+    : isFrozen || isStunned
+    ? 'CC'
+    : isAttacking
+    ? 'Attack'
+    : 'Idle';
+
   const getHitActionClass = () => {
-    if (isDefeated) return 'enemy-act-defeat';
-    if (isFinisherHit || hitComboStep === 3) return isBoss ? 'enemy-act-hit-3-boss' : 'enemy-act-hit-3';
-    if (hitComboStep === 2) return isBoss ? 'enemy-act-hit-2-boss' : 'enemy-act-hit-2';
-    if (hitComboStep === 1 || isHit) return isBoss ? 'enemy-act-hit-1-boss' : 'enemy-act-hit-1';
+    if (isDeadState) return 'enemy-act-defeat';
+    if (activeHitStep === 3) return isBoss ? 'enemy-act-hit-3-boss' : 'enemy-act-hit-3';
+    if (activeHitStep === 2) return isBoss ? 'enemy-act-hit-2-boss' : 'enemy-act-hit-2';
+    if (activeHitStep === 1) return isBoss ? 'enemy-act-hit-1-boss' : 'enemy-act-hit-1';
     if (isFrozen || isStunned) return 'enemy-act-cc-frozen';
     if (isAttacking) return 'enemy-act-attack';
     return monsterConfig.idleClass;
   };
 
   return (
-    <div className={`enemy-character-box ${isBoss ? 'is-boss-combatant' : ''}`}>
-      {/* 💥 Overhead Damage Numbers strictly anchored to Monster Sprite */}
+    <div
+      className={`enemy-character-box ${isBoss ? 'is-boss-combatant' : ''}`}
+      data-enemy-state={enemyAnimState}
+    >
+      {/* Overhead Damage Numbers strictly anchored to Monster Sprite */}
       <div className="monster-damage-anchor-layer">
         {damages && damages.map((dmg) => (
           <div
@@ -175,14 +204,58 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
 
       {/* 2D Sprite Body Stage */}
       <div
-        className={`enemy-sprite-wrapper ${getHitActionClass()} ${isCriticalHit ? 'hit-crit-recoil' : ''} ${
+        className={`enemy-sprite-wrapper ${getHitActionClass()} ${!isDeadState && isCriticalHit ? 'hit-crit-recoil' : ''} ${
           isHitStop ? 'hit-stop-freeze' : ''
         } ${isFrozen ? 'status-tint-freeze' : isBurning ? 'status-tint-burn' : ''} ${
           isGoldDungeonMob ? 'dungeon-gold-aura' : isExpDungeonMob ? 'dungeon-exp-aura' : isRuinsDungeonBoss ? 'dungeon-ruins-aura' : ''
         }`}
+        data-enemy-state={enemyAnimState}
       >
-        {/* Soft Ground Contact Shadow */}
-        <div className={`character-ground-shadow ${isBoss ? 'boss-ground-shadow' : 'normal-ground-shadow'}`} />
+        {/* Soft Ground Contact Shadow synchronized with hit & defeat states */}
+        <div
+          className={`character-ground-shadow ${isBoss ? 'boss-ground-shadow' : 'normal-ground-shadow'} ${
+            isDeadState
+              ? 'enemy-shadow-defeat'
+              : activeHitStep === 3
+              ? 'enemy-shadow-hit-3'
+              : activeHitStep === 2
+              ? 'enemy-shadow-hit-2'
+              : activeHitStep === 1
+              ? 'enemy-shadow-hit-1'
+              : ''
+          }`}
+        />
+
+        {/* Hit Impact Wave Rings (1타 소형 파동 / 2타 중간 파동 / 3타 대형 충격파 + 보스 전용 파동) */}
+        {activeHitStep !== null && (
+          <div className={`enemy-hit-impact-ring impact-ring-${activeHitStep} ${isBoss ? 'boss-impact-pulse' : ''}`} />
+        )}
+
+        {/* 3타 바닥 충격파 및 파편/먼지 파티클 */}
+        {activeHitStep === 3 && (
+          <div className="enemy-finisher-shock-layer" aria-hidden="true">
+            <div className="finisher-ground-shockwave" />
+            <span className="hit-debris-shard shard-1" />
+            <span className="hit-debris-shard shard-2" />
+            <span className="hit-debris-shard shard-3" />
+            <span className="hit-debris-shard shard-4" />
+            <span className="hit-dust-puff puff-left" />
+            <span className="hit-dust-puff puff-right" />
+          </div>
+        )}
+
+        {/* 사망 시 파티클 분해 레이어 */}
+        {isDeadState && (
+          <div className="enemy-defeat-dispersal-layer" aria-hidden="true">
+            <div className="defeat-vanish-ring" />
+            <span className="defeat-soul-mote mote-1" />
+            <span className="defeat-soul-mote mote-2" />
+            <span className="defeat-soul-mote mote-3" />
+            <span className="defeat-soul-mote mote-4" />
+            <span className="defeat-soul-mote mote-5" />
+            <span className="defeat-soul-mote mote-6" />
+          </div>
+        )}
 
         {/* 2D Monster Sprite */}
         <img
@@ -193,7 +266,7 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
         />
 
         {/* Ground Knockback Dust */}
-        {isHit && <div className="enemy-knockback-dust" />}
+        {!isDeadState && isHit && <div className="enemy-knockback-dust" />}
       </div>
 
       <style>{`
@@ -356,7 +429,7 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           margin-top: 2px;
         }
 
-        /* 💥 Overhead Damage Numbers strictly elevated above Status Pills */
+        /* Overhead Damage Numbers strictly elevated above Status Pills */
         .monster-damage-anchor-layer {
           position: absolute;
           top: -46px;
@@ -440,6 +513,7 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           justify-content: center;
           align-items: flex-end;
           transform-origin: bottom center;
+          will-change: transform, opacity;
         }
 
         /* Distinct Silhouettes and Proportions (Meeting 390x844 spec) */
@@ -465,6 +539,7 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           border-radius: 50%;
           pointer-events: none;
           z-index: 1;
+          transition: transform 0.14s ease-out, opacity 0.2s ease-out;
         }
 
         .normal-ground-shadow {
@@ -477,6 +552,20 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           height: 26px;
         }
 
+        .enemy-shadow-hit-1 {
+          transform: translateX(4px) scaleX(1.06);
+        }
+        .enemy-shadow-hit-2 {
+          transform: translateX(9px) scaleX(1.12);
+        }
+        .enemy-shadow-hit-3 {
+          transform: translateX(14px) scaleX(1.26) scaleY(1.15);
+        }
+        .enemy-shadow-defeat {
+          transform: scale(0.2);
+          opacity: 0;
+        }
+
         .monster-2d-sprite {
           position: relative;
           max-width: 100%;
@@ -485,58 +574,218 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.45));
           z-index: 2;
           pointer-events: none;
+          transform-origin: bottom center;
         }
 
-        /* 💥 Impact Torso Flash & Starburst */
-        .enemy-hit-burst-vfx {
+        /* 1/2/3타 피격 파동 링 (Pure CSS geometric ring, no text/emojis) */
+        .enemy-hit-impact-ring {
           position: absolute;
-          top: 45%;
-          left: 45%;
+          top: 46%;
+          left: 50%;
           transform: translate(-50%, -50%);
+          border-radius: 50%;
           pointer-events: none;
           z-index: 15;
         }
 
-        .impact-flash-ring {
+        .impact-ring-1 {
+          width: 58px;
+          height: 58px;
+          border: 2px solid rgba(255, 255, 255, 0.9);
+          background: radial-gradient(circle, rgba(255, 255, 255, 0.65) 0%, rgba(254, 240, 138, 0.3) 50%, transparent 75%);
+          animation: hitImpactWave1 0.17s ease-out forwards;
+        }
+
+        .impact-ring-2 {
+          width: 82px;
+          height: 82px;
+          border: 2.5px solid rgba(251, 191, 36, 0.95);
+          background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, rgba(251, 191, 36, 0.45) 48%, transparent 76%);
+          animation: hitImpactWave2 0.21s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .impact-ring-3 {
+          width: 118px;
+          height: 118px;
+          border: 3px solid rgba(254, 240, 138, 0.98);
+          box-shadow: 0 0 22px rgba(249, 115, 22, 0.85), inset 0 0 16px rgba(255, 255, 255, 0.85);
+          background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, rgba(249, 115, 22, 0.5) 45%, transparent 75%);
+          animation: hitImpactWave3 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .boss-impact-pulse {
+          border-color: rgba(248, 113, 113, 0.95);
+          box-shadow: 0 0 28px rgba(239, 68, 68, 0.85);
+        }
+
+        @keyframes hitImpactWave1 {
+          0% { transform: translate(-50%, -50%) scale(0.35); opacity: 1; }
+          100% { transform: translate(-50%, -50%) scale(1.35); opacity: 0; }
+        }
+        @keyframes hitImpactWave2 {
+          0% { transform: translate(-50%, -50%) scale(0.3) rotate(-10deg); opacity: 1; }
+          100% { transform: translate(-50%, -50%) scale(1.55) rotate(12deg); opacity: 0; }
+        }
+        @keyframes hitImpactWave3 {
+          0% { transform: translate(-50%, -50%) scale(0.25); opacity: 1; }
+          55% { opacity: 0.9; }
+          100% { transform: translate(-50%, -50%) scale(1.85); opacity: 0; }
+        }
+
+        /* 3타 바닥 충격파 및 파편/먼지 파티클 */
+        .enemy-finisher-shock-layer {
           position: absolute;
-          top: 50%;
+          inset: 0;
+          pointer-events: none;
+          z-index: 16;
+        }
+
+        .finisher-ground-shockwave {
+          position: absolute;
+          bottom: 0;
           left: 50%;
-          transform: translate(-50%, -50%);
-          width: 55px;
-          height: 55px;
+          width: 140px;
+          height: 28px;
+          transform: translateX(-50%);
           border-radius: 50%;
-          background: radial-gradient(circle, #ffffff 0%, rgba(254, 240, 138, 0.75) 45%, transparent 75%);
-          animation: impactFlashRing 0.15s ease-out forwards;
+          border: 3px solid rgba(254, 240, 138, 0.95);
+          box-shadow: 0 0 18px rgba(249, 115, 22, 0.9);
+          animation: finisherGroundShock 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
 
-        @keyframes impactFlashRing {
-          0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; }
-          100% { transform: translate(-50%, -50%) scale(1.4); opacity: 0; }
+        @keyframes finisherGroundShock {
+          0% { transform: translateX(-50%) scale(0.3, 0.5); opacity: 1; }
+          100% { transform: translateX(-50%) scale(1.65, 1.3); opacity: 0; }
         }
 
-        .star-sparkle {
+        .hit-debris-shard {
           position: absolute;
-          font-size: 24px;
-          color: #fef08a;
-          text-shadow: 0 0 8px #ff0055, 0 0 16px #ffffff;
-          animation: sparkPop 0.22s ease-out forwards;
+          bottom: 14px;
+          left: 50%;
+          width: 7px;
+          height: 7px;
+          background: linear-gradient(135deg, #fef08a, #f97316);
+          clip-path: polygon(50% 0%, 100% 45%, 75% 100%, 15% 90%, 0% 35%);
+          box-shadow: 0 0 6px rgba(251, 191, 36, 0.85);
         }
 
-        .spark-1 {
-          transform: translate(-12px, -18px);
+        .shard-1 { animation: debrisFly1 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .shard-2 { animation: debrisFly2 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .shard-3 { animation: debrisFly3 0.34s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .shard-4 { animation: debrisFly4 0.34s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+        @keyframes debrisFly1 {
+          0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
+          100% { transform: translate(42px, -38px) rotate(140deg) scale(0.3); opacity: 0; }
         }
-        .spark-2 {
-          transform: translate(16px, 6px);
-          animation-delay: 0.04s;
+        @keyframes debrisFly2 {
+          0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
+          100% { transform: translate(-36px, -32px) rotate(-120deg) scale(0.3); opacity: 0; }
         }
-        .spark-3 {
-          transform: translate(-6px, 14px);
-          animation-delay: 0.08s;
+        @keyframes debrisFly3 {
+          0% { transform: translate(0, 0) rotate(0deg) scale(1.1); opacity: 1; }
+          100% { transform: translate(54px, -14px) rotate(200deg) scale(0.25); opacity: 0; }
+        }
+        @keyframes debrisFly4 {
+          0% { transform: translate(0, 0) rotate(0deg) scale(0.95); opacity: 1; }
+          100% { transform: translate(-48px, -12px) rotate(-175deg) scale(0.25); opacity: 0; }
         }
 
-        @keyframes sparkPop {
-          0% { transform: scale(0.3) rotate(0deg); opacity: 1; }
-          100% { transform: scale(1.4) rotate(45deg); opacity: 0; }
+        .hit-dust-puff {
+          position: absolute;
+          bottom: 2px;
+          width: 34px;
+          height: 15px;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(226, 214, 185, 0.85) 0%, rgba(168, 155, 130, 0.4) 60%, transparent 100%);
+          filter: blur(1.5px);
+        }
+
+        .puff-left {
+          left: 18%;
+          animation: dustPuffLeft 0.32s ease-out forwards;
+        }
+        .puff-right {
+          right: 12%;
+          animation: dustPuffRight 0.32s ease-out forwards;
+        }
+
+        @keyframes dustPuffLeft {
+          0% { transform: translate(0, 0) scale(0.4); opacity: 0.9; }
+          100% { transform: translate(-26px, -8px) scale(1.7); opacity: 0; }
+        }
+        @keyframes dustPuffRight {
+          0% { transform: translate(0, 0) scale(0.4); opacity: 0.9; }
+          100% { transform: translate(34px, -10px) scale(1.85); opacity: 0; }
+        }
+
+        /* 사망 파티클 분해 레이어 */
+        .enemy-defeat-dispersal-layer {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          z-index: 18;
+        }
+
+        .defeat-vanish-ring {
+          position: absolute;
+          top: 52%;
+          left: 50%;
+          width: 96px;
+          height: 96px;
+          transform: translate(-50%, -50%);
+          border-radius: 50%;
+          border: 2.5px solid rgba(251, 191, 36, 0.9);
+          box-shadow: 0 0 24px rgba(245, 158, 11, 0.8);
+          animation: defeatVanishRingAnim 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes defeatVanishRingAnim {
+          0% { transform: translate(-50%, -50%) scale(0.25); opacity: 1; }
+          100% { transform: translate(-50%, -50%) scale(1.75); opacity: 0; }
+        }
+
+        .defeat-soul-mote {
+          position: absolute;
+          top: 52%;
+          left: 50%;
+          width: 9px;
+          height: 9px;
+          border-radius: 50%;
+          background: radial-gradient(circle, #ffffff 0%, #fde047 50%, #f97316 100%);
+          box-shadow: 0 0 10px #f59e0b;
+        }
+
+        .mote-1 { animation: soulMote1 0.4s ease-out forwards; }
+        .mote-2 { animation: soulMote2 0.4s ease-out forwards; }
+        .mote-3 { animation: soulMote3 0.4s ease-out forwards; }
+        .mote-4 { animation: soulMote4 0.4s ease-out forwards; }
+        .mote-5 { animation: soulMote5 0.4s ease-out forwards; }
+        .mote-6 { animation: soulMote6 0.4s ease-out forwards; }
+
+        @keyframes soulMote1 {
+          0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+          100% { transform: translate(-48px, -54px) scale(0.2); opacity: 0; }
+        }
+        @keyframes soulMote2 {
+          0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+          100% { transform: translate(44px, -50px) scale(0.2); opacity: 0; }
+        }
+        @keyframes soulMote3 {
+          0% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+          100% { transform: translate(-58px, -12px) scale(0.2); opacity: 0; }
+        }
+        @keyframes soulMote4 {
+          0% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+          100% { transform: translate(56px, -14px) scale(0.2); opacity: 0; }
+        }
+        @keyframes soulMote5 {
+          0% { transform: translate(-50%, -50%) scale(0.9); opacity: 1; }
+          100% { transform: translate(-24px, -72px) scale(0.15); opacity: 0; }
+        }
+        @keyframes soulMote6 {
+          0% { transform: translate(-50%, -50%) scale(0.9); opacity: 1; }
+          100% { transform: translate(26px, -68px) scale(0.15); opacity: 0; }
         }
 
         .enemy-knockback-dust {
@@ -614,40 +863,40 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           100% { transform: translateX(0); }
         }
 
-        /* 💥 Distinct 3-Stage Monster Hit Reactions */
-        /* 1타: 미세한 밀림 (5px) 및 산뜻한 피격 플래시 (0.16s) */
+        /* Distinct 3-Stage Monster Hit Reactions (v2.7) */
+        /* 1타: 약한 밀림 (8px / 보스 3.5px), 짧은 White Flash, 소형 타격 파동 */
         .enemy-act-hit-1 {
-          animation: enemyHit1Anim 0.16s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+          animation: enemyHit1Anim 0.17s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
         }
         .enemy-act-hit-1-boss {
-          animation: enemyHit1BossAnim 0.16s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+          animation: enemyHit1BossAnim 0.17s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
         }
         .enemy-act-hit-1 .monster-2d-sprite,
         .enemy-act-hit-1-boss .monster-2d-sprite {
-          animation: whiteFlashLight 0.15s ease-out forwards;
+          animation: whiteFlashLight 0.14s ease-out forwards;
         }
 
         @keyframes enemyHit1Anim {
-          0% { transform: translateX(0); }
-          30% { transform: translateX(5px) scale(0.97, 1.03); }
-          100% { transform: translateX(0) scale(1); }
+          0% { transform: translateX(0) scale(1, 1); }
+          32% { transform: translateX(8px) scale(0.95, 1.05) rotate(2deg); }
+          100% { transform: translateX(0) scale(1, 1) rotate(0deg); }
         }
         @keyframes enemyHit1BossAnim {
-          0% { transform: translateX(0); }
-          30% { transform: translateX(3px) scale(0.98, 1.02); }
-          100% { transform: translateX(0) scale(1); }
+          0% { transform: translateX(0) scale(1, 1); }
+          32% { transform: translateX(3.5px) scale(0.98, 1.02); }
+          100% { transform: translateX(0) scale(1, 1); }
         }
         @keyframes whiteFlashLight {
-          0% { filter: brightness(6) contrast(1.8) drop-shadow(0 0 14px rgba(255, 255, 255, 0.8)); }
+          0% { filter: brightness(6.5) contrast(1.9) drop-shadow(0 0 14px rgba(255, 255, 255, 0.85)); }
           100% { filter: brightness(1) contrast(1) saturate(1); }
         }
 
-        /* 2타: 중간 밀림 (9px) 및 호박빛 타격 플래시 (0.20s) */
+        /* 2타: 중간 밀림 (15px / 보스 6.5px), 몸체 흔들림, 방향성 반동 */
         .enemy-act-hit-2 {
-          animation: enemyHit2Anim 0.2s cubic-bezier(0.18, 0.9, 0.28, 1) forwards;
+          animation: enemyHit2Anim 0.22s cubic-bezier(0.18, 0.9, 0.28, 1) forwards;
         }
         .enemy-act-hit-2-boss {
-          animation: enemyHit2BossAnim 0.2s cubic-bezier(0.18, 0.9, 0.28, 1) forwards;
+          animation: enemyHit2BossAnim 0.22s cubic-bezier(0.18, 0.9, 0.28, 1) forwards;
         }
         .enemy-act-hit-2 .monster-2d-sprite,
         .enemy-act-hit-2-boss .monster-2d-sprite {
@@ -655,29 +904,30 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
         }
 
         @keyframes enemyHit2Anim {
-          0% { transform: translateX(0); }
-          28% { transform: translateX(9px) scale(0.93, 1.07); }
-          65% { transform: translateX(3px) scale(1.03, 0.98); }
-          100% { transform: translateX(0) scale(1); }
+          0% { transform: translateX(0) rotate(0deg); }
+          26% { transform: translateX(15px) translateY(-4px) scale(0.91, 1.09) rotate(8deg); }
+          58% { transform: translateX(6px) translateY(1px) scale(1.05, 0.95) rotate(-3.5deg); }
+          82% { transform: translateX(2px) rotate(1.5deg); }
+          100% { transform: translateX(0) scale(1, 1) rotate(0deg); }
         }
         @keyframes enemyHit2BossAnim {
-          0% { transform: translateX(0); }
-          28% { transform: translateX(5.5px) scale(0.96, 1.04); }
-          65% { transform: translateX(2px) scale(1.02, 0.99); }
-          100% { transform: translateX(0) scale(1); }
+          0% { transform: translateX(0) rotate(0deg); }
+          28% { transform: translateX(6.5px) translateY(-2px) scale(0.95, 1.04) rotate(3deg); }
+          62% { transform: translateX(2.5px) scale(1.02, 0.98) rotate(-1.2deg); }
+          100% { transform: translateX(0) scale(1, 1) rotate(0deg); }
         }
         @keyframes amberFlashMedium {
-          0% { filter: brightness(10) contrast(2.2) drop-shadow(0 0 20px rgba(251, 191, 36, 0.85)); }
+          0% { filter: brightness(10) contrast(2.2) drop-shadow(0 0 20px rgba(251, 191, 36, 0.88)); }
           100% { filter: brightness(1) contrast(1) saturate(1); }
         }
 
-        /* 3타: 확실한 넉백 (16px) 및 백금광 대폭발 플래시 (0.28s) */
+        /* 3타: 강한 넉백 (24px / 보스 11px), 몸체 압축 및 탄성 복원 */
         .enemy-act-hit-3,
         .enemy-act-finisher-hit {
-          animation: enemyHit3Anim 0.28s cubic-bezier(0.18, 0.9, 0.22, 1) forwards;
+          animation: enemyHit3Anim 0.3s cubic-bezier(0.18, 0.9, 0.22, 1) forwards;
         }
         .enemy-act-hit-3-boss {
-          animation: enemyHit3BossAnim 0.28s cubic-bezier(0.18, 0.9, 0.22, 1) forwards;
+          animation: enemyHit3BossAnim 0.3s cubic-bezier(0.18, 0.9, 0.22, 1) forwards;
         }
         .enemy-act-hit-3 .monster-2d-sprite,
         .enemy-act-hit-3-boss .monster-2d-sprite,
@@ -686,24 +936,25 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
         }
 
         @keyframes enemyHit3Anim {
-          0% { transform: translateX(0); }
-          28% { transform: translateX(16px) scale(0.88, 1.12); }
-          65% { transform: translateX(6px) scale(1.05, 0.95); }
-          100% { transform: translateX(0) scale(1); }
+          0% { transform: translateX(0) scale(1, 1) rotate(0deg); }
+          22% { transform: translateX(24px) translateY(4px) scale(1.18, 0.82) rotate(11deg); }
+          52% { transform: translateX(12px) translateY(-5px) scale(0.92, 1.09) rotate(-4deg); }
+          78% { transform: translateX(4px) translateY(1px) scale(1.04, 0.97) rotate(1.5deg); }
+          100% { transform: translateX(0) translateY(0) scale(1, 1) rotate(0deg); }
         }
         @keyframes enemyHit3BossAnim {
-          0% { transform: translateX(0); }
-          28% { transform: translateX(10px) scale(0.92, 1.08); }
-          65% { transform: translateX(3px) scale(1.03, 0.97); }
-          100% { transform: translateX(0) scale(1); }
+          0% { transform: translateX(0) scale(1, 1) rotate(0deg); }
+          24% { transform: translateX(11px) translateY(2px) scale(1.09, 0.91) rotate(4.5deg); }
+          55% { transform: translateX(5px) translateY(-2px) scale(0.96, 1.04) rotate(-1.5deg); }
+          100% { transform: translateX(0) translateY(0) scale(1, 1) rotate(0deg); }
         }
         @keyframes whiteGoldFlashHeavy {
           0% {
-            filter: brightness(22) contrast(3.5) saturate(0) drop-shadow(0 0 35px rgba(254, 240, 138, 0.95)) drop-shadow(0 0 16px rgba(249, 115, 22, 0.8));
+            filter: brightness(22) contrast(3.5) saturate(0) drop-shadow(0 0 35px rgba(254, 240, 138, 0.95)) drop-shadow(0 0 16px rgba(249, 115, 22, 0.85));
             transform: scale(0.92) translateX(6px);
           }
           40% {
-            filter: brightness(9) contrast(2.2) saturate(0.3) drop-shadow(0 0 20px rgba(251, 191, 36, 0.7));
+            filter: brightness(9) contrast(2.2) saturate(0.3) drop-shadow(0 0 20px rgba(251, 191, 36, 0.75));
           }
           100% {
             filter: brightness(1) contrast(1) saturate(1) drop-shadow(0 0 0 transparent);
@@ -716,39 +967,36 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           filter: drop-shadow(0 0 18px rgba(249, 115, 22, 0.85)) !important;
         }
 
-        @keyframes whiteFlashPulse {
-          0% {
-            filter: brightness(16) contrast(3) saturate(0) drop-shadow(0 0 25px rgba(255, 255, 255, 0.95));
-            transform: scale(0.96) translateX(4px);
-          }
-          40% {
-            filter: brightness(7) contrast(2) saturate(0.2) drop-shadow(0 0 14px rgba(255, 255, 255, 0.6));
-          }
-          100% {
-            filter: brightness(1) contrast(1) saturate(1) drop-shadow(0 0 0 transparent);
-            transform: scale(1) translateX(0);
-          }
-        }
-
-        @keyframes enemyKnockbackAnim {
-          0% { transform: translateX(0) scale(1, 1); }
-          25% { transform: translateX(9px) scale(0.92, 1.08); }
-          65% { transform: translateX(4px) scale(1.04, 0.96); }
-          100% { transform: translateX(0) scale(1, 1); }
-        }
-
-        /* Defeat Fade & Scale Down */
+        /* 사망 연출: 몸체 붕괴 + 축소 + 투명도 감소 */
         .enemy-act-defeat {
-          animation: enemyDefeatDissolve 0.36s ease-in forwards;
+          animation: enemyDefeatDissolve 0.38s cubic-bezier(0.22, 0.8, 0.3, 1) forwards;
+          pointer-events: none;
         }
 
         @keyframes enemyDefeatDissolve {
-          0% { opacity: 1; transform: scale(1); filter: brightness(2); }
-          50% { opacity: 0.6; transform: scale(1.1) translateY(-6px); filter: brightness(3) drop-shadow(0 0 20px #f59e0b); }
-          100% { opacity: 0; transform: scale(0.3) translateY(16px); filter: brightness(1); }
+          0% {
+            opacity: 1;
+            transform: translateX(0) translateY(0) scale(1, 1) rotate(0deg);
+            filter: brightness(2.5) contrast(1.4);
+          }
+          28% {
+            opacity: 0.9;
+            transform: translateX(12px) translateY(-4px) scale(1.08, 0.9) rotate(6deg);
+            filter: brightness(3.2) drop-shadow(0 0 22px #f59e0b);
+          }
+          65% {
+            opacity: 0.45;
+            transform: translateX(16px) translateY(10px) scale(0.72, 0.56) rotate(12deg);
+            filter: brightness(1.8) saturate(0.4) blur(1px);
+          }
+          100% {
+            opacity: 0;
+            transform: translateX(18px) translateY(22px) scale(0.22, 0.15) rotate(16deg);
+            filter: brightness(0.8) blur(3px);
+          }
         }
 
-        /* 🖥️ PC Responsive Layout (width >= 768px) */
+        /* PC Responsive Layout (width >= 768px) */
         @media (min-width: 768px) {
           .enemy-sprite-wrapper {
             height: clamp(200px, 24vh, 310px);

@@ -8,8 +8,16 @@ interface BattleFxCanvasProps {
   classId?: CharacterClassId;
   isPlayerAttacking?: boolean;
   isMonsterHit?: boolean;
+  isMonsterDefeated?: boolean;
   ambientType?: AmbientParticleType;
-  basicAttackEvent?: { id: string; comboStep: 1 | 2 | 3; classId: CharacterClassId } | null;
+  basicAttackEvent?: {
+    id: string;
+    comboStep: 1 | 2 | 3;
+    classId: CharacterClassId;
+    contactDelayMs?: number;
+    animDurationMs?: number;
+    speedScale?: number;
+  } | null;
   petAttackEvent?: { id: string; petId: string } | null;
   prestigeVfxEvent?: { id: string } | null;
   dungeonVfxEvent?: { id: string; type: 'gold_burst' | 'wave_clear' | 'ruins_clear' } | null;
@@ -516,7 +524,7 @@ interface LightningBolt {
 // ☄️ Projectile System
 interface ActiveProjectile {
   id: string;
-  type: 'magic_missile' | 'fireball' | 'ice_spear' | 'sword_wave' | 'meteor' | 'mage_bolt';
+  type: 'magic_missile' | 'fireball' | 'ice_spear' | 'sword_wave' | 'meteor' | 'mage_bolt' | 'arcane_nova';
   startX: number;
   startY: number;
   targetX: number;
@@ -525,6 +533,7 @@ interface ActiveProjectile {
   currentY: number;
   progress: number;
   speed: number;
+  flightDuration?: number; // Exact flight duration in seconds for frame-accurate hit synchronization
   color: string;
   size: number;
   waveOffset?: number; // For helix magic missile
@@ -669,6 +678,7 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
   classId = 'warrior',
   isPlayerAttacking = false,
   isMonsterHit = false,
+  isMonsterDefeated = false,
   ambientType = 'leaves',
   basicAttackEvent = null,
   petAttackEvent = null,
@@ -725,39 +735,68 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
   const activeVfxIdRef = useRef<string | null>(null);
   const lastBasicEventIdRef = useRef<string | null>(null);
   const lastPetEventIdRef = useRef<string | null>(null);
+  const prevMonsterDefeatedRef = useRef<boolean>(false);
 
-  // Anchor Calculation relative to canvas coordinates
+  // Anchor Calculation relative to actual DOM character & monster sprite wrappers
   const getAnchors = () => {
     const canvas = canvasRef.current;
     if (!canvas) {
-      return { heroX: 300, heroY: 450, monsterX: 700, monsterY: 450, groundY: 560 };
+      return {
+        heroX: 300,
+        heroY: 450,
+        staffTipX: 320,
+        staffTipY: 425,
+        bladeOriginX: 325,
+        bladeOriginY: 445,
+        monsterX: 700,
+        monsterY: 450,
+        groundY: 560,
+      };
     }
     const canvasRect = canvas.getBoundingClientRect();
-    const heroEl = document.querySelector('.hero-slot') || document.querySelector('.player-avatar-wrapper');
-    const enemyEl = document.querySelector('.enemy-slot') || document.querySelector('.enemy-2d-container');
+    const heroEl =
+      document.querySelector('.hero-sprite-wrapper') ||
+      document.querySelector('.hero-slot') ||
+      document.querySelector('.player-avatar-wrapper');
+    const enemyEl =
+      document.querySelector('.enemy-sprite-wrapper') ||
+      document.querySelector('.enemy-slot') ||
+      document.querySelector('.enemy-2d-container');
 
     let heroX = canvas.width * 0.34;
     let heroY = canvas.height * 0.58;
+    let staffTipX = heroX + 18;
+    let staffTipY = heroY - 22;
+    let bladeOriginX = heroX + 22;
+    let bladeOriginY = heroY - 6;
     let monsterX = canvas.width * 0.68;
     let monsterY = canvas.height * 0.58;
     let groundY = canvas.height * 0.74;
 
     if (heroEl && canvasRect.width > 0) {
       const hr = heroEl.getBoundingClientRect();
-      heroX = (hr.left + hr.width * 0.68 - canvasRect.left) * (canvas.width / canvasRect.width);
-      heroY = (hr.top + hr.height * 0.48 - canvasRect.top) * (canvas.height / canvasRect.height);
+      const scaleX = canvas.width / canvasRect.width;
+      const scaleY = canvas.height / canvasRect.height;
+      heroX = (hr.left + hr.width * 0.56 - canvasRect.left) * scaleX;
+      heroY = (hr.top + hr.height * 0.52 - canvasRect.top) * scaleY;
+      staffTipX = (hr.left + hr.width * 0.78 - canvasRect.left) * scaleX;
+      staffTipY = (hr.top + hr.height * 0.34 - canvasRect.top) * scaleY;
+      bladeOriginX = (hr.left + hr.width * 0.74 - canvasRect.left) * scaleX;
+      bladeOriginY = (hr.top + hr.height * 0.48 - canvasRect.top) * scaleY;
     }
     if (enemyEl && canvasRect.width > 0) {
       const er = enemyEl.getBoundingClientRect();
-      monsterX = (er.left + er.width * 0.5 - canvasRect.left) * (canvas.width / canvasRect.width);
-      monsterY = (er.top + er.height * 0.5 - canvasRect.top) * (canvas.height / canvasRect.height);
-      groundY = (er.bottom - 12 - canvasRect.top) * (canvas.height / canvasRect.height);
+      const scaleX = canvas.width / canvasRect.width;
+      const scaleY = canvas.height / canvasRect.height;
+      monsterX = (er.left + er.width * 0.5 - canvasRect.left) * scaleX;
+      monsterY = (er.top + er.height * 0.52 - canvasRect.top) * scaleY;
+      groundY = (er.bottom - 10 - canvasRect.top) * scaleY;
     }
 
-    return { heroX, heroY, monsterX, monsterY, groundY };
+    return { heroX, heroY, staffTipX, staffTipY, bladeOriginX, bladeOriginY, monsterX, monsterY, groundY };
   };
 
-  // Helper: Spawn velocity-stretched directional sparks
+  // Helper: Spawn velocity-stretched directional sparks (scaled automatically for mobile & reduced-motion)
   const spawnDirectionalSparks = (
     x: number,
     y: number,
@@ -768,7 +807,15 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
     baseSpeed: number,
     groundY: number
   ) => {
-    for (let i = 0; i < count; i++) {
+    const isReduced =
+      typeof window !== 'undefined' &&
+      window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const budgetScale = isReduced ? 0.5 : isMobile ? 0.75 : 1.0;
+    const effectiveCount = Math.max(4, Math.round(count * budgetScale));
+
+    for (let i = 0; i < effectiveCount; i++) {
       const angle = dirAngle + (Math.random() - 0.5) * spread;
       const speed = baseSpeed * (0.55 + Math.random() * 0.9);
       sparksRef.current.push({
@@ -1397,116 +1444,185 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
   }, [activeSkillVfx, isAwakeningCasting, classId]);
 
   // ==========================================
-  // Trigger 3-Stage Basic Attack Combo VFX (Warrior & Mage)
+  // Trigger 3-Stage Basic Attack Combo VFX (Warrior & Mage — Synchronized with Attack Speed & Contact Delay)
   // ==========================================
   useEffect(() => {
     if (!basicAttackEvent) return;
     if (lastBasicEventIdRef.current === basicAttackEvent.id) return;
     lastBasicEventIdRef.current = basicAttackEvent.id;
 
-    const { heroX, heroY, monsterX, monsterY, groundY } = getAnchors();
-    const { comboStep, classId: atkClass } = basicAttackEvent;
+    const { staffTipX, staffTipY, bladeOriginX, bladeOriginY, monsterX, monsterY, groundY } = getAnchors();
+    const { comboStep, classId: atkClass, contactDelayMs } = basicAttackEvent;
+
+    const defaultContact =
+      atkClass === 'mage'
+        ? comboStep === 1
+          ? 170
+          : comboStep === 2
+          ? 190
+          : 230
+        : comboStep === 1
+        ? 120
+        : comboStep === 2
+        ? 150
+        : 190;
+    const contactMs = contactDelayMs ? Math.max(70, contactDelayMs) : defaultContact;
 
     if (atkClass === 'warrior') {
       if (comboStep === 1) {
-        // ⚔️ Warrior Combo 1: Crisp Cyan-Silver Horizontal Slash (75ms Windup, 120ms Impact Peak)
+        // ⚔️ Warrior Combo 1 (횡베기): Short wind-up blade glint -> Horizontal crescent slash synced with contactMs
+        const slashLaunchMs = Math.max(25, Math.round(contactMs * 0.62));
         setTimeout(() => {
           slashesRef.current.push({
             id: `w_basic1_${Date.now()}`,
             x: monsterX - 6,
             y: monsterY,
-            radius: 78,
-            startAngle: -Math.PI * 0.70,
-            endAngle: Math.PI * 0.20,
-            maxThickness: 20,
+            radius: 82,
+            startAngle: -Math.PI * 0.72,
+            endAngle: Math.PI * 0.22,
+            maxThickness: 22,
             color: '#38bdf8',
             glowColor: '#0284c7',
             life: 0,
             maxLife: 0.19,
-            rotation: 0.12,
+            rotation: 0.10,
           });
-          spawnDirectionalSparks(monsterX, monsterY, 16, '#38bdf8', Math.PI * 0.2, 1.0, 8, groundY);
-        }, 75);
+          spawnShockwave(monsterX, monsterY, 44, 340, '#bae6fd', 0.85, 3.5);
+          spawnDirectionalSparks(monsterX, monsterY, 16, '#38bdf8', Math.PI * 0.18, 1.0, 8.2, groundY);
+        }, slashLaunchMs);
       } else if (comboStep === 2) {
-        // ⚔️ Warrior Combo 2: Reverse Upward Golden-Amber Slash (100ms Windup, 150ms Impact Peak)
+        // ⚔️ Warrior Combo 2 (올려베기): Counter-rotation dip -> Upward rising golden slash + afterimage echo synced with contactMs
+        const slashLaunchMs = Math.max(35, Math.round(contactMs * 0.65));
         setTimeout(() => {
           slashesRef.current.push({
             id: `w_basic2_${Date.now()}`,
             x: monsterX + 4,
             y: monsterY - 4,
-            radius: 84,
+            radius: 88,
             startAngle: Math.PI * 0.78,
             endAngle: -Math.PI * 0.28,
-            maxThickness: 24,
+            maxThickness: 25,
             color: '#fbbf24',
             glowColor: '#d97706',
             life: 0,
             maxLife: 0.21,
-            rotation: -0.32,
+            rotation: -0.34,
           });
-          spawnShockwave(monsterX, monsterY, 55, 360, '#fde047', 0.85, 4);
-          spawnDirectionalSparks(monsterX, monsterY, 20, '#fbbf24', -Math.PI * 0.35, 1.2, 8.8, groundY);
-        }, 100);
+          // Upward trailing afterimage arc
+          slashesRef.current.push({
+            id: `w_basic2_echo_${Date.now()}`,
+            x: monsterX - 2,
+            y: monsterY + 4,
+            radius: 76,
+            startAngle: Math.PI * 0.72,
+            endAngle: -Math.PI * 0.22,
+            maxThickness: 14,
+            color: '#fef08a',
+            glowColor: '#f59e0b',
+            life: 0,
+            maxLife: 0.17,
+            rotation: -0.34,
+          });
+          spawnShockwave(monsterX, monsterY - 4, 58, 370, '#fde047', 0.82, 4.5);
+          spawnDirectionalSparks(monsterX, monsterY, 20, '#fbbf24', -Math.PI * 0.38, 1.2, 9.0, groundY);
+        }, slashLaunchMs);
       } else {
-        // 💥 Warrior Combo 3 (Finisher): Crimson-Gold X-Cross Cleave + Forward Sword Wave (125ms Cleave, 190ms Heavy Impact)
+        // 💥 Warrior Combo 3 (지면 강타 & X자 피니시): Power charge -> Leap -> Ground slam + X-cross blade explosion + Ground shockwave + Dust/Debris
+        const waveLaunchMs = Math.max(25, Math.round(contactMs * 0.38));
+        const slamImpactMs = Math.max(55, Math.round(contactMs * 0.72));
+        const flightSec = Math.max(0.05, (contactMs - waveLaunchMs) / 1000);
+
+        // Power charge sparks at hero blade origin
+        spawnDirectionalSparks(bladeOriginX, bladeOriginY, 8, '#fbbf24', -Math.PI * 0.5, 1.6, 5.5, groundY);
+
         setTimeout(() => {
           projectilesRef.current.push({
             id: `w_basic3_wave_${Date.now()}`,
             type: 'sword_wave',
-            startX: heroX + 26,
-            startY: heroY,
+            startX: bladeOriginX,
+            startY: bladeOriginY,
             targetX: monsterX,
             targetY: monsterY,
-            currentX: heroX + 26,
-            currentY: heroY,
+            currentX: bladeOriginX,
+            currentY: bladeOriginY,
             progress: 0,
-            speed: 0.11,
+            speed: 0.12,
+            flightDuration: flightSec,
             color: '#f97316',
-            size: 22,
+            size: 24,
             trail: [],
           });
-        }, 80);
+        }, waveLaunchMs);
 
         setTimeout(() => {
+          // X-Cross Slash 1 (Top-Left to Bottom-Right)
           slashesRef.current.push({
             id: `w_basic3a_${Date.now()}`,
             x: monsterX,
             y: monsterY,
-            radius: 94,
-            startAngle: -Math.PI * 0.82,
-            endAngle: Math.PI * 0.32,
-            maxThickness: 26,
+            radius: 96,
+            startAngle: -Math.PI * 0.84,
+            endAngle: Math.PI * 0.34,
+            maxThickness: 28,
             color: '#f97316',
             glowColor: '#ea580c',
             life: 0,
-            maxLife: 0.24,
+            maxLife: 0.25,
             rotation: 0.38,
           });
+          // X-Cross Slash 2 (Top-Right to Bottom-Left)
           slashesRef.current.push({
             id: `w_basic3b_${Date.now()}`,
             x: monsterX,
             y: monsterY,
-            radius: 90,
-            startAngle: Math.PI * 0.82,
-            endAngle: -Math.PI * 0.32,
-            maxThickness: 24,
+            radius: 92,
+            startAngle: Math.PI * 0.84,
+            endAngle: -Math.PI * 0.34,
+            maxThickness: 25,
             color: '#fbbf24',
             glowColor: '#d97706',
             life: 0,
-            maxLife: 0.24,
+            maxLife: 0.25,
             rotation: -0.38,
           });
-          spawnShockwave(monsterX, groundY, 78, 420, '#fbbf24', 0.45, 6);
-          spawnDirectionalSparks(monsterX, monsterY, 28, '#f97316', Math.PI * 0.5, 1.8, 10, groundY);
-        }, 125);
 
-        // ⚔️ Warrior 3-Hit Finisher: High-Speed Blade After-Image (검기 잔상)
+          // Ground slam fissure cracks under monster feet
+          const fissureCracks: { x: number; y: number }[][] = [];
+          for (let c = 0; c < 3; c++) {
+            const crackPath: { x: number; y: number }[] = [{ x: monsterX, y: groundY }];
+            let curX = monsterX;
+            let curY = groundY;
+            const cAngle = (c / 3) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+            for (let s = 0; s < 3; s++) {
+              curX += Math.cos(cAngle) * (18 + Math.random() * 14);
+              curY += Math.sin(cAngle) * (8 + Math.random() * 6);
+              crackPath.push({ x: curX, y: curY });
+            }
+            fissureCracks.push(crackPath);
+          }
+          fissuresRef.current.push({
+            id: `fis_w3_${Date.now()}`,
+            originX: monsterX,
+            originY: groundY,
+            cracks: fissureCracks,
+            color: '#f97316',
+            life: 0,
+            maxLife: 0.45,
+          });
+
+          // Twin ground & torso shockwaves + upward dust/debris sparks
+          spawnShockwave(monsterX, groundY, 88, 440, '#fbbf24', 0.42, 7);
+          spawnShockwave(monsterX, monsterY, 68, 390, '#ef4444', 0.85, 5);
+          spawnDirectionalSparks(monsterX, groundY - 8, 28, '#f97316', -Math.PI * 0.5, 2.0, 10.5, groundY);
+        }, slamImpactMs);
+
+        // High-Speed Blade After-Image (검기 잔상)
         setTimeout(() => {
           slashesRef.current.push({
             id: `w_basic3_ghost_${Date.now()}`,
             x: monsterX + 3,
             y: monsterY,
-            radius: 104,
+            radius: 106,
             startAngle: -Math.PI * 0.78,
             endAngle: Math.PI * 0.28,
             maxThickness: 16,
@@ -1516,15 +1632,18 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
             maxLife: 0.18,
             rotation: 0.35,
           });
-        }, 160);
+        }, slamImpactMs + 30);
       }
     } else {
-      // 🔮 Mage 3-Stage Arcane Bolt Combo (Staff Anchor Coordinates)
-      const staffTipX = heroX + 10;
-      const staffTipY = heroY - 14;
-
+      // 🔮 Mage 3-Stage Arcane Bolt Combo (Exact Staff-Tip Anchor -> Monster Torso Sync)
       if (comboStep === 1) {
-        // 1타: 마력 집중 후 지팡이 끝에서 아케인 볼트 발사 (80ms 발사, 170ms 적중)
+        // 1타 (비전 볼트): Staff mana concentration ring -> Arcane bolt flight arriving at contactMs
+        const launchMs = Math.max(25, Math.round(contactMs * 0.36));
+        const flightSec = Math.max(0.055, (contactMs - launchMs) / 1000);
+
+        // Staff tip mana charge pulse
+        spawnShockwave(staffTipX, staffTipY, 24, 240, '#38bdf8', 1.0, 3);
+
         setTimeout(() => {
           projectilesRef.current.push({
             id: `m_basic1_${Date.now()}`,
@@ -1537,58 +1656,68 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
             currentY: staffTipY,
             progress: 0,
             speed: 0.12,
+            flightDuration: flightSec,
             color: '#38bdf8',
             size: 13,
             trail: [],
           });
-        }, 80);
+        }, launchMs);
       } else if (comboStep === 2) {
-        // 2타: 양손 집중 후 트윈 헬릭스 이중 투사체 발사 (100ms 발사, 190ms 적중)
+        // 2타 (트윈 나선탄): Enhanced staff glow -> Double-helix twin mana bolts arriving at contactMs
+        const launchMs = Math.max(30, Math.round(contactMs * 0.38));
+        const flightSec = Math.max(0.06, (contactMs - launchMs) / 1000);
+
+        spawnShockwave(staffTipX, staffTipY, 30, 260, '#c084fc', 1.0, 3.5);
+
         setTimeout(() => {
-          [-20, 20].forEach((offset, idx) => {
+          [-22, 22].forEach((offset, idx) => {
             projectilesRef.current.push({
               id: `m_basic2_${Date.now()}_${idx}`,
               type: 'magic_missile',
               startX: staffTipX,
-              startY: staffTipY + (idx === 0 ? -8 : 8),
+              startY: staffTipY + (idx === 0 ? -6 : 6),
               targetX: monsterX,
               targetY: monsterY,
               currentX: staffTipX,
               currentY: staffTipY,
               progress: 0,
               speed: 0.115,
+              flightDuration: flightSec,
               color: idx === 0 ? '#38bdf8' : '#c084fc',
-              size: 11,
+              size: 11.5,
               waveOffset: offset,
               wavePhase: idx * Math.PI,
               trail: [],
             });
           });
-        }, 100);
+        }, launchMs);
       } else {
-        // 3타: 공중 부유 후 강화 아케인 노바 구체 발사 (130ms 발사, 230ms 대폭발 착탄)
+        // 3타 (비전 노바): Levitation + surrounding mana convergence -> Large Arcane Nova sphere -> Circular nova detonation at contactMs
+        const launchMs = Math.max(35, Math.round(contactMs * 0.40));
+        const flightSec = Math.max(0.065, (contactMs - launchMs) / 1000);
+
+        // Converging mana charge rings at elevated staff tip
+        spawnShockwave(staffTipX, staffTipY - 12, 38, 280, '#a855f7', 1.0, 4.5);
+        spawnDirectionalSparks(staffTipX, staffTipY - 12, 10, '#e879f9', 0, Math.PI * 2, 4.5, groundY);
+
         setTimeout(() => {
           projectilesRef.current.push({
             id: `m_basic3_${Date.now()}`,
-            type: 'fireball',
+            type: 'arcane_nova',
             startX: staffTipX,
-            startY: staffTipY - 8,
+            startY: staffTipY - 12,
             targetX: monsterX,
             targetY: monsterY,
             currentX: staffTipX,
-            currentY: staffTipY - 8,
+            currentY: staffTipY - 12,
             progress: 0,
             speed: 0.10,
+            flightDuration: flightSec,
             color: '#a855f7',
-            size: 19,
+            size: 21,
             trail: [],
           });
-        }, 130);
-
-        setTimeout(() => {
-          spawnShockwave(monsterX, monsterY, 78, 430, '#c084fc', 0.85, 6);
-          spawnDirectionalSparks(monsterX, monsterY, 26, '#38bdf8', 0, 2.4, 9.5, groundY);
-        }, 230);
+        }, launchMs);
       }
     }
   }, [basicAttackEvent]);
@@ -1623,6 +1752,7 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
         currentY: groundY - 26,
         progress: 0,
         speed: 0.11,
+        flightDuration: 0.16,
         color: petColor,
         size: 11,
         waveOffset: -16,
@@ -1642,9 +1772,9 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
   // Trigger Contact Impact Sparks on Monster Hit
   // ==========================================
   useEffect(() => {
-    if (!isMonsterHit) return;
+    if (!isMonsterHit || isMonsterDefeated) return;
     const { monsterX, monsterY, groundY } = getAnchors();
-    const count = classId === 'warrior' ? 18 : 14;
+    const count = classId === 'warrior' ? 16 : 12;
     const color = classId === 'warrior' ? '#fbbf24' : '#38bdf8';
 
     spawnDirectionalSparks(
@@ -1657,7 +1787,26 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
       8.5,
       groundY
     );
-  }, [isMonsterHit, classId]);
+  }, [isMonsterHit, isMonsterDefeated, classId]);
+
+  // ==========================================
+  // Trigger Monster Death (Defeat) Particle Dispersal Burst
+  // ==========================================
+  useEffect(() => {
+    if (isMonsterDefeated && !prevMonsterDefeatedRef.current) {
+      prevMonsterDefeatedRef.current = true;
+      const { monsterX, monsterY, groundY } = getAnchors();
+
+      // Expanding vanish shockwave + ground soul ring
+      spawnShockwave(monsterX, monsterY, 76, 360, '#fde047', 0.85, 5);
+      spawnShockwave(monsterX, groundY - 6, 84, 340, '#f97316', 0.42, 4);
+
+      // Ascending golden-amber soul dispersal particles
+      spawnDirectionalSparks(monsterX, monsterY, 20, '#fbbf24', -Math.PI * 0.5, 2.6, 8.0, groundY);
+    } else if (!isMonsterDefeated && prevMonsterDefeatedRef.current) {
+      prevMonsterDefeatedRef.current = false;
+    }
+  }, [isMonsterDefeated]);
 
   // ==========================================
   // Trigger Celestial Prestige Ascension & Star Motes VFX
@@ -1828,6 +1977,17 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
+    // Prevent delta-time spike or particle backlog when returning from a background tab
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        lastTimeRef.current = performance.now();
+        if (sparksRef.current.length > 60) {
+          sparksRef.current.splice(0, sparksRef.current.length - 60);
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     // Initialize ambient particles
     ambientParticlesRef.current = [];
     const ambientCount = 20;
@@ -1855,7 +2015,7 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
     }
 
     const render = (time: number) => {
-      const dt = Math.min(0.05, (time - lastTimeRef.current) / 1000);
+      const dt = Math.max(0.001, Math.min(0.05, (time - lastTimeRef.current) / 1000));
       lastTimeRef.current = time;
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -2275,8 +2435,10 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
         ctx.shadowBlur = 14;
         ctx.lineWidth = sw.thickness * (1 - prog * 0.7);
 
+        const safeRx = Math.max(0.5, sw.currentRadius);
+        const safeRy = Math.max(0.5, sw.currentRadius * sw.aspectY);
         ctx.beginPath();
-        ctx.ellipse(sw.x, sw.y, sw.currentRadius, sw.currentRadius * sw.aspectY, 0, 0, Math.PI * 2);
+        ctx.ellipse(sw.x, sw.y, safeRx, safeRy, 0, 0, Math.PI * 2);
         ctx.stroke();
 
         // Inner white ring for high energy
@@ -2332,7 +2494,11 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
       // ----------------------------------------------------
       for (let i = projectilesRef.current.length - 1; i >= 0; i--) {
         const proj = projectilesRef.current[i];
-        proj.progress += proj.speed;
+        if (proj.flightDuration && proj.flightDuration > 0) {
+          proj.progress += dt / proj.flightDuration;
+        } else {
+          proj.progress += proj.speed * (dt * 60);
+        }
 
         let curX = proj.startX + (proj.targetX - proj.startX) * proj.progress;
         let curY = proj.startY + (proj.targetY - proj.startY) * proj.progress;
@@ -2411,6 +2577,39 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
           ctx.beginPath();
           ctx.arc(curX, curY, proj.size * 0.35, 0, Math.PI * 2);
           ctx.fill();
+        } else if (proj.type === 'arcane_nova') {
+          // Swirling Arcane Nova Sphere (Mage 3-Combo Finisher)
+          ctx.translate(curX, curY);
+          ctx.shadowColor = '#c084fc';
+          ctx.shadowBlur = 24;
+
+          // Outer rotating arcane ring
+          ctx.strokeStyle = '#38bdf8';
+          ctx.lineWidth = 2.2;
+          ctx.save();
+          ctx.rotate(proj.progress * 16);
+          ctx.beginPath();
+          ctx.ellipse(0, 0, proj.size * 1.28, proj.size * 0.62, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+
+          // Violet energy aura
+          ctx.fillStyle = '#a855f7';
+          ctx.beginPath();
+          ctx.arc(0, 0, proj.size * 0.92, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Cyan-magenta inner core
+          ctx.fillStyle = '#e879f9';
+          ctx.beginPath();
+          ctx.arc(0, 0, proj.size * 0.65, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Pure white starlight center
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(0, 0, proj.size * 0.38, 0, Math.PI * 2);
+          ctx.fill();
         } else if (proj.type === 'fireball') {
           // Swirling Magma Core Fireball
           ctx.translate(curX, curY);
@@ -2456,7 +2655,13 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
         if (proj.progress >= 1.0) {
           const { groundY } = getAnchors();
 
-          if (proj.type === 'fireball') {
+          if (proj.type === 'arcane_nova') {
+            // Circular Nova Detonation + Multi-Ring Glow + Radial Particle Burst
+            spawnShockwave(proj.targetX, proj.targetY, 92, 460, '#c084fc', 0.92, 7.5);
+            spawnShockwave(proj.targetX, proj.targetY, 68, 360, '#38bdf8', 0.92, 5);
+            spawnShockwave(proj.targetX, groundY, 84, 410, '#a855f7', 0.44, 5.5);
+            spawnDirectionalSparks(proj.targetX, proj.targetY, 28, '#e879f9', 0, Math.PI * 2, 9.8, groundY);
+          } else if (proj.type === 'fireball') {
             // Giant dome explosion
             spawnShockwave(proj.targetX, proj.targetY, 95, 450, '#f97316', 0.85, 8);
             spawnDirectionalSparks(proj.targetX, proj.targetY, 28, '#f97316', -Math.PI * 0.5, 2.2, 9.5, groundY);
@@ -2483,12 +2688,17 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
       }
 
       // ----------------------------------------------------
-      // 8. Velocity-Stretched Physics Sparks with Ground Bounce
+      // 8. Velocity-Stretched Physics Sparks with Ground Bounce & Offscreen Culling
       // ----------------------------------------------------
       for (let i = sparksRef.current.length - 1; i >= 0; i--) {
         const spk = sparksRef.current[i];
         spk.life += dt;
-        if (spk.life >= spk.maxLife) {
+        if (
+          spk.life >= spk.maxLife ||
+          spk.x < -50 ||
+          spk.x > canvas.width + 50 ||
+          spk.y > canvas.height + 50
+        ) {
           sparksRef.current.splice(i, 1);
           continue;
         }
@@ -2598,6 +2808,7 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
 
     return () => {
       window.removeEventListener('resize', resizeCanvas);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
   }, [ambientType]);

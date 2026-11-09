@@ -74,7 +74,14 @@ interface BattleSceneProps {
   awakeningUnlocked?: boolean;
   awakeningGauge?: number;
   awakeningSkill?: Skill | null;
-  basicAttackEvent?: { id: string; comboStep: 1 | 2 | 3; classId: CharacterClassId } | null;
+  basicAttackEvent?: {
+    id: string;
+    comboStep: 1 | 2 | 3;
+    classId: CharacterClassId;
+    contactDelayMs?: number;
+    animDurationMs?: number;
+    speedScale?: number;
+  } | null;
   petAttackEvent?: { id: string; petId: string } | null;
   isPetAttacking?: boolean;
   basicComboStep?: 1 | 2 | 3;
@@ -89,6 +96,8 @@ interface BattleSceneProps {
   onAbandonDungeon?: () => void;
   dungeonVfxEvent?: { id: string; type: 'gold_burst' | 'wave_clear' | 'ruins_clear' } | null;
   summonVfxEvent?: { id: string; rarity: EquipmentRarity; count: number } | null;
+  isPlayerDefeated?: boolean;
+  isMoving?: boolean;
 }
 
 export const BattleScene: React.FC<BattleSceneProps> = ({
@@ -142,6 +151,8 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
   onAbandonDungeon,
   dungeonVfxEvent = null,
   summonVfxEvent = null,
+  isPlayerDefeated = false,
+  isMoving = false,
 }) => {
 
   const isBossFight = activeDungeonRun
@@ -204,6 +215,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         classId={classId}
         isPlayerAttacking={isPlayerAttacking}
         isMonsterHit={isMonsterHit}
+        isMonsterDefeated={isMonsterDefeated}
         ambientType={stageEnv.ambientParticleType}
         basicAttackEvent={basicAttackEvent}
         petAttackEvent={petAttackEvent}
@@ -359,6 +371,8 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
             isAttacking={isPlayerAttacking}
             isHit={isPlayerHit}
             isVictory={isMonsterDefeated}
+            isDefeated={isPlayerDefeated}
+            isMoving={isMoving}
             equippedWeapon={equippedWeapon}
             isHitStop={isHitStop}
             damages={damages.filter((d) => d.isPlayer)}
@@ -368,6 +382,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
             castingSkillType={castingSkillType}
             isAwakeningCasting={isAwakeningCasting}
             basicComboStep={basicComboStep}
+            attackDurationMs={basicAttackEvent?.animDurationMs}
           />
           <PetCompanion pet={activePet} isAttacking={isPetAttacking} />
         </div>
