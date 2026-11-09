@@ -1,7 +1,8 @@
 import React from 'react';
-import { CharacterStats, StageState, CharacterClassId, PromotionId } from '../types/game';
-import { Settings, Shield, Sparkles } from 'lucide-react';
+import { CharacterStats, StageState, CharacterClassId, PromotionId, ActiveDungeonRun } from '../types/game';
+import { Settings } from 'lucide-react';
 import { CHAPTERS_DATA } from '../data/monsters';
+import { DUNGEONS_DATA } from '../data/dungeons';
 
 interface TopHUDProps {
   stats: CharacterStats;
@@ -11,6 +12,8 @@ interface TopHUDProps {
   prestigeCount?: number;
   stardust?: number;
   hasPrestigeUnlocked?: boolean;
+  enhancementStones?: number;
+  activeDungeonRun?: ActiveDungeonRun | null;
   onOpenSettings: () => void;
   onOpenProfile?: () => void;
 }
@@ -23,10 +26,13 @@ export const TopHUD: React.FC<TopHUDProps> = ({
   prestigeCount = 0,
   stardust = 0,
   hasPrestigeUnlocked = false,
+  enhancementStones = 0,
+  activeDungeonRun = null,
   onOpenSettings,
   onOpenProfile,
 }) => {
-  const currentChapter = CHAPTERS_DATA[(stage.chapter - 1) % CHAPTERS_DATA.length];
+  const safeChapterIdx = Math.min(CHAPTERS_DATA.length - 1, Math.max(0, stage.chapter - 1));
+  const currentChapter = CHAPTERS_DATA[safeChapterIdx];
   const expPercent = Math.min(100, Math.floor((stats.exp / stats.maxExp) * 100));
 
   const chapterShortName = currentChapter.name.replace(/\s*\(.*?\)/, '');
@@ -93,45 +99,71 @@ export const TopHUD: React.FC<TopHUDProps> = ({
         </div>
       </div>
 
-      {/* 🌲 Center Zone: Stage Progression Badge */}
+      {/* 🌲 Center Zone: Stage or Active Dungeon Progression Badge */}
       <div className="stage-capsule-badge">
-        <div className="stage-name-text">
-          {stage.isBossStage ? (
-            <span className="boss-stage-text">🔥 BOSS RAID</span>
-          ) : (
-            <span>{chapterShortName} {stage.chapter}-{stage.stage}</span>
-          )}
-        </div>
-
-        {stage.stage < 10 ? (
-          <div className="stage-pips-row">
-            {Array.from({ length: stage.killsRequired }).map((_, i) => (
-              <div
-                key={i}
-                className={`stage-pip ${i < stage.killCount ? 'pip-filled' : ''}`}
-              />
-            ))}
-          </div>
+        {activeDungeonRun ? (
+          <>
+            <div className="stage-name-text" style={{ color: DUNGEONS_DATA[activeDungeonRun.dungeonId].accentColor }}>
+              ⚔️ {DUNGEONS_DATA[activeDungeonRun.dungeonId].name} · {activeDungeonRun.difficulty}단계
+            </div>
+            <div className={`stage-boss-timer ${activeDungeonRun.timeLeft <= 10 ? 'timer-hurry' : ''}`}>
+              ⏱️ {activeDungeonRun.timeLeft}초
+              {activeDungeonRun.dungeonId === 'training_forest'
+                ? ` · W${activeDungeonRun.currentWave}/${activeDungeonRun.maxWave}`
+                : activeDungeonRun.dungeonId === 'gold_mine'
+                ? ` · ${activeDungeonRun.kills}처치`
+                : ' · 보스 결전'}
+            </div>
+          </>
         ) : (
-          <div className={`stage-boss-timer ${stage.bossTimeLeft <= 10 ? 'timer-hurry' : ''}`}>
-            ⏱️ {stage.bossTimeLeft}초
-          </div>
+          <>
+            <div className="stage-name-text">
+              {stage.isBossStage ? (
+                <span className="boss-stage-text">🔥 BOSS RAID</span>
+              ) : (
+                <span>{chapterShortName} {stage.chapter}-{stage.stage}</span>
+              )}
+            </div>
+
+            {stage.stage < 10 ? (
+              <div className="stage-pips-row">
+                {Array.from({ length: stage.killsRequired }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={`stage-pip ${i < stage.killCount ? 'pip-filled' : ''}`}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className={`stage-boss-timer ${stage.bossTimeLeft <= 10 ? 'timer-hurry' : ''}`}>
+                ⏱️ {stage.bossTimeLeft}초
+              </div>
+            )}
+          </>
         )}
       </div>
 
       {/* 🪙 Right Zone: Currency Badges & Settings */}
       <div className="currencies-right-cluster">
         {/* Gold Capsule */}
-        <div className="currency-pill gold-pill">
+        <div className="currency-pill gold-pill" title="골드">
           <span className="currency-icon">🪙</span>
           <span className="currency-val">{formatNumber(stats.gold)}</span>
         </div>
 
         {/* Gem Capsule */}
-        <div className="currency-pill gem-pill">
+        <div className="currency-pill gem-pill" title="보석">
           <span className="currency-icon">💎</span>
           <span className="currency-val">{formatNumber(stats.gems)}</span>
         </div>
+
+        {/* Enhancement Stone Capsule */}
+        {enhancementStones > 0 && (
+          <div className="currency-pill stone-pill" title="장비 강화석 (고대 유적 보상)">
+            <span className="currency-icon">🔷</span>
+            <span className="currency-val">{formatNumber(enhancementStones)}</span>
+          </div>
+        )}
 
         {/* Stardust Capsule (shows when unlocked or has prestige history) */}
         {(prestigeCount > 0 || hasPrestigeUnlocked || stardust > 0) && (
@@ -384,6 +416,60 @@ export const TopHUD: React.FC<TopHUDProps> = ({
         .stardust-pill .currency-val {
           color: #d8b4fe;
           text-shadow: 0 0 6px rgba(168, 85, 247, 0.5);
+        }
+
+        .stone-pill {
+          background: rgba(30, 58, 138, 0.5);
+          border-color: rgba(96, 165, 250, 0.5);
+        }
+
+        .stone-pill .currency-val {
+          color: #93c5fd;
+          text-shadow: 0 0 6px rgba(59, 130, 246, 0.5);
+        }
+
+        @media (max-width: 480px) {
+          .game-top-hud {
+            padding: 4px 5px;
+            gap: 3px;
+          }
+          .profile-capsule-btn {
+            padding: 2px 5px 2px 2px;
+            gap: 4px;
+          }
+          .profile-avatar-thumb {
+            width: 24px;
+            height: 24px;
+          }
+          .profile-name {
+            display: none;
+          }
+          .profile-exp-track {
+            width: 34px;
+          }
+          .currencies-right-cluster {
+            gap: 2px;
+          }
+          .currency-pill {
+            padding: 2px 4px;
+            gap: 2px;
+          }
+          .currency-val {
+            font-size: 8.5px;
+          }
+          .currency-icon {
+            font-size: 8.5px;
+          }
+          .stage-capsule-badge {
+            padding: 2px 6px;
+          }
+          .stage-name-text {
+            font-size: 8.5px;
+          }
+          .settings-circle-btn {
+            width: 22px;
+            height: 22px;
+          }
         }
 
         .settings-circle-btn {

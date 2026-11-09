@@ -3,6 +3,7 @@ import { STARTER_EQUIPMENT, createDefaultEquipmentCatalog, getEquipmentPiecesReq
 import { INITIAL_PETS } from '../data/pets';
 import { INITIAL_QUESTS } from '../data/quests';
 import { INITIAL_SKILLS, STARTER_EQUIPPED_SKILLS, getSkillPiecesRequired } from '../data/skills';
+import { createDefaultDungeonState, checkAndResetDailyDungeonTickets } from '../data/dungeons';
 
 const SAVE_KEY = 'COZY_IDLE_RPG_SAVE_V1';
 
@@ -109,6 +110,8 @@ export function getDefaultSaveData(): GameSaveData {
     totalStardustEarned: 0,
     prestigeUpgrades: { ...DEFAULT_PRESTIGE_UPGRADES },
     hasPrestigeUnlocked: false,
+    enhancementStones: 0,
+    dungeons: createDefaultDungeonState(),
   };
 }
 
@@ -184,6 +187,24 @@ export function loadGameData(): { data: GameSaveData; offlineSeconds: number } {
       ...(parsed.prestigeUpgrades || {}),
     };
     mergedData.hasPrestigeUnlocked = parsed.hasPrestigeUnlocked ?? (mergedData.prestigeCount > 0);
+    mergedData.enhancementStones = Math.max(0, parsed.enhancementStones ?? 0);
+    mergedData.dungeons = checkAndResetDailyDungeonTickets(parsed.dungeons);
+
+    // 3-chapter upper bound consistency migration
+    if (mergedData.stage) {
+      if (mergedData.stage.chapter > 3) {
+        mergedData.stage.chapter = 3;
+        mergedData.stage.stage = 10;
+        mergedData.stage.isBossStage = true;
+        mergedData.stage.inBossFight = false;
+      }
+      if (mergedData.stage.highestChapter > 3) {
+        mergedData.stage.highestChapter = 3;
+        mergedData.stage.highestStage = 10;
+      } else if (mergedData.stage.highestChapter === 3) {
+        mergedData.stage.highestStage = Math.min(10, Math.max(1, mergedData.stage.highestStage || 1));
+      }
+    }
     if (!mergedData.activePetId || !mergedData.pets?.some((p) => p.id === mergedData.activePetId)) {
       mergedData.activePetId = 'pet_fox';
     }

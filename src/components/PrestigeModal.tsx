@@ -23,8 +23,8 @@ export const PrestigeModal: React.FC<PrestigeModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const highestCh = Math.max(stage.highestChapter || 1, stage.chapter);
-  const highestSt = Math.max(stage.highestStage || 1, stage.stage);
+  const highestCh = Math.min(3, Math.max(stage.highestChapter || 1, stage.chapter));
+  const highestSt = Math.min(10, Math.max(stage.highestStage || 1, stage.stage));
   const expectedStardust = calculatePrestigeStardustReward(highestCh, highestSt, stats.level, prestigeCount);
 
   const chapterPoints = Math.max(0, highestCh - 1) * 120;
@@ -128,6 +128,7 @@ export const PrestigeModal: React.FC<PrestigeModalProps> = ({
                 <li><span className="dot dot-green" />스킬 카드 및 스킬 강화 레벨</li>
                 <li><span className="dot dot-green" />다이아몬드 (유료 보석 재화)</li>
                 <li><span className="dot dot-green" />전직 자격 영구 보존 (Lv.30 달성 시 자동 복구)</li>
+                <li><span className="dot dot-green" />던전 난이도 해금 기록 및 보유 장비 강화석</li>
               </ul>
             </div>
           </div>

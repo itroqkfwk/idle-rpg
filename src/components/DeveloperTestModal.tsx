@@ -245,16 +245,26 @@ export const DeveloperTestModal: React.FC<DeveloperTestModalProps> = ({
                 }
               />
               <CheatButton
+                label="🔷 장비 강화석 +50"
+                desc="고대 유적 강화석 50개 획득"
+                onClick={() =>
+                  applyCheat('강화석 +50', (prev) => ({
+                    ...prev,
+                    enhancementStones: (prev.enhancementStones ?? 0) + 50,
+                  }))
+                }
+              />
+              <CheatButton
                 label="🌟 챕터 3 완료 및 환생 해금"
-                desc="최고 챕터를 4-1로 설정하여 환생 조건 즉시 해금"
+                desc="최고 기록을 3-10으로 설정하여 환생 조건 즉시 해금"
                 onClick={() =>
                   applyCheat('환생 시스템 즉시 해금', (prev) => ({
                     ...prev,
                     hasPrestigeUnlocked: true,
                     stage: {
                       ...prev.stage,
-                      highestChapter: Math.max(prev.stage.highestChapter || 1, 4),
-                      highestStage: Math.max(prev.stage.highestStage || 1, 1),
+                      highestChapter: 3,
+                      highestStage: 10,
                     },
                   }))
                 }
@@ -629,6 +639,42 @@ export const DeveloperTestModal: React.FC<DeveloperTestModalProps> = ({
                   onTriggerBoss();
                   showToast('보스전 즉시 소환됨!');
                 }}
+              />
+              <CheatButton
+                label="🎫 던전 입장권 3/3 충전 & 전 단계 해금"
+                desc="3종 던전 입장권 리셋 및 1~5단계 해금"
+                highlight
+                onClick={() =>
+                  applyCheat('던전 입장권 리셋 & 5단계 해금', (prev) => {
+                    const prevDungeons = prev.dungeons;
+                    return {
+                      ...prev,
+                      dungeons: {
+                        lastResetDate: prevDungeons?.lastResetDate || new Date().toISOString().slice(0, 10),
+                        records: {
+                          gold_mine: {
+                            unlockedDifficulty: 5,
+                            highestClearedDifficulty: Math.max(4, prevDungeons?.records?.gold_mine?.highestClearedDifficulty || 0),
+                            ticketsLeft: 3,
+                            totalClears: prevDungeons?.records?.gold_mine?.totalClears || 0,
+                          },
+                          training_forest: {
+                            unlockedDifficulty: 5,
+                            highestClearedDifficulty: Math.max(4, prevDungeons?.records?.training_forest?.highestClearedDifficulty || 0),
+                            ticketsLeft: 3,
+                            totalClears: prevDungeons?.records?.training_forest?.totalClears || 0,
+                          },
+                          ancient_ruins: {
+                            unlockedDifficulty: 5,
+                            highestClearedDifficulty: Math.max(4, prevDungeons?.records?.ancient_ruins?.highestClearedDifficulty || 0),
+                            ticketsLeft: 3,
+                            totalClears: prevDungeons?.records?.ancient_ruins?.totalClears || 0,
+                          },
+                        },
+                      },
+                    };
+                  })
+                }
               />
             </div>
           )}

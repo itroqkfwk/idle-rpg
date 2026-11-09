@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActiveTab } from '../types/game';
-import { Swords, User, Shield, Sparkles, Store } from 'lucide-react';
+import { Swords, Compass, User, Shield, Sparkles, Store } from 'lucide-react';
 
 interface BottomNavigationProps {
   activeTab: ActiveTab;
@@ -14,11 +14,12 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   badges = {},
 }) => {
   const navItems: { tab: ActiveTab; label: string; icon: React.ReactNode }[] = [
-    { tab: 'adventure', label: '모험', icon: <Swords size={24} /> },
-    { tab: 'hero', label: '영웅', icon: <User size={24} /> },
-    { tab: 'equipment', label: '장비', icon: <Shield size={24} /> },
-    { tab: 'pet', label: '펫', icon: <Sparkles size={24} /> },
-    { tab: 'shop', label: '상점', icon: <Store size={24} /> },
+    { tab: 'adventure', label: '모험', icon: <Swords size={22} /> },
+    { tab: 'dungeon', label: '던전', icon: <Compass size={22} /> },
+    { tab: 'hero', label: '영웅', icon: <User size={22} /> },
+    { tab: 'equipment', label: '장비', icon: <Shield size={22} /> },
+    { tab: 'pet', label: '펫', icon: <Sparkles size={22} /> },
+    { tab: 'shop', label: '상점', icon: <Store size={22} /> },
   ];
 
   return (

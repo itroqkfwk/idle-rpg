@@ -166,7 +166,7 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
       <style>{`
         .skill-status-hud-root {
           position: absolute;
-          z-index: 60;
+          z-index: 30;
           pointer-events: none;
           user-select: none;
           display: flex;

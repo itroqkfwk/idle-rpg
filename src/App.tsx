@@ -17,6 +17,9 @@ import {
   CharacterClassId,
   PromotionId,
   PrestigeUpgrades,
+  DungeonId,
+  DungeonEndReason,
+  ActiveDungeonRun,
 } from './types/game';
 import {
   loadGameData,
@@ -28,10 +31,17 @@ import {
 } from './utils/storage';
 import { getMonsterForStage } from './data/monsters';
 import {
+  DUNGEONS_DATA,
+  checkAndResetDailyDungeonTickets,
+  getDungeonDifficultyConfig,
+  getDungeonMonster,
+} from './data/dungeons';
+import {
   generateRandomEquipment,
   createDefaultEquipmentCatalog,
   getEquipmentPiecesRequired,
   getEquipmentUpgradeGoldCost,
+  getEquipmentUpgradeStoneCost,
   calculateEquipmentEquippedStats,
   calculateEquipmentOwnedStats,
   calculateTotalEquipmentOwnedBonus,
@@ -60,11 +70,13 @@ import { SettingsModal } from './components/SettingsModal';
 import { DeveloperTestModal } from './components/DeveloperTestModal';
 import { ClassSelectScreen } from './components/ClassSelectScreen';
 import { PrestigeModal } from './components/PrestigeModal';
+import { DungeonResultModal } from './components/DungeonResultModal';
 
 import { HeroPage } from './pages/HeroPage';
 import { EquipmentPage } from './pages/EquipmentPage';
 import { PetPage } from './pages/PetPage';
 import { ShopPage } from './pages/ShopPage';
+import { DungeonPage } from './pages/DungeonPage';
 import confetti from 'canvas-confetti';
 
 export const App: React.FC = () => {
@@ -109,6 +121,22 @@ export const App: React.FC = () => {
   const stardust = saveData.stardust ?? 0;
   const prestigeUpgrades = saveData.prestigeUpgrades ?? DEFAULT_PRESTIGE_UPGRADES;
   const hasPrestigeUnlocked = saveData.hasPrestigeUnlocked ?? false;
+  const enhancementStones = saveData.enhancementStones ?? 0;
+  const dungeons = useMemo(() => checkAndResetDailyDungeonTickets(saveData.dungeons), [saveData.dungeons]);
+
+  // --- Dedicated Dungeon Mode State & Refs ---
+  const [activeDungeonRun, setActiveDungeonRun] = useState<ActiveDungeonRun | null>(null);
+  const activeDungeonRef = useRef<ActiveDungeonRun | null>(null);
+  const [dungeonResult, setDungeonResult] = useState<ActiveDungeonRun | null>(null);
+  const [dungeonVfxEvent, setDungeonVfxEvent] = useState<{
+    id: string;
+    type: 'gold_burst' | 'wave_clear' | 'ruins_clear';
+  } | null>(null);
+  const dungeonEndingRef = useRef(false);
+  const savedNormalCombatSnapshotRef = useRef<{
+    monster: Monster;
+    statuses: MonsterStatusEffect[];
+  } | null>(null);
 
   // Live Auto Skill & Awakening Timeline Engine State
   const [skillCooldowns, setSkillCooldowns] = useState<Record<string, number>>({});
@@ -139,10 +167,12 @@ export const App: React.FC = () => {
           },
           stage: {
             ...prev.stage,
-            chapter: 4,
-            stage: 1,
-            highestChapter: 4,
-            highestStage: 1,
+            chapter: 3,
+            stage: 10,
+            isBossStage: true,
+            inBossFight: false,
+            highestChapter: 3,
+            highestStage: 10,
           },
         };
         saveGameData(updated);
@@ -413,6 +443,239 @@ export const App: React.FC = () => {
     });
   }, []);
 
+  // --- Dedicated Dungeon Run Settlement & Restoration ---
+  const finishDungeonRun = useCallback((reason: DungeonEndReason, overrideRun?: ActiveDungeonRun) => {
+    if (dungeonEndingRef.current || !activeDungeonRef.current) return;
+    dungeonEndingRef.current = true;
+
+    const currentRun = overrideRun || activeDungeonRef.current;
+    // In Gold Mine, surviving the 60s timer with >= 1 goblin kill is the victory condition
+    const effectiveReason: DungeonEndReason =
+      currentRun.dungeonId === 'gold_mine' && reason === 'timeout' && currentRun.kills > 0
+        ? 'victory'
+        : reason;
+
+    const settledGold = currentRun.accumulatedGold;
+    const settledExp = currentRun.accumulatedExp;
+    const settledStones = effectiveReason === 'victory' ? currentRun.accumulatedStones : 0;
+
+    // Compute level-ups & new difficulty unlock synchronously against saveDataRef
+    const curSave = saveDataRef.current;
+    let tempExp = curSave.stats.exp + settledExp;
+    let tempLevel = curSave.stats.level;
+    let tempMaxExp = curSave.stats.maxExp;
+    while (tempExp >= tempMaxExp) {
+      tempExp -= tempMaxExp;
+      tempLevel++;
+      tempMaxExp = Math.floor(tempMaxExp * 1.35);
+    }
+    const levelsGained = Math.max(0, tempLevel - curSave.stats.level);
+
+    const curDungeonState = checkAndResetDailyDungeonTickets(curSave.dungeons);
+    const curRec = curDungeonState.records[currentRun.dungeonId];
+    let unlockedNewDiff: number | undefined;
+    if (effectiveReason === 'victory') {
+      const nextUnlock = Math.min(5, Math.max(curRec.unlockedDifficulty, currentRun.difficulty + 1));
+      if (nextUnlock > curRec.unlockedDifficulty) {
+        unlockedNewDiff = nextUnlock;
+      }
+    }
+
+    if (effectiveReason === 'victory' || levelsGained > 0) {
+      sound.playFanfare();
+      confetti({ particleCount: 80, spread: 75, origin: { y: 0.5 } });
+    } else {
+      sound.playMonsterDefeat();
+    }
+
+    setSaveData((prev) => {
+      let newExp = prev.stats.exp + settledExp;
+      let newLevel = prev.stats.level;
+      let newMaxExp = prev.stats.maxExp;
+      while (newExp >= newMaxExp) {
+        newExp -= newMaxExp;
+        newLevel++;
+        newMaxExp = Math.floor(newMaxExp * 1.35);
+      }
+
+      const prevDungeons = checkAndResetDailyDungeonTickets(prev.dungeons);
+      const prevRec = prevDungeons.records[currentRun.dungeonId];
+      const nextHighestCleared =
+        effectiveReason === 'victory'
+          ? Math.max(prevRec.highestClearedDifficulty, currentRun.difficulty)
+          : prevRec.highestClearedDifficulty;
+      const nextUnlocked =
+        effectiveReason === 'victory'
+          ? Math.min(5, Math.max(prevRec.unlockedDifficulty, currentRun.difficulty + 1))
+          : prevRec.unlockedDifficulty;
+
+      const updatedDungeons = {
+        ...prevDungeons,
+        records: {
+          ...prevDungeons.records,
+          [currentRun.dungeonId]: {
+            ...prevRec,
+            unlockedDifficulty: nextUnlocked,
+            highestClearedDifficulty: nextHighestCleared,
+            totalClears: effectiveReason === 'victory' ? prevRec.totalClears + 1 : prevRec.totalClears,
+          },
+        },
+      };
+
+      const updated: GameSaveData = {
+        ...prev,
+        enhancementStones: (prev.enhancementStones ?? 0) + settledStones,
+        dungeons: updatedDungeons,
+        stats: {
+          ...prev.stats,
+          gold: prev.stats.gold + settledGold,
+          exp: newExp,
+          level: newLevel,
+          maxExp: newMaxExp,
+          currentHp: combatCalcRef.current.totalMaxHp,
+        },
+      };
+      saveGameData(updated);
+      return updated;
+    });
+
+    // Restore normal stage monster & combat state cleanly
+    const snapshot = savedNormalCombatSnapshotRef.current;
+    const restoredMon =
+      snapshot?.monster ||
+      getMonsterForStage(
+        curSave.stage.chapter,
+        curSave.stage.stage === 10 && !curSave.stage.inBossFight ? 9 : curSave.stage.stage
+      );
+    const restoredStatuses = snapshot?.statuses || [];
+    savedNormalCombatSnapshotRef.current = null;
+
+    activeDungeonRef.current = null;
+    setActiveDungeonRun(null);
+
+    currentMonsterRef.current = restoredMon;
+    setCurrentMonster(restoredMon);
+    setMonsterStatuses(restoredStatuses);
+    monsterStatusesRef.current = restoredStatuses;
+    basicComboRef.current = 1;
+    setBasicComboStep(1);
+    comboCompletedCountRef.current = 0;
+    setComboCompletedCount(0);
+    setIsPlayerAttacking(false);
+    isBasicAttackingRef.current = false;
+    setIsFinisherHit(false);
+    setHitComboStep(null);
+    setIsCriticalHit(false);
+    setIsMonsterDefeated(false);
+    isMonsterDefeatedRef.current = false;
+    lastMonsterAttackTimeRef.current = Date.now();
+
+    setDungeonResult({
+      ...currentRun,
+      accumulatedStones: settledStones,
+      status: 'ended',
+      endReason: effectiveReason,
+      levelsGained,
+      newDifficultyUnlocked: unlockedNewDiff,
+    });
+  }, []);
+
+  const handleEnterDungeon = useCallback(
+    (dungeonId: DungeonId, difficulty: number) => {
+      if (activeDungeonRef.current) return false;
+      const curSave = saveDataRef.current;
+      const curDungeons = checkAndResetDailyDungeonTickets(curSave.dungeons);
+      const rec = curDungeons.records[dungeonId];
+      const diffCfg = getDungeonDifficultyConfig(dungeonId, difficulty);
+      const cfg = DUNGEONS_DATA[dungeonId];
+
+      if (!rec || difficulty < 1 || difficulty > 5) return false;
+      if (difficulty > rec.unlockedDifficulty) return false;
+      if (curSave.stats.level < diffCfg.requiredLevel) return false;
+      if (rec.ticketsLeft <= 0) return false;
+
+      // Immediately deduct 1 ticket & persist to LocalStorage (no ticket duplication on abandon/refresh)
+      setSaveData((prev) => {
+        const dState = checkAndResetDailyDungeonTickets(prev.dungeons);
+        const pRec = dState.records[dungeonId];
+        const updated: GameSaveData = {
+          ...prev,
+          stats: {
+            ...prev.stats,
+            currentHp: combatCalcRef.current.totalMaxHp,
+          },
+          dungeons: {
+            ...dState,
+            records: {
+              ...dState.records,
+              [dungeonId]: {
+                ...pRec,
+                ticketsLeft: Math.max(0, pRec.ticketsLeft - 1),
+              },
+            },
+          },
+        };
+        saveGameData(updated);
+        return updated;
+      });
+
+      // Save normal stage combat snapshot
+      savedNormalCombatSnapshotRef.current = {
+        monster: { ...currentMonsterRef.current },
+        statuses: [...monsterStatusesRef.current],
+      };
+
+      const firstMon = getDungeonMonster(dungeonId, difficulty, dungeonId === 'gold_mine' ? 0 : 1);
+      const newRun: ActiveDungeonRun = {
+        dungeonId,
+        difficulty,
+        timeLeft: cfg.timeLimit,
+        maxTime: cfg.timeLimit,
+        kills: 0,
+        currentWave: 1,
+        maxWave: cfg.maxWave,
+        accumulatedGold: 0,
+        accumulatedExp: 0,
+        accumulatedStones: 0,
+        status: 'fighting',
+      };
+
+      dungeonEndingRef.current = false;
+      activeDungeonRef.current = newRun;
+      setActiveDungeonRun(newRun);
+      setDungeonResult(null);
+
+      currentMonsterRef.current = firstMon;
+      setCurrentMonster(firstMon);
+      setMonsterStatuses([]);
+      monsterStatusesRef.current = [];
+      basicComboRef.current = 1;
+      setBasicComboStep(1);
+      comboCompletedCountRef.current = 0;
+      setComboCompletedCount(0);
+      setIsPlayerAttacking(false);
+      isBasicAttackingRef.current = false;
+      setIsFinisherHit(false);
+      setHitComboStep(null);
+      setIsCriticalHit(false);
+      setIsMonsterDefeated(false);
+      isMonsterDefeatedRef.current = false;
+      lastMonsterAttackTimeRef.current = Date.now();
+
+      sound.playFanfare();
+      setStageNotice(`⚔️ [${cfg.name} · ${difficulty}단계] 입장! (입장권 1 소모)`);
+      setTimeout(() => setStageNotice(null), 1800);
+      setActiveTab('adventure');
+      return true;
+    },
+    []
+  );
+
+  const handleAbandonDungeon = useCallback(() => {
+    if (!activeDungeonRef.current || dungeonEndingRef.current) return;
+    finishDungeonRun('abandoned');
+  }, [finishDungeonRun]);
+
   // --- Monster Defeated Handler ---
   const isMonsterDefeatedRef = useRef(isMonsterDefeated);
   useEffect(() => {
@@ -421,6 +684,121 @@ export const App: React.FC = () => {
 
   const handleMonsterDefeat = useCallback(() => {
     if (isMonsterDefeatedRef.current) return;
+
+    // 🏰 Dedicated Dungeon Mode Monster Defeat Branch (Strictly isolated from Normal Stage)
+    if (activeDungeonRef.current) {
+      if (dungeonEndingRef.current) return;
+      isMonsterDefeatedRef.current = true;
+      sound.playMonsterDefeat();
+      setIsMonsterDefeated(true);
+
+      const run = activeDungeonRef.current;
+      const { petGoldMult, prestigeGoldMult = 0, prestigeExpMult = 0 } = combatCalculations;
+      const defeatedMon = currentMonsterRef.current;
+
+      if (run.dungeonId === 'gold_mine') {
+        const earnedGold = Math.floor(defeatedMon.goldReward * (1 + petGoldMult + prestigeGoldMult));
+        const nextKills = run.kills + 1;
+        const nextRun: ActiveDungeonRun = {
+          ...run,
+          kills: nextKills,
+          accumulatedGold: run.accumulatedGold + earnedGold,
+        };
+        activeDungeonRef.current = nextRun;
+        setActiveDungeonRun(nextRun);
+
+        sound.playGold();
+        setDungeonVfxEvent({ id: `dg_gold_${Date.now()}`, type: 'gold_burst' });
+        const dropId = `dg_drop_${Date.now()}`;
+        setFloatingGold((prev) => [...prev.slice(-3), { id: dropId, gold: earnedGold }]);
+        setTimeout(() => {
+          setFloatingGold((prev) => prev.filter((d) => d.id !== dropId));
+        }, 850);
+
+        setTimeout(() => {
+          if (!activeDungeonRef.current || dungeonEndingRef.current) return;
+          const nextGoblin = getDungeonMonster('gold_mine', run.difficulty, nextKills);
+          currentMonsterRef.current = nextGoblin;
+          setCurrentMonster(nextGoblin);
+          setMonsterStatuses([]);
+          monsterStatusesRef.current = [];
+          setIsMonsterDefeated(false);
+          isMonsterDefeatedRef.current = false;
+          lastMonsterAttackTimeRef.current = Date.now();
+        }, 220);
+        return;
+      }
+
+      if (run.dungeonId === 'training_forest') {
+        const waveExp = Math.floor(defeatedMon.expReward * (1 + prestigeExpMult));
+        const nextKills = run.kills + 1;
+        setDungeonVfxEvent({ id: `dg_wave_${Date.now()}`, type: 'wave_clear' });
+
+        if (nextKills >= run.maxWave) {
+          const diffCfg = getDungeonDifficultyConfig('training_forest', run.difficulty);
+          const clearBonusExp = Math.floor(diffCfg.baseExpReward * 1.6 * (1 + prestigeExpMult));
+          const finalRun: ActiveDungeonRun = {
+            ...run,
+            kills: nextKills,
+            currentWave: run.maxWave,
+            accumulatedExp: run.accumulatedExp + waveExp + clearBonusExp,
+          };
+          activeDungeonRef.current = finalRun;
+          setActiveDungeonRun(finalRun);
+          setTimeout(() => {
+            finishDungeonRun('victory', finalRun);
+          }, 260);
+          return;
+        }
+
+        const nextWave = nextKills + 1;
+        const nextRun: ActiveDungeonRun = {
+          ...run,
+          kills: nextKills,
+          currentWave: nextWave,
+          accumulatedExp: run.accumulatedExp + waveExp,
+        };
+        activeDungeonRef.current = nextRun;
+        setActiveDungeonRun(nextRun);
+        setStageNotice(`🌲 수련의 숲 Wave ${nextWave} / ${run.maxWave} 돌파!`);
+        setTimeout(() => setStageNotice(null), 1200);
+
+        setTimeout(() => {
+          if (!activeDungeonRef.current || dungeonEndingRef.current) return;
+          const nextMon = getDungeonMonster('training_forest', run.difficulty, nextWave);
+          currentMonsterRef.current = nextMon;
+          setCurrentMonster(nextMon);
+          setMonsterStatuses([]);
+          monsterStatusesRef.current = [];
+          setIsMonsterDefeated(false);
+          isMonsterDefeatedRef.current = false;
+          lastMonsterAttackTimeRef.current = Date.now();
+        }, 250);
+        return;
+      }
+
+      // ancient_ruins boss defeated
+      const diffCfg = getDungeonDifficultyConfig('ancient_ruins', run.difficulty);
+      const earnedGold = Math.floor(diffCfg.baseGoldReward * (1 + petGoldMult + prestigeGoldMult));
+      const earnedExp = Math.floor(diffCfg.baseExpReward * (1 + prestigeExpMult));
+      const earnedStones = diffCfg.stoneReward;
+      setDungeonVfxEvent({ id: `dg_ruins_${Date.now()}`, type: 'ruins_clear' });
+
+      const finalRun: ActiveDungeonRun = {
+        ...run,
+        kills: 1,
+        accumulatedGold: earnedGold,
+        accumulatedExp: earnedExp,
+        accumulatedStones: earnedStones,
+      };
+      activeDungeonRef.current = finalRun;
+      setActiveDungeonRun(finalRun);
+      setTimeout(() => {
+        finishDungeonRun('victory', finalRun);
+      }, 280);
+      return;
+    }
+
     isMonsterDefeatedRef.current = true;
     sound.playMonsterDefeat();
     setIsMonsterDefeated(true);
@@ -448,13 +826,19 @@ export const App: React.FC = () => {
       }, 1600);
     }
 
-    // Determine next stage progression
+    // Determine next stage progression (3-Chapter Upper Bound Consistency)
     let nextChapter = stage.chapter;
     let nextStageNum = stage.stage;
     if (stage.stage === 10 && stage.inBossFight) {
-      nextChapter = stage.chapter + 1;
-      nextStageNum = 1;
-      setStageNotice(`🎉 챕터 ${nextChapter} 돌파!`);
+      if (stage.chapter < 3) {
+        nextChapter = stage.chapter + 1;
+        nextStageNum = 1;
+        setStageNotice(`🎉 챕터 ${nextChapter} 돌파!`);
+      } else {
+        nextChapter = 3;
+        nextStageNum = 10;
+        setStageNotice(`🎉 최종 챕터 3-10 보스 토벌 완료!`);
+      }
       setTimeout(() => setStageNotice(null), 1600);
     } else if (stage.stage < 10) {
       if (stage.killCount + 1 >= stage.killsRequired) {
@@ -486,15 +870,26 @@ export const App: React.FC = () => {
         }
 
         let newStage = { ...prev.stage };
+        let clearedFinalChapter3Boss = false;
         if (newStage.stage === 10 && newStage.inBossFight) {
           sound.playFanfare();
           confetti({ particleCount: 90, spread: 85, origin: { y: 0.5 } });
           progressQuest('defeat_boss', 1);
 
-          newStage.chapter += 1;
-          newStage.stage = 1;
-          newStage.killCount = 0;
-          newStage.inBossFight = false;
+          if (newStage.chapter < 3) {
+            newStage.chapter += 1;
+            newStage.stage = 1;
+            newStage.killCount = 0;
+            newStage.inBossFight = false;
+          } else {
+            newStage.chapter = 3;
+            newStage.stage = 10;
+            newStage.killCount = 0;
+            newStage.inBossFight = false;
+            newStage.highestChapter = 3;
+            newStage.highestStage = 10;
+            clearedFinalChapter3Boss = true;
+          }
         } else if (newStage.stage < 10) {
           newStage.killCount += 1;
           progressQuest('kill_monster', 1);
@@ -506,19 +901,18 @@ export const App: React.FC = () => {
           }
         }
 
-        // Track highest chapter & stage for promotion checklist & prestige unlock
-        if (
-          newStage.chapter > newStage.highestChapter ||
-          (newStage.chapter === newStage.highestChapter && newStage.stage > newStage.highestStage)
-        ) {
-          newStage.highestChapter = Math.max(newStage.highestChapter, newStage.chapter);
-          newStage.highestStage = Math.max(newStage.highestStage, newStage.stage);
+        // Track highest chapter & stage (capped cleanly at 3-10)
+        if (newStage.chapter > newStage.highestChapter) {
+          newStage.highestChapter = Math.min(3, newStage.chapter);
+          newStage.highestStage = Math.min(10, newStage.stage);
+        } else if (newStage.chapter === newStage.highestChapter && newStage.stage > newStage.highestStage) {
+          newStage.highestStage = Math.min(10, newStage.stage);
         }
 
         const hasUnlockedPrestigeNow =
           prev.hasPrestigeUnlocked ||
           (prev.prestigeCount ?? 0) > 0 ||
-          newStage.highestChapter >= 4 ||
+          clearedFinalChapter3Boss ||
           (newStage.highestChapter === 3 && newStage.highestStage >= 10);
 
         if (!prev.hasPrestigeUnlocked && hasUnlockedPrestigeNow) {
@@ -1304,6 +1698,15 @@ export const App: React.FC = () => {
           const nextHp = Math.max(0, prev.stats.currentHp - monsterDmg);
           if (nextHp <= 0) {
             sound.playMonsterDefeat();
+            if (activeDungeonRef.current) {
+              setTimeout(() => {
+                finishDungeonRun('defeat');
+              }, 0);
+              return {
+                ...prev,
+                stats: { ...prev.stats, currentHp: calc.totalMaxHp },
+              };
+            }
             if (prev.stage.inBossFight) {
               const retreatMon = getMonsterForStage(prev.stage.chapter, 9);
               currentMonsterRef.current = retreatMon;
@@ -1331,13 +1734,14 @@ export const App: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // --- Boss Battle Timer (30s) ---
+  // --- Boss Battle Timer (30s, safely paused while in DungeonMode) ---
   useEffect(() => {
     if (!stage.inBossFight) return;
 
     const timer = setInterval(() => {
+      if (activeDungeonRef.current) return;
       setSaveData((prev) => {
-        if (!prev.stage.inBossFight) return prev;
+        if (!prev.stage.inBossFight || activeDungeonRef.current) return prev;
         if (isMonsterDefeatedRef.current) return prev;
         const newTime = prev.stage.bossTimeLeft - 1;
         if (newTime <= 0) {
@@ -1364,6 +1768,31 @@ export const App: React.FC = () => {
 
     return () => clearInterval(timer);
   }, [stage.inBossFight]);
+
+  // --- Dedicated Dungeon Countdown Timer (1s Tick) ---
+  useEffect(() => {
+    if (!activeDungeonRun || activeDungeonRun.status !== 'fighting') return;
+
+    const timer = setInterval(() => {
+      const cur = activeDungeonRef.current;
+      if (!cur || cur.status !== 'fighting' || dungeonEndingRef.current) return;
+
+      const nextTime = cur.timeLeft - 1;
+      if (nextTime <= 0) {
+        const timedOutRun: ActiveDungeonRun = { ...cur, timeLeft: 0 };
+        activeDungeonRef.current = timedOutRun;
+        setActiveDungeonRun(timedOutRun);
+        finishDungeonRun('timeout', timedOutRun);
+        return;
+      }
+
+      const updatedRun: ActiveDungeonRun = { ...cur, timeLeft: nextTime };
+      activeDungeonRef.current = updatedRun;
+      setActiveDungeonRun(updatedRun);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [activeDungeonRun?.dungeonId, activeDungeonRun?.status, finishDungeonRun]);
 
   // --- Handlers: Hero Enhancements ---
   const handleUpgradeStat = (stat: 'atk' | 'hp' | 'def', count: number) => {
@@ -1663,6 +2092,39 @@ export const App: React.FC = () => {
       };
     });
   };
+
+  const handleUpgradeItemWithStones = useCallback((itemId: string) => {
+    setSaveData((prev) => {
+      const catalog = [...(prev.equipmentCatalog || createDefaultEquipmentCatalog())];
+      const idx = catalog.findIndex((i) => i.id === itemId);
+      if (idx === -1) return prev;
+
+      const item = { ...catalog[idx] };
+      if (!item.owned) return prev;
+
+      const stoneCost = getEquipmentUpgradeStoneCost(item.level, item.rarity);
+      const currentStones = prev.enhancementStones ?? 0;
+      if (currentStones < stoneCost) return prev;
+
+      item.level += 1;
+      item.piecesRequired = getEquipmentPiecesRequired(item.level, item.rarity);
+      catalog[idx] = item;
+
+      const newEquipped = { ...prev.equipped };
+      if (item.equipped) {
+        newEquipped[item.slot] = item;
+      }
+
+      const updated: GameSaveData = {
+        ...prev,
+        enhancementStones: currentStones - stoneCost,
+        equipmentCatalog: catalog,
+        equipped: newEquipped,
+      };
+      saveGameData(updated);
+      return updated;
+    });
+  }, []);
 
 
   const handleBatchUpgradeEquip = () => {
@@ -2315,10 +2777,53 @@ export const App: React.FC = () => {
     });
   };
 
+  // Expose Dungeon QA helper functions for automated browser verification
+  useEffect(() => {
+    (window as any).__dungeonTestHelpers = {
+      enterDungeon: (id: DungeonId, diff: number) => handleEnterDungeon(id, diff),
+      abandonDungeon: () => handleAbandonDungeon(),
+      forceTimeout: () => {
+        if (!activeDungeonRef.current) return;
+        const r = { ...activeDungeonRef.current, timeLeft: 0 };
+        activeDungeonRef.current = r;
+        setActiveDungeonRun(r);
+        finishDungeonRun('timeout', r);
+      },
+      forceDefeat: () => {
+        if (!activeDungeonRef.current) return;
+        finishDungeonRun('defeat');
+      },
+      killCurrentDungeonMonster: () => {
+        if (!activeDungeonRef.current) return;
+        currentMonsterRef.current = { ...currentMonsterRef.current, currentHp: 0 };
+        setCurrentMonster((prev) => ({ ...prev, currentHp: 0 }));
+        handleMonsterDefeatRef.current();
+      },
+      simulateDateChange: (fakeDateStr: string) => {
+        setSaveData((prev) => {
+          const curD = checkAndResetDailyDungeonTickets(prev.dungeons);
+          const next = checkAndResetDailyDungeonTickets({
+            ...curD,
+            lastResetDate: fakeDateStr,
+          });
+          const updated: GameSaveData = { ...prev, dungeons: next };
+          saveGameData(updated);
+          return updated;
+        });
+      },
+      upgradeItemWithStones: (itemId: string) => handleUpgradeItemWithStones(itemId),
+    };
+  }, [handleEnterDungeon, handleAbandonDungeon, finishDungeonRun, handleUpgradeItemWithStones]);
+
   // Badges
+  const totalTicketsLeft =
+    (dungeons.records.gold_mine?.ticketsLeft || 0) +
+    (dungeons.records.training_forest?.ticketsLeft || 0) +
+    (dungeons.records.ancient_ruins?.ticketsLeft || 0);
   const badges: Partial<Record<ActiveTab, boolean>> = {
+    dungeon: totalTicketsLeft > 0,
     hero: stats.gold >= 50,
-    equipment: inventory.length > 0,
+    equipment: inventory.length > 0 || enhancementStones > 0,
     pet: pets.some((p) => !p.owned && stats.gems >= p.costGems),
     shop: Date.now() - freeChestLastOpened > 60000,
   };
@@ -2338,6 +2843,8 @@ export const App: React.FC = () => {
         prestigeCount={prestigeCount}
         stardust={stardust}
         hasPrestigeUnlocked={hasPrestigeUnlocked}
+        enhancementStones={enhancementStones}
+        activeDungeonRun={activeDungeonRun}
         onOpenSettings={() => setShowSettings(true)}
         onOpenProfile={() => setActiveTab('hero')}
       />
@@ -2392,10 +2899,13 @@ export const App: React.FC = () => {
           monsterStatuses={monsterStatuses}
           currentDps={currentDps}
           prestigeVfxEvent={prestigeVfxEvent}
+          activeDungeonRun={activeDungeonRun}
+          onAbandonDungeon={handleAbandonDungeon}
+          dungeonVfxEvent={dungeonVfxEvent}
         />
 
-        {/* Quest Parchment Ribbon (Displayed only in main Adventure tab) */}
-        {activeTab === 'adventure' && (
+        {/* Quest Parchment Ribbon (Displayed only in main Adventure tab when not in Dungeon) */}
+        {activeTab === 'adventure' && !activeDungeonRun && (
           <QuestWidget
             quest={activeQuest}
             onClaim={handleClaimQuest}
@@ -2411,6 +2921,22 @@ export const App: React.FC = () => {
         )}
 
         {/* 3. Half-Sheet Drawers for Subpages */}
+        {activeTab === 'dungeon' && (
+          <DungeonPage
+            dungeons={dungeons}
+            heroLevel={stats.level}
+            heroAtk={combatCalculations.totalAtk}
+            enhancementStones={enhancementStones}
+            goldBonusMultiplier={1 + combatCalculations.petGoldMult + (combatCalculations.prestigeGoldMult || 0)}
+            expBonusMultiplier={1 + (combatCalculations.prestigeExpMult || 0)}
+            onEnterDungeon={(id, diff) => {
+              handleEnterDungeon(id, diff);
+            }}
+            onGoToEquipment={() => setActiveTab('equipment')}
+            onClose={() => setActiveTab('adventure')}
+          />
+        )}
+
         {activeTab === 'hero' && (
           <HeroPage
             stats={stats}
@@ -2451,9 +2977,11 @@ export const App: React.FC = () => {
             equipmentCatalog={equipmentCatalog}
             equipped={equipped}
             gold={stats.gold}
+            enhancementStones={enhancementStones}
             combatPower={combatCalculations.combatPower}
             onEquip={handleEquip}
             onUpgradeItem={handleUpgradeItem}
+            onUpgradeItemWithStones={handleUpgradeItemWithStones}
             onBatchUpgrade={handleBatchUpgradeEquip}
             onAutoEquip={handleAutoEquip}
             onClose={() => setActiveTab('adventure')}
@@ -2561,6 +3089,24 @@ export const App: React.FC = () => {
           stage={stage}
           stats={stats}
           prestigeCount={prestigeCount}
+        />
+      )}
+
+      {dungeonResult && (
+        <DungeonResultModal
+          result={dungeonResult}
+          ticketsLeft={dungeons.records[dungeonResult.dungeonId]?.ticketsLeft ?? 0}
+          canRetry={
+            (dungeons.records[dungeonResult.dungeonId]?.ticketsLeft ?? 0) > 0 &&
+            stats.level >= getDungeonDifficultyConfig(dungeonResult.dungeonId, dungeonResult.difficulty).requiredLevel
+          }
+          onRetry={() => {
+            const targetId = dungeonResult.dungeonId;
+            const targetDiff = dungeonResult.difficulty;
+            setDungeonResult(null);
+            handleEnterDungeon(targetId, targetDiff);
+          }}
+          onClose={() => setDungeonResult(null)}
         />
       )}
     </div>

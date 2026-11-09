@@ -12,6 +12,21 @@ interface BattleFxCanvasProps {
   basicAttackEvent?: { id: string; comboStep: 1 | 2 | 3; classId: CharacterClassId } | null;
   petAttackEvent?: { id: string; petId: string } | null;
   prestigeVfxEvent?: { id: string } | null;
+  dungeonVfxEvent?: { id: string; type: 'gold_burst' | 'wave_clear' | 'ruins_clear' } | null;
+}
+
+interface GoldCoinParticle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  radius: number;
+  spin: number;
+  spinSpeed: number;
+  life: number;
+  maxLife: number;
+  groundY: number;
+  bouncesLeft: number;
 }
 
 // 💥 Directional Velocity-Stretched Physics Spark
@@ -241,6 +256,7 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
   basicAttackEvent = null,
   petAttackEvent = null,
   prestigeVfxEvent = null,
+  dungeonVfxEvent = null,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animFrameRef = useRef<number | null>(null);
@@ -253,9 +269,11 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
   const projectilesRef = useRef<ActiveProjectile[]>([]);
   const fissuresRef = useRef<GroundFissure[]>([]);
   const ambientParticlesRef = useRef<AmbientParticle[]>([]);
+  const coinsRef = useRef<GoldCoinParticle[]>([]);
 
-  // Prestige Sequence Ref
+  // Prestige & Dungeon Sequence Ref
   const lastPrestigeEventIdRef = useRef<string | null>(null);
+  const lastDungeonEventIdRef = useRef<string | null>(null);
   const prestigeVfxRef = useRef<{
     id: string;
     startTime: number;
@@ -1278,6 +1296,52 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
   }, [prestigeVfxEvent]);
 
   // ==========================================
+  // Trigger Dungeon Dedicated Canvas 2D VFX (Zero Text Emojis)
+  // ==========================================
+  useEffect(() => {
+    if (!dungeonVfxEvent) return;
+    if (lastDungeonEventIdRef.current === dungeonVfxEvent.id) return;
+    lastDungeonEventIdRef.current = dungeonVfxEvent.id;
+
+    const { heroX, heroY, monsterX, monsterY, groundY } = getAnchors();
+
+    if (dungeonVfxEvent.type === 'gold_burst') {
+      // Golden Goblin defeated: fountain of spinning Canvas 2D gold coins + golden shockwave
+      spawnShockwave(monsterX, monsterY, 72, 420, '#fbbf24', 0.75, 5);
+      spawnDirectionalSparks(monsterX, monsterY, 16, '#fde047', -Math.PI * 0.5, 2.2, 8.5, groundY);
+
+      for (let i = 0; i < 12; i++) {
+        const angle = -Math.PI * 0.5 + (Math.random() - 0.5) * 1.4;
+        const speed = 5.5 + Math.random() * 5.0;
+        coinsRef.current.push({
+          x: monsterX + (Math.random() - 0.5) * 20,
+          y: monsterY - 6,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 2.0,
+          radius: 6 + Math.random() * 3.5,
+          spin: Math.random() * Math.PI * 2,
+          spinSpeed: 10 + Math.random() * 8,
+          life: 0,
+          maxLife: 0.65 + Math.random() * 0.25,
+          groundY,
+          bouncesLeft: 2,
+        });
+      }
+    } else if (dungeonVfxEvent.type === 'wave_clear') {
+      // Training Forest wave clear: emerald spirit rings + ascending green motes
+      spawnShockwave(monsterX, groundY, 110, 440, '#10b981', 0.45, 6);
+      spawnShockwave(heroX, heroY, 85, 380, '#34d399', 0.85, 4.5);
+      spawnDirectionalSparks(monsterX, monsterY, 22, '#6ee7b7', -Math.PI * 0.5, 2.6, 9.0, groundY);
+    } else if (dungeonVfxEvent.type === 'ruins_clear') {
+      // Ancient Ruins boss defeated: arcane crystal burst + twin shockwaves
+      spawnShockwave(monsterX, monsterY, 125, 460, '#a855f7', 0.8, 7);
+      spawnShockwave(monsterX, groundY, 140, 480, '#38bdf8', 0.45, 6);
+      spawnDirectionalSparks(monsterX, monsterY, 32, '#c084fc', -Math.PI * 0.5, 3.0, 10.5, groundY);
+      spawnDirectionalSparks(monsterX, monsterY, 18, '#fbbf24', 0, 3.14, 8.5, groundY);
+    }
+  }, [dungeonVfxEvent]);
+
+  // ==========================================
   // Main Canvas Render Loop (60 FPS)
   // ==========================================
   useEffect(() => {
@@ -1981,6 +2045,59 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
         ctx.beginPath();
         ctx.arc(spk.x, spk.y, Math.max(0.8, spk.width * 0.6), 0, Math.PI * 2);
         ctx.fill();
+        ctx.restore();
+      }
+
+      // ----------------------------------------------------
+      // 9. Spinning Canvas 2D Gold Coins (Gold Mine Dungeon)
+      // ----------------------------------------------------
+      for (let i = coinsRef.current.length - 1; i >= 0; i--) {
+        const coin = coinsRef.current[i];
+        coin.life += dt;
+        if (coin.life >= coin.maxLife) {
+          coinsRef.current.splice(i, 1);
+          continue;
+        }
+
+        coin.x += coin.vx;
+        coin.y += coin.vy;
+        coin.vy += 0.42; // gravity
+        coin.vx *= 0.98;
+        coin.spin += coin.spinSpeed * dt;
+
+        if (coin.y >= coin.groundY && coin.bouncesLeft > 0) {
+          coin.y = coin.groundY;
+          coin.vy = -Math.abs(coin.vy) * 0.55;
+          coin.vx *= 0.8;
+          coin.bouncesLeft--;
+        }
+
+        const alpha = Math.max(0, 1 - Math.pow(coin.life / coin.maxLife, 1.6));
+        const rx = Math.max(1.8, Math.abs(Math.cos(coin.spin)) * coin.radius);
+        const ry = coin.radius;
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(coin.x, coin.y);
+        ctx.shadowColor = '#f59e0b';
+        ctx.shadowBlur = 10;
+
+        // Outer gold rim
+        ctx.fillStyle = '#fbbf24';
+        ctx.strokeStyle = '#fef08a';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Inner embossed core
+        if (rx > 3.2) {
+          ctx.fillStyle = '#d97706';
+          ctx.beginPath();
+          ctx.ellipse(0, 0, rx * 0.55, ry * 0.55, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
         ctx.restore();
       }
 

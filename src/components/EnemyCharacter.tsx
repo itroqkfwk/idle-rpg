@@ -46,13 +46,27 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
   }, [hpPercent]);
 
   const isBoss = monster.isBoss || monster.id.includes('boss');
+  const isGoldDungeonMob = monster.id.startsWith('dg_gold_');
+  const isExpDungeonMob = monster.id.startsWith('dg_exp_');
+  const isRuinsDungeonBoss = monster.id.startsWith('dg_ruins_');
   const isFrozen = monsterStatuses.some((s) => s.type === 'freeze');
   const isBurning = monsterStatuses.some((s) => s.type === 'burn');
   const isStunned = monsterStatuses.some((s) => s.type === 'stun');
 
-  // Determine monster sprite & idle animation type
+  // Determine monster sprite & idle animation type (preserving original PNG assets)
   const getMonsterType = () => {
-    if (isBoss) return { sprite: './assets/boss_golem.png', idleClass: 'boss-act-idle', sizeClass: 'boss-size' };
+    if (isRuinsDungeonBoss || isBoss) {
+      return { sprite: './assets/boss_golem.png', idleClass: 'boss-act-idle', sizeClass: 'boss-size' };
+    }
+    if (isGoldDungeonMob) {
+      return { sprite: './assets/monster_spirit.png', idleClass: 'spirit-act-idle', sizeClass: 'medium-size' };
+    }
+    if (isExpDungeonMob) {
+      if (monster.id.includes('_w2')) return { sprite: './assets/monster_mushroom.png', idleClass: 'mushroom-act-idle', sizeClass: 'medium-size' };
+      if (monster.id.includes('_w3')) return { sprite: './assets/monster_bee.png', idleClass: 'bee-act-idle', sizeClass: 'medium-size' };
+      if (monster.id.includes('_w4')) return { sprite: './assets/monster_spirit.png', idleClass: 'spirit-act-idle', sizeClass: 'medium-size' };
+      return { sprite: './assets/monster_slime.png', idleClass: 'slime-act-idle', sizeClass: 'slime-size' };
+    }
     if (monster.id.includes('m2') || monster.name.includes('버섯')) {
       return { sprite: './assets/monster_mushroom.png', idleClass: 'mushroom-act-idle', sizeClass: 'medium-size' };
     }
@@ -124,7 +138,19 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
         )}
 
         <div className="combatant-name-tag">
-          {isBoss ? (
+          {isRuinsDungeonBoss ? (
+            <span className="boss-lvl-badge" style={{ background: 'linear-gradient(135deg, #7c3aed, #4c1d95)', boxShadow: '0 0 10px rgba(139, 92, 246, 0.8)' }}>
+              <Skull size={10} /> ANCIENT BOSS
+            </span>
+          ) : isGoldDungeonMob ? (
+            <span className="boss-lvl-badge" style={{ background: 'linear-gradient(135deg, #f59e0b, #b45309)', boxShadow: '0 0 10px rgba(245, 158, 11, 0.8)' }}>
+              GOLD GOBLIN
+            </span>
+          ) : isExpDungeonMob ? (
+            <span className="boss-lvl-badge" style={{ background: 'linear-gradient(135deg, #10b981, #047857)', boxShadow: '0 0 10px rgba(16, 185, 129, 0.8)' }}>
+              {isBoss ? 'FINAL GUARDIAN' : 'WAVE GUARDIAN'}
+            </span>
+          ) : isBoss ? (
             <span className="boss-lvl-badge">
               <Skull size={10} /> BOSS
             </span>
@@ -143,7 +169,7 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
         </div>
 
         <div className="combatant-hp-val">
-          {monster.currentHp} / {monster.maxHp}
+          {monster.currentHp.toLocaleString()} / {monster.maxHp.toLocaleString()}
         </div>
       </div>
 
@@ -151,7 +177,9 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
       <div
         className={`enemy-sprite-wrapper ${getHitActionClass()} ${isCriticalHit ? 'hit-crit-recoil' : ''} ${
           isHitStop ? 'hit-stop-freeze' : ''
-        } ${isFrozen ? 'status-tint-freeze' : isBurning ? 'status-tint-burn' : ''}`}
+        } ${isFrozen ? 'status-tint-freeze' : isBurning ? 'status-tint-burn' : ''} ${
+          isGoldDungeonMob ? 'dungeon-gold-aura' : isExpDungeonMob ? 'dungeon-exp-aura' : isRuinsDungeonBoss ? 'dungeon-ruins-aura' : ''
+        }`}
       >
         {/* Soft Ground Contact Shadow */}
         <div className={`character-ground-shadow ${isBoss ? 'boss-ground-shadow' : 'normal-ground-shadow'}`} />
@@ -218,6 +246,18 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
 
         .status-tint-burn .monster-2d-sprite {
           filter: drop-shadow(0 0 12px #f97316) brightness(1.12) saturate(1.25) !important;
+        }
+
+        .dungeon-gold-aura .monster-2d-sprite {
+          filter: sepia(0.55) saturate(2.4) hue-rotate(-12deg) brightness(1.12) drop-shadow(0 0 16px rgba(251, 191, 36, 0.85));
+        }
+
+        .dungeon-exp-aura .monster-2d-sprite {
+          filter: saturate(1.35) drop-shadow(0 0 15px rgba(16, 185, 129, 0.75));
+        }
+
+        .dungeon-ruins-aura .monster-2d-sprite {
+          filter: hue-rotate(215deg) saturate(1.45) brightness(1.06) drop-shadow(0 0 22px rgba(168, 85, 247, 0.9));
         }
 
         .enemy-act-cc-frozen {

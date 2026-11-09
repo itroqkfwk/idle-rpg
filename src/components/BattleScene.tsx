@@ -12,8 +12,10 @@ import {
   CharacterClassId,
   PromotionId,
   MonsterStatusEffect,
+  ActiveDungeonRun,
 } from '../types/game';
 import { RARITY_CONFIGS } from '../data/equipment';
+import { DUNGEONS_DATA, getDungeonDifficultyConfig } from '../data/dungeons';
 import { PlayerCharacter } from './PlayerCharacter';
 import { EnemyCharacter } from './EnemyCharacter';
 import { PetCompanion } from './PetCompanion';
@@ -81,6 +83,9 @@ interface BattleSceneProps {
   monsterStatuses?: MonsterStatusEffect[];
   currentDps?: number;
   prestigeVfxEvent?: { id: string } | null;
+  activeDungeonRun?: ActiveDungeonRun | null;
+  onAbandonDungeon?: () => void;
+  dungeonVfxEvent?: { id: string; type: 'gold_burst' | 'wave_clear' | 'ruins_clear' } | null;
 }
 
 export const BattleScene: React.FC<BattleSceneProps> = ({
@@ -130,9 +135,24 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
   monsterStatuses = [],
   currentDps = 0,
   prestigeVfxEvent = null,
+  activeDungeonRun = null,
+  onAbandonDungeon,
+  dungeonVfxEvent = null,
 }) => {
-  const isBossFight = stage.stage === 10 && stage.inBossFight;
-  const stageEnv = getStageEnvironment(stage.chapter, stage.stage, isBossFight);
+  const isBossFight = activeDungeonRun
+    ? activeDungeonRun.dungeonId === 'ancient_ruins'
+    : stage.stage === 10 && stage.inBossFight;
+  const stageEnv = getStageEnvironment(
+    activeDungeonRun
+      ? activeDungeonRun.dungeonId === 'gold_mine'
+        ? 3
+        : activeDungeonRun.dungeonId === 'training_forest'
+        ? 1
+        : 2
+      : stage.chapter,
+    activeDungeonRun ? 10 : stage.stage,
+    isBossFight
+  );
 
   return (
     <div className={`battle-environment-root ${isBossFight ? 'boss-battle-mode' : ''}`}>
@@ -183,7 +203,76 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         basicAttackEvent={basicAttackEvent}
         petAttackEvent={petAttackEvent}
         prestigeVfxEvent={prestigeVfxEvent}
+        dungeonVfxEvent={dungeonVfxEvent}
       />
+
+      {/* 🏰 Active Dungeon Dedicated Combat Status HUD */}
+      {activeDungeonRun && (
+        <div
+          className="dungeon-live-status-banner"
+          style={{
+            borderColor: `${DUNGEONS_DATA[activeDungeonRun.dungeonId].accentColor}88`,
+          }}
+        >
+          <div className="dungeon-banner-top">
+            <span
+              className="dungeon-banner-badge"
+              style={{ background: DUNGEONS_DATA[activeDungeonRun.dungeonId].accentColor }}
+            >
+              {DUNGEONS_DATA[activeDungeonRun.dungeonId].badgeText}
+            </span>
+            <span className="dungeon-banner-title">
+              {DUNGEONS_DATA[activeDungeonRun.dungeonId].name} ({activeDungeonRun.difficulty}단계)
+            </span>
+            <span className={`dungeon-banner-timer ${activeDungeonRun.timeLeft <= 10 ? 'timer-critical' : ''}`}>
+              ⏱️ {activeDungeonRun.timeLeft}s / {activeDungeonRun.maxTime}s
+            </span>
+          </div>
+
+          <div className="dungeon-time-progress-track">
+            <div
+              className="dungeon-time-progress-fill"
+              style={{
+                width: `${Math.max(0, Math.min(100, (activeDungeonRun.timeLeft / activeDungeonRun.maxTime) * 100))}%`,
+                background: DUNGEONS_DATA[activeDungeonRun.dungeonId].accentColor,
+              }}
+            />
+          </div>
+
+          <div className="dungeon-banner-metrics">
+            {activeDungeonRun.dungeonId === 'gold_mine' && (
+              <>
+                <span className="dungeon-metric-pill">
+                  처치 수: <strong>{activeDungeonRun.kills}마리</strong>
+                </span>
+                <span className="dungeon-metric-pill gold-metric">
+                  누적 골드: <strong>+{activeDungeonRun.accumulatedGold.toLocaleString()} G</strong>
+                </span>
+              </>
+            )}
+            {activeDungeonRun.dungeonId === 'training_forest' && (
+              <>
+                <span className="dungeon-metric-pill">
+                  진행 웨이브: <strong>Wave {activeDungeonRun.currentWave} / {activeDungeonRun.maxWave}</strong>
+                </span>
+                <span className="dungeon-metric-pill exp-metric">
+                  누적 경험치: <strong>+{activeDungeonRun.accumulatedExp.toLocaleString()} EXP</strong>
+                </span>
+              </>
+            )}
+            {activeDungeonRun.dungeonId === 'ancient_ruins' && (
+              <>
+                <span className="dungeon-metric-pill">
+                  유적 보스 HP: <strong>{Math.max(0, Math.round((monster.currentHp / monster.maxHp) * 100))}%</strong>
+                </span>
+                <span className="dungeon-metric-pill stone-metric">
+                  처치 보상: <strong>강화석 +{getDungeonDifficultyConfig('ancient_ruins', activeDungeonRun.difficulty).stoneReward}개</strong>
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ⚔️ Live DPS & 3-Hit Basic Attack Combo HUD Pill */}
       <div className="battle-live-dps-hud">
@@ -324,25 +413,33 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
 
       {/* Floating Bottom Status / Boss Trigger Overlay */}
       <div className="battle-bottom-floating-bar">
-        {stage.stage === 10 && !stage.inBossFight && (
-          <button className="floating-boss-btn" onClick={onChallengeBoss}>
-            <Skull size={17} color="#ffffff" />
-            <span>보스 소환 도전 (Boss Battle)</span>
+        {activeDungeonRun ? (
+          <button className="floating-retreat-btn dungeon-abandon-btn" onClick={onAbandonDungeon}>
+            <span>던전 포기 (입장권 미반환)</span>
           </button>
-        )}
+        ) : (
+          <>
+            {stage.stage === 10 && !stage.inBossFight && (
+              <button className="floating-boss-btn" onClick={onChallengeBoss}>
+                <Skull size={17} color="#ffffff" />
+                <span>보스 소환 도전 (Boss Battle)</span>
+              </button>
+            )}
 
-        {stage.stage === 10 && stage.inBossFight && (
-          <button className="floating-retreat-btn" onClick={onRetreatToNormal}>
-            <span>일반 사냥으로 후퇴</span>
-          </button>
-        )}
+            {stage.stage === 10 && stage.inBossFight && (
+              <button className="floating-retreat-btn" onClick={onRetreatToNormal}>
+                <span>일반 사냥으로 후퇴</span>
+              </button>
+            )}
 
-        {stage.stage < 10 && (
-          <div className="floating-auto-hunt-pill">
-            <span className="pulse-hunting-dot" />
-            <Swords size={12} color="#94a3b8" />
-            <span>자동 사냥 진행 중...</span>
-          </div>
+            {stage.stage < 10 && (
+              <div className="floating-auto-hunt-pill">
+                <span className="pulse-hunting-dot" />
+                <Swords size={12} color="#94a3b8" />
+                <span>자동 사냥 진행 중...</span>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -750,6 +847,115 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           font-size: 11px;
           font-weight: 700;
           cursor: pointer;
+        }
+
+        .dungeon-abandon-btn {
+          background: rgba(127, 29, 29, 0.85);
+          color: #fecaca;
+          border-color: rgba(248, 113, 113, 0.45);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+        }
+
+        .dungeon-live-status-banner {
+          position: absolute;
+          top: 56px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: min(92%, 420px);
+          z-index: 18;
+          background: rgba(11, 17, 32, 0.88);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(245, 158, 11, 0.5);
+          border-radius: 14px;
+          padding: 7px 12px;
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+        }
+
+        @media (min-width: 768px) {
+          .dungeon-live-status-banner {
+            top: 84px;
+            width: min(90%, 460px);
+          }
+        }
+
+        .dungeon-banner-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 6px;
+        }
+
+        .dungeon-banner-badge {
+          font-size: 9px;
+          font-weight: 900;
+          color: #ffffff;
+          padding: 2px 6px;
+          border-radius: 6px;
+          letter-spacing: 0.4px;
+        }
+
+        .dungeon-banner-title {
+          font-size: 11.5px;
+          font-weight: 800;
+          color: #f8fafc;
+          flex: 1;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .dungeon-banner-timer {
+          font-size: 11px;
+          font-weight: 900;
+          color: #fef08a;
+        }
+
+        .dungeon-banner-timer.timer-critical {
+          color: #ef4444;
+          animation: pulseTimer 0.5s infinite alternate;
+        }
+
+        .dungeon-time-progress-track {
+          width: 100%;
+          height: 5px;
+          background: rgba(255, 255, 255, 0.12);
+          border-radius: 9999px;
+          overflow: hidden;
+        }
+
+        .dungeon-time-progress-fill {
+          height: 100%;
+          border-radius: 9999px;
+          transition: width 0.25s linear;
+        }
+
+        .dungeon-banner-metrics {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          font-size: 10.5px;
+          color: #cbd5e1;
+        }
+
+        .dungeon-metric-pill strong {
+          color: #ffffff;
+          font-weight: 900;
+        }
+
+        .gold-metric strong {
+          color: #fbbf24;
+        }
+
+        .exp-metric strong {
+          color: #34d399;
+        }
+
+        .stone-metric strong {
+          color: #c084fc;
         }
 
         .floating-auto-hunt-pill {

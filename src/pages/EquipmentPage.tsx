@@ -4,6 +4,7 @@ import {
   RARITY_CONFIGS,
   getEquipmentPiecesRequired,
   getEquipmentUpgradeGoldCost,
+  getEquipmentUpgradeStoneCost,
   calculateEquipmentEquippedStats,
   calculateEquipmentOwnedStats,
   calculateTotalEquipmentOwnedBonus,
@@ -15,9 +16,11 @@ interface EquipmentPageProps {
   equipmentCatalog: Equipment[];
   equipped: Partial<Record<EquipmentSlot, Equipment>>;
   gold: number;
+  enhancementStones?: number;
   combatPower: number;
   onEquip: (item: Equipment) => void;
   onUpgradeItem: (itemId: string) => void;
+  onUpgradeItemWithStones?: (itemId: string) => void;
   onBatchUpgrade: () => void;
   onAutoEquip: () => void;
   onClose?: () => void;
@@ -27,9 +30,11 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
   equipmentCatalog,
   equipped,
   gold,
+  enhancementStones = 0,
   combatPower,
   onEquip,
   onUpgradeItem,
+  onUpgradeItemWithStones,
   onBatchUpgrade,
   onAutoEquip,
   onClose,
@@ -86,6 +91,21 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
         ...item,
         level: nextLevel,
         pieces: item.pieces - req,
+        piecesRequired: getEquipmentPiecesRequired(nextLevel, item.rarity),
+      });
+    }
+  };
+
+  const handleStoneUpgradeAction = (item: Equipment) => {
+    if (!onUpgradeItemWithStones || !item.owned) return;
+    const stoneCost = getEquipmentUpgradeStoneCost(item.level, item.rarity);
+    if (enhancementStones >= stoneCost) {
+      sound.playUpgrade();
+      onUpgradeItemWithStones(item.id);
+      const nextLevel = item.level + 1;
+      setSelectedItem({
+        ...item,
+        level: nextLevel,
         piecesRequired: getEquipmentPiecesRequired(nextLevel, item.rarity),
       });
     }
@@ -184,12 +204,32 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
           </div>
         </div>
 
-        {/* Action Controls: Combat Power, Auto-Equip, Batch-Upgrade */}
+        {/* Action Controls: Combat Power, Enhancement Stones, Auto-Equip, Batch-Upgrade */}
         <div className="equip-control-action-bar">
-          <div className="power-stat-box">
-            <Sparkles size={15} color="#f59e0b" />
-            <span className="power-stat-label">전투력:</span>
-            <strong className="power-stat-val">{combatPower.toLocaleString()}</strong>
+          <div className="power-stat-box" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <Sparkles size={15} color="#f59e0b" />
+              <span className="power-stat-label">전투력:</span>
+              <strong className="power-stat-val">{combatPower.toLocaleString()}</strong>
+            </div>
+            <div
+              data-testid="equip-stone-count"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                background: 'rgba(30, 58, 138, 0.45)',
+                border: '1px solid rgba(96, 165, 250, 0.45)',
+                borderRadius: '9999px',
+                padding: '2px 8px',
+                fontSize: '11px',
+                color: '#93c5fd',
+                fontWeight: 800,
+              }}
+            >
+              <span>🔷 강화석:</span>
+              <strong style={{ color: '#ffffff' }}>{enhancementStones.toLocaleString()}개</strong>
+            </div>
           </div>
           <div className="equip-action-btns">
             <button
@@ -413,6 +453,35 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
                     장비 강화 (🪙 {getEquipmentUpgradeGoldCost(selectedItem.level, selectedItem.rarity).toLocaleString()} · 🧩 {getEquipmentPiecesRequired(selectedItem.level, selectedItem.rarity)}개)
                   </span>
                 </button>
+
+                {onUpgradeItemWithStones && (
+                  <button
+                    type="button"
+                    data-testid="stone-upgrade-btn"
+                    className="btn-game detail-modal-btn"
+                    style={{
+                      background:
+                        enhancementStones >= getEquipmentUpgradeStoneCost(selectedItem.level, selectedItem.rarity)
+                          ? 'linear-gradient(135deg, #7c3aed, #2563eb)'
+                          : 'rgba(30, 41, 59, 0.6)',
+                      borderColor:
+                        enhancementStones >= getEquipmentUpgradeStoneCost(selectedItem.level, selectedItem.rarity)
+                          ? '#a78bfa'
+                          : 'rgba(255, 255, 255, 0.1)',
+                      color:
+                        enhancementStones >= getEquipmentUpgradeStoneCost(selectedItem.level, selectedItem.rarity)
+                          ? '#ffffff'
+                          : '#64748b',
+                    }}
+                    disabled={enhancementStones < getEquipmentUpgradeStoneCost(selectedItem.level, selectedItem.rarity)}
+                    onClick={() => handleStoneUpgradeAction(selectedItem)}
+                  >
+                    <Sparkles size={16} />
+                    <span>
+                      강화석 돌파 강화 (🔷 {getEquipmentUpgradeStoneCost(selectedItem.level, selectedItem.rarity)}개 소모 · 보유 {enhancementStones}개)
+                    </span>
+                  </button>
+                )}
 
                 {selectedItem.equipped ? (
                   <div className="currently-equipped-banner">현재 장착 중인 장비입니다</div>

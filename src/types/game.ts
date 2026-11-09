@@ -251,7 +251,40 @@ export interface SkillSlotState {
   maxCooldown: number;
 }
 
-export type ActiveTab = 'adventure' | 'hero' | 'equipment' | 'pet' | 'shop';
+export type ActiveTab = 'adventure' | 'dungeon' | 'hero' | 'equipment' | 'pet' | 'shop';
+
+export type DungeonId = 'gold_mine' | 'training_forest' | 'ancient_ruins';
+
+export type DungeonEndReason = 'victory' | 'defeat' | 'timeout' | 'abandoned';
+
+export interface DungeonProgress {
+  unlockedDifficulty: number; // 1 ~ 5
+  highestClearedDifficulty: number; // 0 ~ 5
+  ticketsLeft: number; // 0 ~ 3
+  totalClears: number;
+}
+
+export interface DungeonSaveState {
+  lastResetDate: string; // 'YYYY-MM-DD'
+  records: Record<DungeonId, DungeonProgress>;
+}
+
+export interface ActiveDungeonRun {
+  dungeonId: DungeonId;
+  difficulty: number; // 1 ~ 5
+  timeLeft: number;
+  maxTime: number;
+  kills: number;
+  currentWave: number; // 1 ~ 5 for training_forest
+  maxWave: number;
+  accumulatedGold: number;
+  accumulatedExp: number;
+  accumulatedStones: number;
+  status: 'fighting' | 'ended';
+  endReason?: DungeonEndReason;
+  levelsGained?: number;
+  newDifficultyUnlocked?: number;
+}
 
 export interface GameSettings {
   bgmEnabled: boolean;
@@ -305,6 +338,8 @@ export interface GameSaveData {
   totalStardustEarned?: number;
   prestigeUpgrades?: PrestigeUpgrades;
   hasPrestigeUnlocked?: boolean;
+  enhancementStones?: number;
+  dungeons?: DungeonSaveState;
 }
 
 

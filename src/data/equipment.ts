@@ -74,6 +74,21 @@ export function getEquipmentUpgradeGoldCost(level: number, rarity: EquipmentRari
 }
 
 /**
+ * Upgrade enhancement stone cost based on level and rarity (from Ancient Ruins dungeon).
+ */
+export function getEquipmentUpgradeStoneCost(level: number, rarity: EquipmentRarity): number {
+  const baseByRarity: Record<EquipmentRarity, number> = {
+    common: 1,
+    rare: 2,
+    epic: 3,
+    legendary: 5,
+    mythic: 8,
+  };
+  const base = baseByRarity[rarity] || 1;
+  return Math.max(1, base + Math.floor((Math.max(1, level) - 1) * 0.6));
+}
+
+/**
  * Calculate actual equipped effect stats scaling with level.
  */
 export function calculateEquipmentEquippedStats(item: Equipment): {
