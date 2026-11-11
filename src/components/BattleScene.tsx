@@ -26,7 +26,7 @@ import { SkillVfxLayer } from './SkillVfxLayer';
 import { SkillStatusHUD } from './SkillStatusHUD';
 import { BattleFxCanvas } from './BattleFxCanvas';
 import { getStageEnvironment } from '../data/stages';
-import { Swords, Skull, Flame } from 'lucide-react';
+import { Skull, Flame } from 'lucide-react';
 
 export interface FloatingGoldDrop {
   id: string;
@@ -98,6 +98,7 @@ interface BattleSceneProps {
   summonVfxEvent?: { id: string; rarity: EquipmentRarity; count: number } | null;
   isPlayerDefeated?: boolean;
   isMoving?: boolean;
+  prestigeCount?: number;
 }
 
 export const BattleScene: React.FC<BattleSceneProps> = ({
@@ -153,6 +154,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
   summonVfxEvent = null,
   isPlayerDefeated = false,
   isMoving = false,
+  prestigeCount = 0,
 }) => {
 
   const isBossFight = activeDungeonRun
@@ -241,7 +243,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
               {DUNGEONS_DATA[activeDungeonRun.dungeonId].badgeText}
             </span>
             <span className="dungeon-banner-title">
-              {DUNGEONS_DATA[activeDungeonRun.dungeonId].name} ({activeDungeonRun.difficulty}단계)
+              {DUNGEONS_DATA[activeDungeonRun.dungeonId].name} · {activeDungeonRun.difficulty}단계
             </span>
             <span className={`dungeon-banner-timer ${activeDungeonRun.timeLeft <= 10 ? 'timer-critical' : ''}`}>
               ⏱️ {activeDungeonRun.timeLeft}s / {activeDungeonRun.maxTime}s
@@ -262,62 +264,96 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
             {activeDungeonRun.dungeonId === 'gold_mine' && (
               <>
                 <span className="dungeon-metric-pill">
-                  처치 수: <strong>{activeDungeonRun.kills}마리</strong>
+                  처치: <strong>{activeDungeonRun.kills}마리</strong>
                 </span>
                 <span className="dungeon-metric-pill gold-metric">
-                  누적 골드: <strong>+{activeDungeonRun.accumulatedGold.toLocaleString()} G</strong>
+                  획득 골드: <strong>+{activeDungeonRun.accumulatedGold.toLocaleString()} G</strong>
                 </span>
               </>
             )}
             {activeDungeonRun.dungeonId === 'training_forest' && (
               <>
                 <span className="dungeon-metric-pill">
-                  진행 웨이브: <strong>Wave {activeDungeonRun.currentWave} / {activeDungeonRun.maxWave}</strong>
+                  웨이브: <strong>W{activeDungeonRun.currentWave}/{activeDungeonRun.maxWave}</strong>
                 </span>
                 <span className="dungeon-metric-pill exp-metric">
-                  누적 경험치: <strong>+{activeDungeonRun.accumulatedExp.toLocaleString()} EXP</strong>
+                  획득 경험치: <strong>+{activeDungeonRun.accumulatedExp.toLocaleString()} EXP</strong>
                 </span>
               </>
             )}
             {activeDungeonRun.dungeonId === 'ancient_ruins' && (
               <>
                 <span className="dungeon-metric-pill">
-                  유적 보스 HP: <strong>{Math.max(0, Math.round((monster.currentHp / monster.maxHp) * 100))}%</strong>
+                  보스 HP: <strong>{Math.max(0, Math.round((monster.currentHp / monster.maxHp) * 100))}%</strong>
                 </span>
                 <span className="dungeon-metric-pill stone-metric">
-                  처치 보상: <strong>강화석 +{getDungeonDifficultyConfig('ancient_ruins', activeDungeonRun.difficulty).stoneReward}개</strong>
+                  보상: <strong>강화석 +{getDungeonDifficultyConfig('ancient_ruins', activeDungeonRun.difficulty).stoneReward}개</strong>
                 </span>
               </>
             )}
+            <span className="dungeon-pause-stage-note">
+              일반 Ch.{stage.chapter}-{stage.stage} 일시 중지 (종료 시 복귀)
+            </span>
           </div>
         </div>
       )}
 
-      {/* ⚔️ Live DPS & 3-Hit Basic Attack Combo HUD Pill */}
-      <div className="battle-live-dps-hud">
-        <div className="dps-stat-row">
-          <span className="dps-icon">⚡</span>
-          <span className="dps-label">DPS</span>
-          <span className="dps-value">{currentDps.toLocaleString()}</span>
+      {/* ⚔️ Live DPS, 3-Hit Combo & Auto-Progression Status HUD */}
+      <div className={`battle-live-dps-hud ${activeDungeonRun ? 'dps-hud-dungeon-offset' : ''}`}>
+        <div className="dps-combo-top-line">
+          <div className="dps-stat-row">
+            <span className="dps-icon">⚡</span>
+            <span className="dps-label">DPS</span>
+            <span className="dps-value">{currentDps.toLocaleString()}</span>
+          </div>
+          <span className="hud-v-divider" />
+          <div className="combo-pips-row" title="기본 평타 3연격 콤보 (1타 100% / 2타 120% / 3타 155%)">
+            <span className="combo-label">콤보</span>
+            {[1, 2, 3].map((step) => {
+              const isAttackingThis = isPlayerAttacking && basicComboStep === step;
+              const isCompletedThis = comboCompletedCount >= step;
+              const pipClass = isAttackingThis
+                ? step === 3
+                  ? 'pip-active pip-finisher'
+                  : 'pip-active'
+                : isCompletedThis
+                ? 'pip-filled'
+                : '';
+              return (
+                <span key={step} className={`combo-pip ${pipClass}`}>
+                  {step}
+                </span>
+              );
+            })}
+          </div>
         </div>
-        <div className="combo-pips-row" title="기본 평타 3연격 콤보">
-          <span className="combo-label">평타</span>
-          {[1, 2, 3].map((step) => {
-            const isAttackingThis = isPlayerAttacking && basicComboStep === step;
-            const isCompletedThis = comboCompletedCount >= step;
-            const pipClass = isAttackingThis
-              ? step === 3
-                ? 'pip-active pip-finisher'
-                : 'pip-active'
-              : isCompletedThis
-              ? 'pip-filled'
-              : '';
-            return (
-              <span key={step} className={`combo-pip ${pipClass}`}>
-                {step}
-              </span>
-            );
-          })}
+
+        {/* Auto Combat & Progression State Indicator */}
+        <div className="hud-auto-state-row">
+          <span
+            className={`hud-auto-dot ${
+              activeDungeonRun
+                ? 'dot-dungeon'
+                : stage.stage === 10 && stage.inBossFight
+                ? 'dot-boss'
+                : stage.stage === 10 && !stage.inBossFight
+                ? 'dot-boss-ready'
+                : 'dot-hunting'
+            }`}
+          />
+          <span className="hud-auto-text">
+            {activeDungeonRun
+              ? `던전 진행 중 · 종료 시 Ch.${stage.chapter}-${stage.stage} 복귀`
+              : stage.stage === 10 && stage.inBossFight
+              ? `보스 결전 중 · 제한시간 ${stage.bossTimeLeft}초`
+              : stage.stage === 10 && !stage.inBossFight
+              ? '보스 도전 가능 · 자동 파밍 유지 중'
+              : prestigeCount > 0 && promotion !== 'none' && stats.level < 30
+              ? `환생 ★${prestigeCount} 재성장 · Lv.30 전직 자동 복구`
+              : prestigeCount > 0
+              ? `환생 ★${prestigeCount} 자동 전투 진행 중`
+              : '자동 전투 진행 중'}
+          </span>
         </div>
       </div>
 
@@ -387,12 +423,17 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           <PetCompanion pet={activePet} isAttacking={isPetAttacking} />
         </div>
 
-        {/* Center: Boss Encounter Alert Badge */}
+        {/* Center: Boss Encounter Alert Badge & Emphasized Countdown Timer */}
         {isBossFight && (
           <div className="arena-center-banner">
-            <div className="boss-alert-badge">
+            <div className={`boss-alert-badge ${!activeDungeonRun && stage.bossTimeLeft <= 10 ? 'boss-alert-urgent' : ''}`}>
               <Skull size={15} color="#ef4444" />
-              <span>BOSS RAID</span>
+              <span>{activeDungeonRun ? 'ANCIENT RUINS BOSS' : 'BOSS RAID'}</span>
+              {!activeDungeonRun && (
+                <span className={`boss-inline-timer ${stage.bossTimeLeft <= 10 ? 'timer-hurry' : ''}`}>
+                  ⏱️ {stage.bossTimeLeft}s
+                </span>
+              )}
               <Flame size={15} color="#f97316" />
             </div>
           </div>
@@ -437,7 +478,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
       <div className="battle-bottom-floating-bar">
         {activeDungeonRun ? (
           <button className="floating-retreat-btn dungeon-abandon-btn" onClick={onAbandonDungeon}>
-            <span>던전 포기 (입장권 미반환)</span>
+            <span>던전 포기 (Ch.{stage.chapter}-{stage.stage} 복귀)</span>
           </button>
         ) : (
           <>
@@ -452,14 +493,6 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
               <button className="floating-retreat-btn" onClick={onRetreatToNormal}>
                 <span>일반 사냥으로 후퇴</span>
               </button>
-            )}
-
-            {stage.stage < 10 && (
-              <div className="floating-auto-hunt-pill">
-                <span className="pulse-hunting-dot" />
-                <Swords size={12} color="#94a3b8" />
-                <span>자동 사냥 진행 중...</span>
-              </div>
             )}
           </>
         )}
@@ -691,29 +724,96 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         /* Live DPS & 3-Hit Combo HUD Pill */
         .battle-live-dps-hud {
           position: absolute;
-          top: 112px;
-          left: 12px;
+          top: 60px;
+          left: 10px;
           z-index: 12;
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: 3px;
           padding: 6px 10px;
           border-radius: 12px;
-          background: rgba(11, 18, 33, 0.78);
+          background: rgba(11, 18, 33, 0.84);
           backdrop-filter: blur(8px);
           border: 1px solid rgba(255, 255, 255, 0.14);
           box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
           pointer-events: none;
           user-select: none;
+          transition: top 0.2s ease;
+        }
+
+        .battle-live-dps-hud.dps-hud-dungeon-offset {
+          top: 138px;
         }
 
         @media (min-width: 700px) {
           .battle-live-dps-hud {
-            top: clamp(68px, 9vh, 92px);
+            top: clamp(78px, 10vh, 96px);
             left: clamp(16px, 2.8vw, 36px);
             padding: 7px 12px;
             border-radius: 14px;
           }
+          .battle-live-dps-hud.dps-hud-dungeon-offset {
+            top: 162px;
+          }
+        }
+
+        .dps-combo-top-line {
+          display: flex;
+          align-items: center;
+          gap: 7px;
+        }
+
+        .hud-v-divider {
+          width: 1px;
+          height: 12px;
+          background: rgba(255, 255, 255, 0.18);
+        }
+
+        .hud-auto-state-row {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          padding-top: 2px;
+          border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .hud-auto-dot {
+          width: 5.5px;
+          height: 5.5px;
+          border-radius: 50%;
+          flex-shrink: 0;
+        }
+
+        .dot-hunting {
+          background: #10b981;
+          box-shadow: 0 0 6px #10b981;
+          animation: huntDotPulse 1.8s ease-in-out infinite;
+        }
+
+        .dot-boss-ready {
+          background: #f59e0b;
+          box-shadow: 0 0 6px #f59e0b;
+          animation: huntDotPulse 1.2s ease-in-out infinite;
+        }
+
+        .dot-boss {
+          background: #ef4444;
+          box-shadow: 0 0 8px #ef4444;
+          animation: huntDotPulse 0.8s ease-in-out infinite;
+        }
+
+        .dot-dungeon {
+          background: #38bdf8;
+          box-shadow: 0 0 6px #38bdf8;
+          animation: huntDotPulse 1.2s ease-in-out infinite;
+        }
+
+        .hud-auto-text {
+          font-size: 9px;
+          font-weight: 800;
+          color: #cbd5e1;
+          letter-spacing: -0.1px;
+          white-space: nowrap;
         }
 
         .dps-stat-row {
@@ -817,7 +917,31 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           color: #ffffff;
           font-size: 11px;
           font-weight: 900;
-          letter-spacing: 1px;
+          letter-spacing: 0.8px;
+        }
+
+        .boss-alert-urgent {
+          border-color: #f87171;
+          box-shadow: 0 0 18px rgba(239, 68, 68, 0.85);
+        }
+
+        .boss-inline-timer {
+          font-size: 11px;
+          font-weight: 900;
+          color: #fef08a;
+          background: rgba(239, 68, 68, 0.25);
+          border: 1px solid rgba(251, 191, 36, 0.45);
+          padding: 1px 6px;
+          border-radius: 999px;
+          letter-spacing: 0;
+        }
+
+        .dungeon-pause-stage-note {
+          font-size: 9px;
+          font-weight: 700;
+          color: #94a3b8;
+          margin-left: auto;
+          white-space: nowrap;
         }
 
         /* Floating Bottom Bar (Cleanly anchored above bottom dock and skill HUD) */

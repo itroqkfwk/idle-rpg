@@ -9,6 +9,7 @@ import {
   EQUIPMENT_SUMMON_COST_10,
   EQUIPMENT_GOLD_CHEST_COST,
   EQUIPMENT_PITY_LIMIT,
+  EQUIPMENT_MYTHIC_PITY_LIMIT,
   validateEquipmentSummonProbabilities,
 } from '../data/equipment';
 import { sound } from '../utils/audio';
@@ -155,10 +156,10 @@ export const ShopPage: React.FC<ShopPageProps> = ({
               </div>
             </div>
 
-            {/* Pity Progress Bar */}
+            {/* Pity Progress Bars (30x Legendary+ & 60x Mythic Guaranteed) */}
             <div className="summon-pity-box" data-testid="shop-equip-pity-box">
               <div className="pity-label-row">
-                <span>🌟 천장 마일리지 (30회 달성 시 전설~신화 확정!)</span>
+                <span>🌟 전설~신화 천장 (30회 달성 시 전설~신화 확정!)</span>
                 <strong data-testid="shop-equip-pity-text">
                   {equipmentPityCount} / {EQUIPMENT_PITY_LIMIT}
                 </strong>
@@ -168,6 +169,25 @@ export const ShopPage: React.FC<ShopPageProps> = ({
                   className="pity-progress-fill"
                   style={{
                     width: `${Math.min(100, (equipmentPityCount / EQUIPMENT_PITY_LIMIT) * 100)}%`,
+                  }}
+                />
+              </div>
+
+              <div className="pity-label-row" style={{ marginTop: '6px' }}>
+                <span style={{ color: '#fca5a5' }}>🔥 신화 확정 천장 (60회 달성 시 신화 100% 확정!)</span>
+                <strong data-testid="shop-equip-mythic-pity-text" style={{ color: '#fca5a5' }}>
+                  {totalEquipmentSummons % EQUIPMENT_MYTHIC_PITY_LIMIT} / {EQUIPMENT_MYTHIC_PITY_LIMIT}
+                </strong>
+              </div>
+              <div className="pity-progress-track">
+                <div
+                  className="pity-progress-fill"
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      ((totalEquipmentSummons % EQUIPMENT_MYTHIC_PITY_LIMIT) / EQUIPMENT_MYTHIC_PITY_LIMIT) * 100
+                    )}%`,
+                    background: 'linear-gradient(90deg, #ef4444, #f97316)',
                   }}
                 />
               </div>

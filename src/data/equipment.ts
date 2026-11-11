@@ -644,6 +644,7 @@ export const EQUIPMENT_SUMMON_COST_1 = 100;
 export const EQUIPMENT_SUMMON_COST_10 = 900;
 export const EQUIPMENT_GOLD_CHEST_COST = 500;
 export const EQUIPMENT_PITY_LIMIT = 30;
+export const EQUIPMENT_MYTHIC_PITY_LIMIT = 60;
 export const EQUIPMENT_SYNTHESIS_PIECES_REQUIRED = 5;
 
 export function validateEquipmentSummonProbabilities(): { valid: boolean; total: number } {

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Equipment, EquipmentRarity, EquipmentSlot } from '../types/game';
+import { Equipment, EquipmentRarity, EquipmentSlot, ActiveTab } from '../types/game';
 import {
   RARITY_CONFIGS,
   EQUIPMENT_RARITY_ORDER,
@@ -7,6 +7,7 @@ import {
   EQUIPMENT_SUMMON_COST_1,
   EQUIPMENT_SUMMON_COST_10,
   EQUIPMENT_PITY_LIMIT,
+  EQUIPMENT_MYTHIC_PITY_LIMIT,
   EQUIPMENT_SYNTHESIS_PIECES_REQUIRED,
   MASTER_EQUIPMENT_LIST,
   getEquipmentPiecesRequired,
@@ -40,6 +41,7 @@ interface EquipmentPageProps {
   gems?: number;
   enhancementStones?: number;
   equipmentPityCount?: number;
+  totalEquipmentSummons?: number;
   combatPower: number;
   onEquip: (item: Equipment) => void;
   onUpgradeItem: (itemId: string) => void;
@@ -49,6 +51,7 @@ interface EquipmentPageProps {
   onBatchUpgrade: () => void;
   onAutoEquip: () => void;
   onSummonEquipment?: (count: 1 | 10) => void;
+  onNavigateTab?: (tab: ActiveTab) => void;
   onClose?: () => void;
 }
 
@@ -59,6 +62,7 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
   gems = 0,
   enhancementStones = 0,
   equipmentPityCount = 0,
+  totalEquipmentSummons = 0,
   combatPower,
   onEquip,
   onUpgradeItem,
@@ -68,12 +72,15 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
   onBatchUpgrade,
   onAutoEquip,
   onSummonEquipment,
+  onNavigateTab,
   onClose,
 }) => {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'codex' | 'inventory' | 'actionable'>('codex');
   const [filterSlot, setFilterSlot] = useState<EquipmentSlot | 'all'>('all');
   const [filterRarity, setFilterRarity] = useState<EquipmentRarity | 'all'>('all');
   const [showProbTable, setShowProbTable] = useState(false);
+  const mythicPityProgress = totalEquipmentSummons % EQUIPMENT_MYTHIC_PITY_LIMIT;
 
   const slots: { slot: EquipmentSlot; label: string; placeholderIcon: string }[] = [
     { slot: 'weapon', label: '무기', placeholderIcon: '⚔️' },
@@ -165,13 +172,35 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
     return '전체 장비 도감 100% 달성! 장비 강화 및 돌파로 보유 효과를 극대화하세요.';
   }, [synthesizableItems, stoneUpgradeableItems, upgradeableItems, equipmentCatalog, enhancementStones]);
 
+  const actionableItemsCount = useMemo(() => {
+    return equipmentCatalog.filter((item) => {
+      if (!item.owned) return false;
+      const canSynth = item.rarity !== 'mythic' && (item.pieces || 0) >= EQUIPMENT_SYNTHESIS_PIECES_REQUIRED;
+      const req = getEquipmentPiecesRequired(item.level, item.rarity);
+      const cost = getEquipmentUpgradeGoldCost(item.level, item.rarity);
+      const canGoldUp = item.pieces >= req && gold >= cost;
+      const canStoneUp = enhancementStones >= getEquipmentUpgradeStoneCost(item.level, item.rarity);
+      return canSynth || canGoldUp || canStoneUp;
+    }).length;
+  }, [equipmentCatalog, gold, enhancementStones]);
+
   const filteredCatalog = useMemo(() => {
     return equipmentCatalog.filter((item) => {
+      if (viewMode === 'inventory' && !item.owned) return false;
+      if (viewMode === 'actionable') {
+        if (!item.owned) return false;
+        const canSynth = item.rarity !== 'mythic' && (item.pieces || 0) >= EQUIPMENT_SYNTHESIS_PIECES_REQUIRED;
+        const req = getEquipmentPiecesRequired(item.level, item.rarity);
+        const cost = getEquipmentUpgradeGoldCost(item.level, item.rarity);
+        const canGoldUp = item.pieces >= req && gold >= cost;
+        const canStoneUp = enhancementStones >= getEquipmentUpgradeStoneCost(item.level, item.rarity);
+        if (!canSynth && !canGoldUp && !canStoneUp) return false;
+      }
       const slotMatch = filterSlot === 'all' || (item.slot || item.type) === filterSlot;
       const rarityMatch = filterRarity === 'all' || item.rarity === filterRarity;
       return slotMatch && rarityMatch;
     });
-  }, [equipmentCatalog, filterSlot, filterRarity]);
+  }, [equipmentCatalog, viewMode, filterSlot, filterRarity, gold, enhancementStones]);
 
   const handleItemClick = (item: Equipment) => {
     sound.playTap();
@@ -285,9 +314,32 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
                 <span className="quick-summon-title">
                   ✨ 장비 소환 제단 (💎 보유: <strong>{gems.toLocaleString()}</strong>)
                 </span>
-                <span className="quick-summon-pity" data-testid="equip-pity-indicator">
-                  천장 마일리지: <strong>{equipmentPityCount} / {EQUIPMENT_PITY_LIMIT}</strong> (30회 전설~신화 확정)
-                </span>
+                <div className="quick-pity-dual-row" data-testid="equip-pity-indicator">
+                  <div className="pity-mini-box">
+                    <div className="pity-mini-label">
+                      <span>전설~신화 천장 (30회)</span>
+                      <strong>{equipmentPityCount} / {EQUIPMENT_PITY_LIMIT}</strong>
+                    </div>
+                    <div className="pity-mini-track">
+                      <div
+                        className="pity-mini-fill legendary-fill"
+                        style={{ width: `${Math.min(100, (equipmentPityCount / EQUIPMENT_PITY_LIMIT) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="pity-mini-box">
+                    <div className="pity-mini-label">
+                      <span>신화 확정 천장 (60회)</span>
+                      <strong>{mythicPityProgress} / {EQUIPMENT_MYTHIC_PITY_LIMIT}</strong>
+                    </div>
+                    <div className="pity-mini-track">
+                      <div
+                        className="pity-mini-fill mythic-fill"
+                        style={{ width: `${Math.min(100, (mythicPityProgress / EQUIPMENT_MYTHIC_PITY_LIMIT) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
               <div className="quick-summon-btns">
                 <button
@@ -484,8 +536,44 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
           </div>
         </div>
 
-        {/* Dual Filter Bar: Slot Filter + Rarity Filter */}
+        {/* View Mode Switcher (Codex vs Inventory vs Actionable) & Dual Filter Bar */}
         <div className="equip-filters-wrapper">
+          <div className="equip-view-mode-tabs" data-testid="equip-view-mode-tabs">
+            <button
+              type="button"
+              data-testid="view-mode-codex"
+              className={`view-mode-pill ${viewMode === 'codex' ? 'active' : ''}`}
+              onClick={() => {
+                sound.playTap();
+                setViewMode('codex');
+              }}
+            >
+              📚 전체 도감 ({totalItemsCount})
+            </button>
+            <button
+              type="button"
+              data-testid="view-mode-inventory"
+              className={`view-mode-pill ${viewMode === 'inventory' ? 'active' : ''}`}
+              onClick={() => {
+                sound.playTap();
+                setViewMode('inventory');
+              }}
+            >
+              🎒 보유 인벤토리 ({ownedItemsCount})
+            </button>
+            <button
+              type="button"
+              data-testid="view-mode-actionable"
+              className={`view-mode-pill ${viewMode === 'actionable' ? 'active' : ''}`}
+              onClick={() => {
+                sound.playTap();
+                setViewMode('actionable');
+              }}
+            >
+              ⚡ 합성·강화 가능 ({actionableItemsCount})
+            </button>
+          </div>
+
           <div className="equip-filter-tabs">
             {(
               [
@@ -566,7 +654,9 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
                 data-testid={`equip-card-${item.id}`}
                 className={`inv-tile-card ${isEquipped ? 'inv-tile-equipped' : ''} ${
                   !item.owned ? 'inv-tile-locked' : ''
-                } ${isHighRarity && item.owned ? 'inv-tile-high-rarity' : ''}`}
+                } ${isHighRarity && item.owned ? 'inv-tile-high-rarity' : ''} ${
+                  canSynthesize ? 'inv-tile-synthesizable' : ''
+                }`}
                 style={{
                   borderColor: item.owned ? rarity.borderColor : 'rgba(255, 255, 255, 0.1)',
                   boxShadow: item.owned ? `0 2px 12px ${rarity.glowColor}` : 'none',
@@ -821,12 +911,15 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
               );
             })()}
 
-            {/* Enhancement Stone Status Info Panel */}
+            {/* Enhancement Stone & Gold Status Info Panel */}
             {selectedItem.owned && (
               <div className="stone-upgrade-status-panel" data-testid="stone-upgrade-status-panel">
                 {(() => {
                   const reqStones = getEquipmentUpgradeStoneCost(selectedItem.level, selectedItem.rarity);
                   const canStone = enhancementStones >= reqStones;
+                  const stoneShortage = Math.max(0, reqStones - enhancementStones);
+                  const reqGold = getEquipmentUpgradeGoldCost(selectedItem.level, selectedItem.rarity);
+                  const goldShortage = Math.max(0, reqGold - gold);
                   return (
                     <>
                       <div className="stone-status-item">
@@ -838,14 +931,44 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
                         <strong data-testid="detail-cur-stones">🔷 {enhancementStones}개</strong>
                       </div>
                       <div className="stone-status-item">
-                        <span>강화 가능 여부</span>
+                        <span>돌파 가능 여부</span>
                         <strong
                           data-testid="detail-stone-can-upgrade"
                           style={{ color: canStone ? '#34d399' : '#f87171' }}
                         >
-                          {canStone ? '돌파 가능' : '강화석 부족'}
+                          {canStone ? '돌파 가능' : `🔷 ${stoneShortage}개 부족`}
                         </strong>
                       </div>
+                      {(!canStone || goldShortage > 0) && (
+                        <div className="detail-shortage-nav-row">
+                          {!canStone && (
+                            <button
+                              type="button"
+                              className="detail-shortage-go-btn stone-go"
+                              onClick={() => {
+                                sound.playTap();
+                                setSelectedItemId(null);
+                                if (onNavigateTab) onNavigateTab('dungeon');
+                              }}
+                            >
+                              🏛️ 강화석 {stoneShortage}개 부족 → 고대 유적 던전 이동
+                            </button>
+                          )}
+                          {goldShortage > 0 && (
+                            <button
+                              type="button"
+                              className="detail-shortage-go-btn gold-go"
+                              onClick={() => {
+                                sound.playTap();
+                                setSelectedItemId(null);
+                                if (onNavigateTab) onNavigateTab('dungeon');
+                              }}
+                            >
+                              ⛏️ 골드 {goldShortage.toLocaleString()} 부족 → 황금 광산 이동
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </>
                   );
                 })()}
@@ -952,6 +1075,130 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
       )}
 
       <style>{`
+        .quick-pity-dual-row {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 6px;
+          margin-top: 2px;
+        }
+
+        .pity-mini-box {
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+          padding: 4px 7px;
+          border-radius: 8px;
+          background: rgba(15, 23, 42, 0.7);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .pity-mini-label {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 4px;
+          font-size: 9.5px;
+          color: #cbd5e1;
+        }
+
+        .pity-mini-label strong {
+          font-size: 10px;
+          font-weight: 800;
+          color: #fef08a;
+        }
+
+        .pity-mini-track {
+          width: 100%;
+          height: 4px;
+          background: rgba(255, 255, 255, 0.12);
+          border-radius: 999px;
+          overflow: hidden;
+        }
+
+        .pity-mini-fill {
+          height: 100%;
+          border-radius: 999px;
+          transition: width 0.25s ease;
+        }
+
+        .pity-mini-fill.legendary-fill {
+          background: linear-gradient(90deg, #f59e0b, #fbbf24);
+        }
+
+        .pity-mini-fill.mythic-fill {
+          background: linear-gradient(90deg, #ef4444, #f97316);
+        }
+
+        .equip-view-mode-tabs {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 5px;
+          margin-bottom: 4px;
+        }
+
+        .view-mode-pill {
+          padding: 6px 8px;
+          border-radius: 9px;
+          background: rgba(15, 23, 42, 0.75);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          color: #94a3b8;
+          font-size: 10.5px;
+          font-weight: 800;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          white-space: nowrap;
+          text-align: center;
+        }
+
+        .view-mode-pill.active {
+          background: linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(37, 99, 235, 0.35));
+          border-color: #38bdf8;
+          color: #f8fafc;
+          box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+        }
+
+        .inv-tile-synthesizable {
+          box-shadow: 0 0 14px rgba(16, 185, 129, 0.45), inset 0 0 8px rgba(16, 185, 129, 0.18) !important;
+        }
+
+        .detail-shortage-nav-row {
+          grid-column: 1 / -1;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          margin-top: 6px;
+          padding-top: 6px;
+          border-top: 1px dashed rgba(255, 255, 255, 0.12);
+        }
+
+        .detail-shortage-go-btn {
+          flex: 1;
+          min-width: 140px;
+          padding: 6px 10px;
+          border-radius: 8px;
+          font-size: 10.5px;
+          font-weight: 800;
+          cursor: pointer;
+          text-align: center;
+          transition: transform 0.1s ease;
+        }
+
+        .detail-shortage-go-btn:active {
+          transform: scale(0.97);
+        }
+
+        .detail-shortage-go-btn.stone-go {
+          background: rgba(30, 58, 138, 0.55);
+          border: 1px solid rgba(96, 165, 250, 0.55);
+          color: #bfdbfe;
+        }
+
+        .detail-shortage-go-btn.gold-go {
+          background: rgba(120, 53, 15, 0.55);
+          border: 1px solid rgba(251, 191, 36, 0.55);
+          color: #fef08a;
+        }
+
         .paperdoll-container {
           margin-bottom: 6px;
         }

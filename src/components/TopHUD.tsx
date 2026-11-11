@@ -6,6 +6,7 @@ import { DUNGEONS_DATA } from '../data/dungeons';
 
 interface TopHUDProps {
   stats: CharacterStats;
+  maxHp?: number;
   stage: StageState;
   classId?: CharacterClassId;
   promotion?: PromotionId;
@@ -20,6 +21,7 @@ interface TopHUDProps {
 
 export const TopHUD: React.FC<TopHUDProps> = ({
   stats,
+  maxHp,
   stage,
   classId = 'warrior',
   promotion = 'none',
@@ -33,7 +35,10 @@ export const TopHUD: React.FC<TopHUDProps> = ({
 }) => {
   const safeChapterIdx = Math.min(CHAPTERS_DATA.length - 1, Math.max(0, stage.chapter - 1));
   const currentChapter = CHAPTERS_DATA[safeChapterIdx];
-  const expPercent = Math.min(100, Math.floor((stats.exp / stats.maxExp) * 100));
+  const expPercent = Math.min(100, Math.floor((stats.exp / Math.max(1, stats.maxExp)) * 100));
+  const currentHp = stats.currentHp ?? stats.baseHp;
+  const effectiveMaxHp = maxHp && maxHp > 0 ? maxHp : Math.max(1, stats.baseHp + (stats.hpLevel - 1) * 35);
+  const hpPercent = Math.min(100, Math.max(0, Math.round((currentHp / effectiveMaxHp) * 100)));
 
   const chapterShortName = currentChapter.name.replace(/\s*\(.*?\)/, '');
 
@@ -92,9 +97,20 @@ export const TopHUD: React.FC<TopHUDProps> = ({
               {classNameText}
             </span>
           </div>
-          {/* Slim EXP bar */}
-          <div className="profile-exp-track" title={`EXP: ${stats.exp} / ${stats.maxExp}`}>
-            <div className="profile-exp-fill" style={{ width: `${expPercent}%` }} />
+          {/* Readable HP & EXP Dual Micro-Bars */}
+          <div className="profile-bars-stack">
+            <div className="profile-bar-line" title={`HP: ${currentHp.toLocaleString()} / ${effectiveMaxHp.toLocaleString()} (${hpPercent}%)`}>
+              <div className="profile-hp-track">
+                <div className="profile-hp-fill" style={{ width: `${hpPercent}%` }} />
+              </div>
+              <span className="profile-bar-pct hp-pct-txt">{hpPercent}%</span>
+            </div>
+            <div className="profile-bar-line" title={`EXP: ${stats.exp.toLocaleString()} / ${stats.maxExp.toLocaleString()} (${expPercent}%)`}>
+              <div className="profile-exp-track">
+                <div className="profile-exp-fill" style={{ width: `${expPercent}%` }} />
+              </div>
+              <span className="profile-bar-pct exp-pct-txt">{expPercent}%</span>
+            </div>
           </div>
         </div>
       </div>
@@ -118,25 +134,32 @@ export const TopHUD: React.FC<TopHUDProps> = ({
         ) : (
           <>
             <div className="stage-name-text">
-              {stage.isBossStage ? (
-                <span className="boss-stage-text">🔥 BOSS RAID</span>
+              {stage.isBossStage && stage.inBossFight ? (
+                <span className="boss-stage-text">🔥 Ch.{stage.chapter}-10 BOSS</span>
+              ) : stage.stage === 10 ? (
+                <span className="boss-ready-text">⚔️ Ch.{stage.chapter}-10 보스 대기</span>
               ) : (
-                <span>{chapterShortName} {stage.chapter}-{stage.stage}</span>
+                <span>Ch.{stage.chapter}-{stage.stage} {chapterShortName}</span>
               )}
             </div>
 
             {stage.stage < 10 ? (
-              <div className="stage-pips-row">
+              <div className="stage-pips-row" title={`스테이지 처치 진행도: ${stage.killCount} / ${stage.killsRequired}`}>
                 {Array.from({ length: stage.killsRequired }).map((_, i) => (
                   <div
                     key={i}
                     className={`stage-pip ${i < stage.killCount ? 'pip-filled' : ''}`}
                   />
                 ))}
+                <span className="stage-kill-count-txt">{stage.killCount}/{stage.killsRequired}</span>
+              </div>
+            ) : stage.inBossFight ? (
+              <div className={`stage-boss-timer ${stage.bossTimeLeft <= 10 ? 'timer-hurry' : ''}`}>
+                ⏱️ 남은 시간 {stage.bossTimeLeft}초
               </div>
             ) : (
-              <div className={`stage-boss-timer ${stage.bossTimeLeft <= 10 ? 'timer-hurry' : ''}`}>
-                ⏱️ {stage.bossTimeLeft}초
+              <div className="stage-boss-ready-sub">
+                보스 소환 가능
               </div>
             )}
           </>
@@ -146,35 +169,33 @@ export const TopHUD: React.FC<TopHUDProps> = ({
       {/* 🪙 Right Zone: Currency Badges & Settings */}
       <div className="currencies-right-cluster">
         {/* Gold Capsule */}
-        <div className="currency-pill gold-pill" title="골드">
+        <div className="currency-pill gold-pill" title={`보유 골드: ${stats.gold.toLocaleString()}`}>
           <span className="currency-icon">🪙</span>
           <span className="currency-val">{formatNumber(stats.gold)}</span>
         </div>
 
         {/* Gem Capsule */}
-        <div className="currency-pill gem-pill" title="보석">
+        <div className="currency-pill gem-pill" title={`보유 보석: ${stats.gems.toLocaleString()}`}>
           <span className="currency-icon">💎</span>
           <span className="currency-val">{formatNumber(stats.gems)}</span>
         </div>
 
         {/* Enhancement Stone Capsule */}
-        {enhancementStones > 0 && (
-          <div className="currency-pill stone-pill" title="장비 강화석 (고대 유적 보상)">
-            <span className="currency-icon">🔷</span>
-            <span className="currency-val">{formatNumber(enhancementStones)}</span>
-          </div>
-        )}
+        <div className="currency-pill stone-pill" title={`보유 장비 강화석: ${enhancementStones.toLocaleString()}개 (고대 유적 보상)`}>
+          <span className="currency-icon">🔷</span>
+          <span className="currency-val">{formatNumber(enhancementStones)}</span>
+        </div>
 
-        {/* Stardust Capsule (shows when unlocked or has prestige history) */}
+        {/* Stardust Capsule */}
         {(prestigeCount > 0 || hasPrestigeUnlocked || stardust > 0) && (
-          <div className="currency-pill stardust-pill" title="별가루 (환생 영구 재화)">
+          <div className="currency-pill stardust-pill" title={`보유 별가루: ${stardust.toLocaleString()}개 (환생 영구 재화)`}>
             <span className="currency-icon">✨</span>
             <span className="currency-val">{formatNumber(stardust)}</span>
           </div>
         )}
 
         {/* Settings Circular Button */}
-        <button className="settings-circle-btn" onClick={onOpenSettings} title="설정">
+        <button className="settings-circle-btn" onClick={onOpenSettings} title="설정" aria-label="설정 열기">
           <Settings size={14} color="#94a3b8" />
         </button>
       </div>
@@ -294,19 +315,55 @@ export const TopHUD: React.FC<TopHUDProps> = ({
           text-shadow: 0 0 6px rgba(251, 191, 36, 0.5);
         }
 
-        .profile-exp-track {
-          width: 40px;
-          height: 3px;
+        .profile-exp-track,
+        .profile-hp-track {
+          width: 42px;
+          height: 3.5px;
           background: rgba(255, 255, 255, 0.15);
           border-radius: 9999px;
           overflow: hidden;
         }
 
+        .profile-hp-fill {
+          height: 100%;
+          background: linear-gradient(90deg, #10b981, #34d399);
+          border-radius: 9999px;
+          transition: width 0.25s ease;
+        }
+
         .profile-exp-fill {
           height: 100%;
-          background: #38bdf8;
+          background: linear-gradient(90deg, #0ea5e9, #38bdf8);
           border-radius: 9999px;
           transition: width 0.3s ease;
+        }
+
+        .profile-bars-stack {
+          display: flex;
+          flex-direction: column;
+          gap: 1.5px;
+          margin-top: 1px;
+        }
+
+        .profile-bar-line {
+          display: flex;
+          align-items: center;
+          gap: 3px;
+        }
+
+        .profile-bar-pct {
+          font-size: 7.5px;
+          font-weight: 800;
+          line-height: 1;
+          font-family: monospace;
+        }
+
+        .hp-pct-txt {
+          color: #6ee7b7;
+        }
+
+        .exp-pct-txt {
+          color: #7dd3fc;
         }
 
         /* Center Stage Capsule */
@@ -335,10 +392,32 @@ export const TopHUD: React.FC<TopHUDProps> = ({
           text-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
         }
 
+        .boss-ready-text {
+          color: #fbbf24;
+          text-shadow: 0 0 6px rgba(251, 191, 36, 0.45);
+        }
+
+        .stage-boss-ready-sub {
+          font-size: 8.5px;
+          font-weight: 800;
+          color: #fde047;
+          line-height: 1.1;
+        }
+
         .stage-pips-row {
           display: flex;
+          align-items: center;
           gap: 3px;
           margin-top: 2px;
+        }
+
+        .stage-kill-count-txt {
+          font-size: 8px;
+          font-weight: 800;
+          color: #fde047;
+          margin-left: 2px;
+          line-height: 1;
+          font-family: monospace;
         }
 
         .stage-pip {
@@ -444,8 +523,12 @@ export const TopHUD: React.FC<TopHUDProps> = ({
           .profile-name {
             display: none;
           }
-          .profile-exp-track {
-            width: 34px;
+          .profile-exp-track,
+          .profile-hp-track {
+            width: 30px;
+          }
+          .profile-bar-pct {
+            font-size: 7px;
           }
           .currencies-right-cluster {
             gap: 2px;
@@ -527,9 +610,13 @@ export const TopHUD: React.FC<TopHUDProps> = ({
             padding: 1px 6px;
           }
 
-          .profile-exp-track {
+          .profile-exp-track,
+          .profile-hp-track {
             width: 75px;
             height: 4px;
+          }
+          .profile-bar-pct {
+            font-size: 9px;
           }
 
           .stage-capsule-badge {

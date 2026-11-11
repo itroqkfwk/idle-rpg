@@ -57,6 +57,10 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
   return (
     <div className="skill-status-hud-root">
       <div className="skill-hud-container">
+        <div className="skill-auto-mode-chip" title="평타 1:1 위빙 및 쿨타임 도달 시 자동 발동">
+          <span className="auto-chip-dot" />
+          <span>AUTO</span>
+        </div>
         {/* 4 Standard Auto Skill Slots */}
         {slots.map((item) => {
           if (!item.skill) {
@@ -77,7 +81,7 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
               className={`rpg-skill-slot rarity-${skill.rarity} ${
                 isReady ? 'is-ready-pulse' : 'is-cooling'
               } ${isCasting ? 'is-casting-flash' : ''}`}
-              title={`${skill.name} (Lv.${skill.level}) - 자동 발동`}
+              title={`${skill.name} (Lv.${skill.level}) - 쿨타임 ${skill.cooldown}초 · 자동 발동`}
             >
               {/* Radial Cooldown Conic Overlay */}
               {!isReady && (
@@ -98,8 +102,10 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
               {/* Center: Skill Icon */}
               <div className="slot-icon-container">
                 <span className="skill-icon-glyph">{skill.icon}</span>
-                {!isReady && (
+                {!isReady ? (
                   <span className="cooldown-seconds-tag">{cd.toFixed(1)}s</span>
+                ) : (
+                  <span className="skill-ready-micro-tag">AUTO</span>
                 )}
               </div>
 
@@ -178,6 +184,7 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
         }
 
         .skill-hud-container {
+          position: relative;
           display: flex;
           align-items: center;
           gap: 6px;
@@ -187,6 +194,47 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
           border: 1px solid rgba(255, 255, 255, 0.12);
           border-radius: 16px;
           box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .skill-auto-mode-chip {
+          position: absolute;
+          top: -9px;
+          left: 12px;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 1px 7px;
+          border-radius: 999px;
+          background: rgba(15, 23, 42, 0.96);
+          border: 1px solid rgba(16, 185, 129, 0.55);
+          color: #6ee7b7;
+          font-size: 7.5px;
+          font-weight: 900;
+          letter-spacing: 0.6px;
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+          z-index: 6;
+        }
+
+        .auto-chip-dot {
+          width: 4.5px;
+          height: 4.5px;
+          border-radius: 50%;
+          background: #10b981;
+          box-shadow: 0 0 6px #10b981;
+        }
+
+        .skill-ready-micro-tag {
+          position: absolute;
+          bottom: -1px;
+          right: -6px;
+          font-size: 6.5px;
+          font-weight: 900;
+          color: #fef08a;
+          background: rgba(15, 23, 42, 0.82);
+          border: 1px solid rgba(251, 191, 36, 0.5);
+          padding: 0 2.5px;
+          border-radius: 3px;
+          line-height: 1.1;
         }
 
         /* 📱 Mobile Slot Size: 58px */

@@ -2,16 +2,19 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Equipment, EquipmentRarity, SummonResultItem } from '../types/game';
 import {
   RARITY_CONFIGS,
+  EQUIPMENT_RARITY_ORDER,
   EQUIPMENT_SUMMON_COST_1,
   EQUIPMENT_SUMMON_COST_10,
   EQUIPMENT_PITY_LIMIT,
+  EQUIPMENT_MYTHIC_PITY_LIMIT,
+  EQUIPMENT_SYNTHESIS_PIECES_REQUIRED,
   getHighestEquipmentRarity,
   calculateEquipmentEquippedStats,
   calculateEquipmentOwnedStats,
 } from '../data/equipment';
 import { drawEquipmentSummonRitual } from './BattleFxCanvas';
 import confetti from 'canvas-confetti';
-import { Sparkles, Check, FastForward, RotateCcw } from 'lucide-react';
+import { Sparkles, Check, FastForward, RotateCcw, ArrowUpDown, Combine } from 'lucide-react';
 import { sound } from '../utils/audio';
 
 interface GachaModalProps {
@@ -20,9 +23,11 @@ interface GachaModalProps {
   sessionId?: string;
   gems?: number;
   pityCount?: number;
+  totalSummons?: number;
   onSummonAgain?: (count: 1 | 10) => void;
   onRitualComplete?: () => void;
   onEquip: (item: Equipment) => void;
+  onGoToEquipment?: () => void;
   onClose: () => void;
 }
 
@@ -40,9 +45,11 @@ export const GachaModal: React.FC<GachaModalProps> = ({
   sessionId = 'default_session',
   gems = 0,
   pityCount = 0,
+  totalSummons = 0,
   onSummonAgain,
   onRitualComplete,
   onEquip,
+  onGoToEquipment,
   onClose,
 }) => {
   const effectiveResults: SummonResultItem[] = useMemo(() => {
@@ -69,6 +76,18 @@ export const GachaModal: React.FC<GachaModalProps> = ({
 
   const [phase, setPhase] = useState<'animating' | 'revealed'>('animating');
   const [selectedIdx, setSelectedIdx] = useState<number>(0);
+  const [sortByRarity, setSortByRarity] = useState<boolean>(false);
+
+  const displayedResults = useMemo(() => {
+    const indexed = effectiveResults.map((r, originalIdx) => ({ ...r, originalIdx }));
+    if (!sortByRarity) return indexed;
+    return [...indexed].sort((a, b) => {
+      const rankDiff =
+        EQUIPMENT_RARITY_ORDER.indexOf(b.item.rarity) - EQUIPMENT_RARITY_ORDER.indexOf(a.item.rarity);
+      if (rankDiff !== 0) return rankDiff;
+      return (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0);
+    });
+  }, [effectiveResults, sortByRarity]);
 
   const ritualCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const animFrameRef = useRef<number | null>(null);
@@ -170,11 +189,21 @@ export const GachaModal: React.FC<GachaModalProps> = ({
 
   if (effectiveResults.length === 0) return null;
 
-  const activeResult = effectiveResults[selectedIdx] || effectiveResults[0];
+  const activeResult = displayedResults[selectedIdx] || displayedResults[0];
   const activeItem = activeResult.item;
   const activeRarity = RARITY_CONFIGS[activeItem.rarity];
   const newUnlockCount = effectiveResults.filter((r) => r.isNew).length;
   const totalPiecesGained = effectiveResults.reduce((sum, r) => sum + (r.piecesGained || 0), 0);
+  const synthesizableCount = useMemo(() => {
+    const uniqueIds = new Set<string>();
+    effectiveResults.forEach((r) => {
+      if (r.item.rarity !== 'mythic' && (r.item.pieces || 0) >= EQUIPMENT_SYNTHESIS_PIECES_REQUIRED) {
+        uniqueIds.add(r.item.id);
+      }
+    });
+    return uniqueIds.size;
+  }, [effectiveResults]);
+  const mythicPityProgress = totalSummons % EQUIPMENT_MYTHIC_PITY_LIMIT;
 
   return (
     <div
@@ -211,11 +240,19 @@ export const GachaModal: React.FC<GachaModalProps> = ({
             </span>
           </div>
 
-          <div className="gacha-pity-pill" data-testid="summon-modal-pity">
-            <span>천장 마일리지:</span>
-            <strong>
-              {pityCount} / {EQUIPMENT_PITY_LIMIT}
-            </strong>
+          <div className="gacha-pity-cluster" data-testid="summon-modal-pity">
+            <div className="gacha-pity-pill">
+              <span>전설 천장:</span>
+              <strong>
+                {pityCount}/{EQUIPMENT_PITY_LIMIT}
+              </strong>
+            </div>
+            <div className="gacha-pity-pill mythic-pity-pill">
+              <span>신화 천장:</span>
+              <strong>
+                {mythicPityProgress}/{EQUIPMENT_MYTHIC_PITY_LIMIT}
+              </strong>
+            </div>
           </div>
         </div>
 
@@ -266,11 +303,14 @@ export const GachaModal: React.FC<GachaModalProps> = ({
                     <span className="gacha-tag-pill tag-new">NEW 신규 해금!</span>
                   ) : (
                     <span className="gacha-tag-pill tag-dup">
-                      중복 획득 · 조각 +{activeResult.piecesGained} (보유 {activeItem.ownedCount || 1}개)
+                      중복 획득 · 조각 +{activeResult.piecesGained} (누적 조각 {activeItem.pieces}/{EQUIPMENT_SYNTHESIS_PIECES_REQUIRED})
                     </span>
                   )}
+                  {activeItem.rarity !== 'mythic' && (activeItem.pieces || 0) >= EQUIPMENT_SYNTHESIS_PIECES_REQUIRED && (
+                    <span className="gacha-tag-pill tag-synth">⚡ 상위 등급 합성 가능!</span>
+                  )}
                   {activeResult.isPityTriggered && (
-                    <span className="gacha-tag-pill tag-pity">🌟 30회 천장 확정!</span>
+                    <span className="gacha-tag-pill tag-pity">🌟 천장 확정!</span>
                   )}
                 </div>
 
@@ -304,30 +344,50 @@ export const GachaModal: React.FC<GachaModalProps> = ({
               /* 10x Multi Summon Individual Results Grid */
               <div className="gacha-multi-section">
                 <div className="gacha-multi-summary-bar">
-                  <span>총 {effectiveResults.length}회 개별 결과</span>
+                  <span>총 {effectiveResults.length}회 결과</span>
                   <span>
-                    신규 해금: <strong className="text-green">{newUnlockCount}종</strong>
+                    신규: <strong className="text-green">{newUnlockCount}종</strong>
                   </span>
                   <span>
-                    획득 조각: <strong className="text-blue">+{totalPiecesGained}개</strong>
+                    중복 조각: <strong className="text-blue">+{totalPiecesGained}개</strong>
                   </span>
+                  {synthesizableCount > 0 && (
+                    <span>
+                      합성 가능: <strong className="text-yellow">{synthesizableCount}종!</strong>
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    data-testid="summon-sort-toggle"
+                    className="gacha-sort-toggle-btn"
+                    onClick={() => {
+                      sound.playTap();
+                      setSortByRarity((prev) => !prev);
+                      setSelectedIdx(0);
+                    }}
+                  >
+                    <ArrowUpDown size={11} />
+                    <span>{sortByRarity ? '높은 등급 순' : '획득 순'}</span>
+                  </button>
                 </div>
 
                 <div className="gacha-multi-grid" data-testid="summon-results-grid">
-                  {effectiveResults.map((res, idx) => {
+                  {displayedResults.map((res, idx) => {
                     const rConf = RARITY_CONFIGS[res.item.rarity];
                     const isSelected = idx === selectedIdx;
                     const isHighTier = res.item.rarity === 'legendary' || res.item.rarity === 'mythic';
+                    const canSynthItem =
+                      res.item.rarity !== 'mythic' && (res.item.pieces || 0) >= EQUIPMENT_SYNTHESIS_PIECES_REQUIRED;
 
                     return (
                       <div
-                        key={res.id || `${res.item.id}_${idx}`}
+                        key={res.id || `${res.item.id}_${res.originalIdx}`}
                         data-testid={`summon-result-item-${idx}`}
                         className={`gacha-mini-card ${isSelected ? 'mini-selected' : ''} ${isHighTier ? 'mini-high-tier' : ''}`}
                         style={{
                           borderColor: rConf.borderColor,
                           boxShadow: isSelected
-                            ? `0 0 12px ${rConf. borderColor}`
+                            ? `0 0 12px ${rConf.borderColor}`
                             : isHighTier
                             ? `0 0 10px ${rConf.glowColor}`
                             : 'none',
@@ -338,13 +398,13 @@ export const GachaModal: React.FC<GachaModalProps> = ({
                         }}
                       >
                         <div className="mini-card-top">
-                          <span className="mini-idx">#{idx + 1}</span>
+                          <span className="mini-idx">#{res.originalIdx + 1}</span>
                           {res.isPityTriggered ? (
                             <span className="mini-badge badge-pity">천장</span>
-                          ) : res.isGuaranteedRarePlus ? (
-                            <span className="mini-badge badge-guar">보장</span>
                           ) : res.isNew ? (
                             <span className="mini-badge badge-new">NEW</span>
+                          ) : canSynthItem ? (
+                            <span className="mini-badge badge-synth">합성가능</span>
                           ) : (
                             <span className="mini-badge badge-dup">+{res.piecesGained}조각</span>
                           )}
@@ -355,7 +415,7 @@ export const GachaModal: React.FC<GachaModalProps> = ({
                         </div>
                         <div className="mini-meta">
                           <span style={{ color: rConf.color }}>{rConf.label}</span>
-                          <span>Lv.{res.item.level}</span>
+                          <span>조각 {res.item.pieces}/{EQUIPMENT_SYNTHESIS_PIECES_REQUIRED}</span>
                         </div>
                       </div>
                     );
@@ -427,14 +487,30 @@ export const GachaModal: React.FC<GachaModalProps> = ({
                 </div>
               )}
 
-              <button
-                type="button"
-                data-testid="summon-confirm-btn"
-                className="btn-game btn-game-wood gacha-close-btn"
-                onClick={onClose}
-              >
-                <span>확인 (인벤토리 보관)</span>
-              </button>
+              <div className="gacha-bottom-btn-row">
+                {onGoToEquipment && (
+                  <button
+                    type="button"
+                    data-testid="summon-goto-equip-btn"
+                    className="btn-game btn-game-blue gacha-close-btn"
+                    onClick={() => {
+                      sound.playTap();
+                      onGoToEquipment();
+                    }}
+                  >
+                    <Combine size={14} />
+                    <span>장비 도감 / 합성 이동</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  data-testid="summon-confirm-btn"
+                  className="btn-game btn-game-wood gacha-close-btn"
+                  onClick={onClose}
+                >
+                  <span>확인 (인벤토리 보관)</span>
+                </button>
+              </div>
             </div>
           </>
         )}
@@ -491,17 +567,63 @@ export const GachaModal: React.FC<GachaModalProps> = ({
           border: 1px solid;
         }
 
+        .gacha-pity-cluster {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          flex-wrap: wrap;
+        }
+
         .gacha-pity-pill {
           display: inline-flex;
           align-items: center;
           gap: 4px;
-          font-size: 10px;
+          font-size: 9.5px;
           font-weight: 800;
           color: #fde047;
           background: rgba(245, 158, 11, 0.16);
           border: 1px solid rgba(245, 158, 11, 0.4);
-          padding: 3px 8px;
+          padding: 3px 7px;
           border-radius: 9999px;
+        }
+
+        .mythic-pity-pill {
+          color: #fca5a5;
+          background: rgba(239, 68, 68, 0.18);
+          border-color: rgba(248, 113, 113, 0.45);
+        }
+
+        .tag-synth {
+          background: rgba(16, 185, 129, 0.25);
+          color: #6ee7b7;
+          border: 1px solid rgba(52, 211, 153, 0.6);
+        }
+
+        .badge-synth {
+          background: #10b981;
+          color: #ffffff;
+        }
+
+        .gacha-sort-toggle-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 3px;
+          padding: 2px 7px;
+          border-radius: 6px;
+          background: rgba(30, 41, 59, 0.9);
+          border: 1px solid rgba(148, 163, 184, 0.4);
+          color: #e2e8f0;
+          font-size: 9.5px;
+          font-weight: 800;
+          cursor: pointer;
+          margin-left: auto;
+        }
+
+        .gacha-bottom-btn-row {
+          width: 100%;
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+          gap: 6px;
         }
 
         .gacha-canvas-stage {

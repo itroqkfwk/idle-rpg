@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { CharacterStats, Equipment, Pet, Skill, CharacterClassId, PromotionId, StageState, PrestigeUpgrades } from '../types/game';
-import { Sparkles, Shield, Zap, Heart, Swords, X, Wand2, Plus, Check, Crown, ArrowRight, BookOpen, Layers, ChevronsUp, Info, HelpCircle, Coins, Lock, Star } from 'lucide-react';
+import { CharacterStats, Equipment, Pet, Skill, CharacterClassId, PromotionId, StageState, PrestigeUpgrades, ActiveTab } from '../types/game';
+import { Sparkles, Shield, Zap, Heart, Swords, X, Wand2, Plus, Check, Crown, ArrowRight, Layers, ChevronsUp, Coins, Lock } from 'lucide-react';
 import { CLASS_CONFIGS, PROMOTION_REQUIREMENTS } from '../data/classes';
 import { calculateSkillOwnedStats, calculateTotalSkillOwnedBonus, getSkillPiecesRequired } from '../data/skills';
 import { calculatePrestigeStardustReward, getPrestigeUpgradeCost, DEFAULT_PRESTIGE_UPGRADES } from '../utils/storage';
@@ -37,6 +37,8 @@ interface HeroPageProps {
   hasPrestigeUnlocked?: boolean;
   onOpenPrestigeModal?: () => void;
   onUpgradePrestige?: (stat: keyof PrestigeUpgrades) => void;
+  enhancementStones?: number;
+  onNavigateTab?: (tab: ActiveTab) => void;
 }
 
 export const HeroPage: React.FC<HeroPageProps> = ({
@@ -59,17 +61,19 @@ export const HeroPage: React.FC<HeroPageProps> = ({
   skillOwnedBonus = { ownedAtk: 0, ownedHp: 0, ownedDef: 0, ownedCritDmg: 0 },
   classId = 'warrior',
   promotion = 'none',
-  awakeningUnlocked = false,
+  awakeningUnlocked: _awakeningUnlocked = false,
   promotionSeals = 1,
   stage = { chapter: 1, stage: 1, killCount: 0, killsRequired: 5, isBossStage: false, bossTimeLeft: 30, bossMaxTime: 30, inBossFight: false, highestChapter: 1, highestStage: 1 },
   onPromote,
-  onSwitchClass,
+  onSwitchClass: _onSwitchClass,
   prestigeCount = 0,
   stardust = 0,
   prestigeUpgrades = DEFAULT_PRESTIGE_UPGRADES,
   hasPrestigeUnlocked = false,
   onOpenPrestigeModal,
   onUpgradePrestige,
+  enhancementStones = 0,
+  onNavigateTab,
 }) => {
   const [subTab, setSubTab] = useState<'stats' | 'skills' | 'promotion' | 'prestige'>('stats');
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number>(0);
@@ -312,6 +316,47 @@ export const HeroPage: React.FC<HeroPageProps> = ({
               </div>
             </div>
 
+            {/* 🎯 Current Growth Goal & Owned Currencies Bar */}
+            <div className="hero-growth-goal-card">
+              <div className="growth-goal-top-row">
+                <span className="growth-goal-badge">성장 목표</span>
+                <span className="growth-goal-text">
+                  {isPromotionPending
+                    ? `Lv.30 재달성 시 [${currentClassConfig.promotionName}] 전직 및 각성기 자동 복구 (현재 Lv.${stats.level}/30)`
+                    : !hasPromotionQualification
+                    ? `Lv.30 달성 & Ch.3-10 보스 격파 시 [${currentClassConfig.promotionName}] 전직 해금 (Lv.${stats.level}/30 · 최고 ${stage.highestChapter}-${stage.highestStage})`
+                    : !isPrestigeUnlocked
+                    ? `Ch.3-10 보스 격파 시 [환생 & 별가루 영구 강화] 해금 (현재 최고 ${stage.highestChapter}-${stage.highestStage})`
+                    : `상위 스테이지 돌파 후 환생 진행 가능 (예상 별가루 +${expectedReward.toLocaleString()} ✨)`}
+                </span>
+                {!hasPromotionQualification && canPromote && (
+                  <button
+                    className="growth-goal-jump-btn"
+                    onClick={() => {
+                      sound.playTap();
+                      setSubTab('promotion');
+                    }}
+                  >
+                    전직 가능! →
+                  </button>
+                )}
+              </div>
+              <div className="growth-wallet-row">
+                <div className="wallet-item-chip gold-chip">
+                  <span>보유 골드</span>
+                  <strong>🪙 {stats.gold.toLocaleString()}</strong>
+                </div>
+                <div className="wallet-item-chip stone-chip">
+                  <span>강화석</span>
+                  <strong>🔷 {enhancementStones.toLocaleString()}</strong>
+                </div>
+                <div className="wallet-item-chip stardust-chip">
+                  <span>별가루</span>
+                  <strong>✨ {stardust.toLocaleString()}</strong>
+                </div>
+              </div>
+            </div>
+
             {/* 4 Core Stats Grid (Interactive Breakdown) */}
             <div className="core-stats-deck">
               <div
@@ -414,88 +459,214 @@ export const HeroPage: React.FC<HeroPageProps> = ({
             {/* Stat Upgrade Cards */}
             <div className="stat-upgrade-list">
               {/* ATK */}
-              <div className="parchment-panel upgrade-card-row">
-                <div className="upgrade-meta-left">
-                  <div className="upgrade-icon-slot atk-glow">
-                    <Swords size={18} color="#ef4444" />
-                  </div>
-                  <div className="upgrade-name-col">
-                    <div className="upgrade-name-title-row">
-                      <span className="upgrade-title-txt">공격력 강화</span>
-                      {bumpStat?.stat === 'atk' && (
-                        <span className="stat-bump-badge">+{bumpStat.amount * 4}</span>
-                      )}
+              {(() => {
+                const curBaseAtk = stats.baseAtk + (stats.atkLevel - 1) * 4;
+                const deltaAtk = atkInfo.count * 4;
+                const nextBaseAtk = curBaseAtk + deltaAtk;
+                const shortageAtk = Math.max(0, atkInfo.cost - stats.gold);
+                return (
+                  <div className="parchment-panel upgrade-card-row upgrade-card-col-wrap">
+                    <div className="upgrade-card-main-line">
+                      <div className="upgrade-meta-left">
+                        <div className="upgrade-icon-slot atk-glow">
+                          <Swords size={18} color="#ef4444" />
+                        </div>
+                        <div className="upgrade-name-col">
+                          <div className="upgrade-name-title-row">
+                            <span className="upgrade-title-txt">공격력 강화</span>
+                            <span className={`upgrade-afford-tag ${atkInfo.canAfford ? 'tag-ready' : 'tag-short'}`}>
+                              {atkInfo.canAfford ? '강화 가능' : '골드 부족'}
+                            </span>
+                            {bumpStat?.stat === 'atk' && (
+                              <span className="stat-bump-badge">+{bumpStat.amount * 4}</span>
+                            )}
+                          </div>
+                          <span className="upgrade-lvl-txt">
+                            Lv.{stats.atkLevel} → <span className="next-lvl-highlight">Lv.{atkInfo.nextLvl}</span>
+                          </span>
+                          <span className="upgrade-delta-txt">
+                            기본 ATK {curBaseAtk.toLocaleString()} → <strong>{nextBaseAtk.toLocaleString()} (+{deltaAtk})</strong>
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        className={`btn-game ${atkInfo.canAfford ? 'btn-game-gold' : 'btn-game-wood'} upgrade-buy-btn`}
+                        disabled={!atkInfo.canAfford}
+                        onClick={() => handleUpgrade('atk', atkInfo.count)}
+                      >
+                        <span className="buy-count-label">+{atkInfo.count} 레벨 (+{deltaAtk} ATK)</span>
+                        <span className="buy-cost-label">🪙 {atkInfo.cost.toLocaleString()}</span>
+                      </button>
                     </div>
-                    <span className="upgrade-lvl-txt">
-                      Lv.{stats.atkLevel} → <span className="next-lvl-highlight">Lv.{atkInfo.nextLvl}</span>
-                    </span>
+                    {!atkInfo.canAfford && (
+                      <div className="upgrade-shortage-bar">
+                        <span className="shortage-amount-txt">🪙 {shortageAtk.toLocaleString()} 골드 부족</span>
+                        <div className="shortage-links-group">
+                          <button
+                            className="shortage-go-btn"
+                            onClick={() => {
+                              sound.playTap();
+                              if (onNavigateTab) onNavigateTab('adventure');
+                              else if (onClose) onClose();
+                            }}
+                          >
+                            ⚔️ 일반 전투
+                          </button>
+                          <button
+                            className="shortage-go-btn shortage-dungeon-btn"
+                            onClick={() => {
+                              sound.playTap();
+                              if (onNavigateTab) onNavigateTab('dungeon');
+                            }}
+                          >
+                            ⛏️ 황금 광산
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-                <button
-                  className={`btn-game ${atkInfo.canAfford ? 'btn-game-gold' : 'btn-game-wood'} upgrade-buy-btn`}
-                  disabled={!atkInfo.canAfford}
-                  onClick={() => handleUpgrade('atk', atkInfo.count)}
-                >
-                  <span className="buy-count-label">+{atkInfo.count} 레벨</span>
-                  <span className="buy-cost-label">🪙 {atkInfo.cost.toLocaleString()}</span>
-                </button>
-              </div>
+                );
+              })()}
 
               {/* HP */}
-              <div className="parchment-panel upgrade-card-row">
-                <div className="upgrade-meta-left">
-                  <div className="upgrade-icon-slot hp-glow">
-                    <Heart size={18} color="#10b981" />
-                  </div>
-                  <div className="upgrade-name-col">
-                    <div className="upgrade-name-title-row">
-                      <span className="upgrade-title-txt">생명력 강화</span>
-                      {bumpStat?.stat === 'hp' && (
-                        <span className="stat-bump-badge">+{bumpStat.amount * 35}</span>
-                      )}
+              {(() => {
+                const curBaseHp = stats.baseHp + (stats.hpLevel - 1) * 35;
+                const deltaHp = hpInfo.count * 35;
+                const nextBaseHp = curBaseHp + deltaHp;
+                const shortageHp = Math.max(0, hpInfo.cost - stats.gold);
+                return (
+                  <div className="parchment-panel upgrade-card-row upgrade-card-col-wrap">
+                    <div className="upgrade-card-main-line">
+                      <div className="upgrade-meta-left">
+                        <div className="upgrade-icon-slot hp-glow">
+                          <Heart size={18} color="#10b981" />
+                        </div>
+                        <div className="upgrade-name-col">
+                          <div className="upgrade-name-title-row">
+                            <span className="upgrade-title-txt">생명력 강화</span>
+                            <span className={`upgrade-afford-tag ${hpInfo.canAfford ? 'tag-ready' : 'tag-short'}`}>
+                              {hpInfo.canAfford ? '강화 가능' : '골드 부족'}
+                            </span>
+                            {bumpStat?.stat === 'hp' && (
+                              <span className="stat-bump-badge">+{bumpStat.amount * 35}</span>
+                            )}
+                          </div>
+                          <span className="upgrade-lvl-txt">
+                            Lv.{stats.hpLevel} → <span className="next-lvl-highlight">Lv.{hpInfo.nextLvl}</span>
+                          </span>
+                          <span className="upgrade-delta-txt">
+                            기본 HP {curBaseHp.toLocaleString()} → <strong>{nextBaseHp.toLocaleString()} (+{deltaHp})</strong>
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        className={`btn-game ${hpInfo.canAfford ? 'btn-game-green' : 'btn-game-wood'} upgrade-buy-btn`}
+                        disabled={!hpInfo.canAfford}
+                        onClick={() => handleUpgrade('hp', hpInfo.count)}
+                      >
+                        <span className="buy-count-label">+{hpInfo.count} 레벨 (+{deltaHp} HP)</span>
+                        <span className="buy-cost-label">🪙 {hpInfo.cost.toLocaleString()}</span>
+                      </button>
                     </div>
-                    <span className="upgrade-lvl-txt">
-                      Lv.{stats.hpLevel} → <span className="next-lvl-highlight">Lv.{hpInfo.nextLvl}</span>
-                    </span>
+                    {!hpInfo.canAfford && (
+                      <div className="upgrade-shortage-bar">
+                        <span className="shortage-amount-txt">🪙 {shortageHp.toLocaleString()} 골드 부족</span>
+                        <div className="shortage-links-group">
+                          <button
+                            className="shortage-go-btn"
+                            onClick={() => {
+                              sound.playTap();
+                              if (onNavigateTab) onNavigateTab('adventure');
+                              else if (onClose) onClose();
+                            }}
+                          >
+                            ⚔️ 일반 전투
+                          </button>
+                          <button
+                            className="shortage-go-btn shortage-dungeon-btn"
+                            onClick={() => {
+                              sound.playTap();
+                              if (onNavigateTab) onNavigateTab('dungeon');
+                            }}
+                          >
+                            ⛏️ 황금 광산
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-                <button
-                  className={`btn-game ${hpInfo.canAfford ? 'btn-game-green' : 'btn-game-wood'} upgrade-buy-btn`}
-                  disabled={!hpInfo.canAfford}
-                  onClick={() => handleUpgrade('hp', hpInfo.count)}
-                >
-                  <span className="buy-count-label">+{hpInfo.count} 레벨</span>
-                  <span className="buy-cost-label">🪙 {hpInfo.cost.toLocaleString()}</span>
-                </button>
-              </div>
+                );
+              })()}
 
               {/* DEF */}
-              <div className="parchment-panel upgrade-card-row">
-                <div className="upgrade-meta-left">
-                  <div className="upgrade-icon-slot def-glow">
-                    <Shield size={18} color="#38bdf8" />
-                  </div>
-                  <div className="upgrade-name-col">
-                    <div className="upgrade-name-title-row">
-                      <span className="upgrade-title-txt">방어력 강화</span>
-                      {bumpStat?.stat === 'def' && (
-                        <span className="stat-bump-badge">+{bumpStat.amount * 2}</span>
-                      )}
+              {(() => {
+                const curBaseDef = stats.baseDef + (stats.defLevel - 1) * 2;
+                const deltaDef = defInfo.count * 2;
+                const nextBaseDef = curBaseDef + deltaDef;
+                const shortageDef = Math.max(0, defInfo.cost - stats.gold);
+                return (
+                  <div className="parchment-panel upgrade-card-row upgrade-card-col-wrap">
+                    <div className="upgrade-card-main-line">
+                      <div className="upgrade-meta-left">
+                        <div className="upgrade-icon-slot def-glow">
+                          <Shield size={18} color="#38bdf8" />
+                        </div>
+                        <div className="upgrade-name-col">
+                          <div className="upgrade-name-title-row">
+                            <span className="upgrade-title-txt">방어력 강화</span>
+                            <span className={`upgrade-afford-tag ${defInfo.canAfford ? 'tag-ready' : 'tag-short'}`}>
+                              {defInfo.canAfford ? '강화 가능' : '골드 부족'}
+                            </span>
+                            {bumpStat?.stat === 'def' && (
+                              <span className="stat-bump-badge">+{bumpStat.amount * 2}</span>
+                            )}
+                          </div>
+                          <span className="upgrade-lvl-txt">
+                            Lv.{stats.defLevel} → <span className="next-lvl-highlight">Lv.{defInfo.nextLvl}</span>
+                          </span>
+                          <span className="upgrade-delta-txt">
+                            기본 DEF {curBaseDef.toLocaleString()} → <strong>{nextBaseDef.toLocaleString()} (+{deltaDef})</strong>
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        className={`btn-game ${defInfo.canAfford ? 'btn-game-blue' : 'btn-game-wood'} upgrade-buy-btn`}
+                        disabled={!defInfo.canAfford}
+                        onClick={() => handleUpgrade('def', defInfo.count)}
+                      >
+                        <span className="buy-count-label">+{defInfo.count} 레벨 (+{deltaDef} DEF)</span>
+                        <span className="buy-cost-label">🪙 {defInfo.cost.toLocaleString()}</span>
+                      </button>
                     </div>
-                    <span className="upgrade-lvl-txt">
-                      Lv.{stats.defLevel} → <span className="next-lvl-highlight">Lv.{defInfo.nextLvl}</span>
-                    </span>
+                    {!defInfo.canAfford && (
+                      <div className="upgrade-shortage-bar">
+                        <span className="shortage-amount-txt">🪙 {shortageDef.toLocaleString()} 골드 부족</span>
+                        <div className="shortage-links-group">
+                          <button
+                            className="shortage-go-btn"
+                            onClick={() => {
+                              sound.playTap();
+                              if (onNavigateTab) onNavigateTab('adventure');
+                              else if (onClose) onClose();
+                            }}
+                          >
+                            ⚔️ 일반 전투
+                          </button>
+                          <button
+                            className="shortage-go-btn shortage-dungeon-btn"
+                            onClick={() => {
+                              sound.playTap();
+                              if (onNavigateTab) onNavigateTab('dungeon');
+                            }}
+                          >
+                            ⛏️ 황금 광산
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-                <button
-                  className={`btn-game ${defInfo.canAfford ? 'btn-game-blue' : 'btn-game-wood'} upgrade-buy-btn`}
-                  disabled={!defInfo.canAfford}
-                  onClick={() => handleUpgrade('def', defInfo.count)}
-                >
-                  <span className="buy-count-label">+{defInfo.count} 레벨</span>
-                  <span className="buy-cost-label">🪙 {defInfo.cost.toLocaleString()}</span>
-                </button>
-              </div>
+                );
+              })()}
             </div>
           </>
         )}
@@ -973,6 +1144,7 @@ export const HeroPage: React.FC<HeroPageProps> = ({
                 {prestigeUpgradeItems.map((item) => {
                   const cost = getPrestigeUpgradeCost(item.level);
                   const canAfford = stardust >= cost;
+                  const shortage = Math.max(0, cost - stardust);
 
                   return (
                     <div key={item.key} className="prestige-upgrade-card">
@@ -984,12 +1156,41 @@ export const HeroPage: React.FC<HeroPageProps> = ({
                         <div className="upgrade-name-row">
                           <span className="upgrade-name">{item.name}</span>
                           <span className="upgrade-lvl">Lv.{item.level}</span>
+                          <span className={`upgrade-afford-tag ${canAfford ? 'tag-ready' : 'tag-short-star'}`}>
+                            {canAfford ? '강화 가능' : `✨ ${shortage.toLocaleString()} 부족`}
+                          </span>
                         </div>
                         <div className="upgrade-effect-row">
                           <span className="upgrade-effect-current">{item.currentDesc}</span>
                           <ArrowRight size={11} color="#64748b" />
                           <span className="upgrade-effect-next">{item.nextDesc}</span>
                         </div>
+                        {!canAfford && (
+                          <div className="stardust-shortage-action-row">
+                            {isPrestigeUnlocked ? (
+                              <button
+                                className="shortage-go-btn shortage-star-btn"
+                                onClick={() => {
+                                  sound.playTap();
+                                  if (onOpenPrestigeModal) onOpenPrestigeModal();
+                                }}
+                              >
+                                ✨ 환생 진행 (+{expectedReward} 별가루 획득)
+                              </button>
+                            ) : (
+                              <button
+                                className="shortage-go-btn"
+                                onClick={() => {
+                                  sound.playTap();
+                                  if (onNavigateTab) onNavigateTab('adventure');
+                                  else if (onClose) onClose();
+                                }}
+                              >
+                                ⚔️ Ch.3-10 보스 격파하러 이동
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       <button
@@ -1173,6 +1374,192 @@ export const HeroPage: React.FC<HeroPageProps> = ({
       )}
 
       <style>{`
+        .hero-growth-goal-card {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          padding: 10px 12px;
+          margin-bottom: 10px;
+          border-radius: 12px;
+          background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.85));
+          border: 1px solid rgba(251, 191, 36, 0.28);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+        }
+
+        .growth-goal-top-row {
+          display: flex;
+          align-items: center;
+          gap: 7px;
+          flex-wrap: wrap;
+        }
+
+        .growth-goal-badge {
+          font-size: 9.5px;
+          font-weight: 900;
+          color: #0f172a;
+          background: linear-gradient(135deg, #fbbf24, #f59e0b);
+          padding: 2px 6px;
+          border-radius: 6px;
+          flex-shrink: 0;
+        }
+
+        .growth-goal-text {
+          font-size: 11px;
+          font-weight: 700;
+          color: #f1f5f9;
+          line-height: 1.35;
+          flex: 1;
+          min-width: 180px;
+        }
+
+        .growth-goal-jump-btn {
+          background: rgba(245, 158, 11, 0.2);
+          border: 1px solid rgba(251, 191, 36, 0.6);
+          color: #fef08a;
+          font-size: 10px;
+          font-weight: 800;
+          padding: 3px 8px;
+          border-radius: 999px;
+          cursor: pointer;
+        }
+
+        .growth-wallet-row {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 6px;
+          padding-top: 6px;
+          border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .wallet-item-chip {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 4px 8px;
+          border-radius: 8px;
+          background: rgba(2, 6, 23, 0.55);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          font-size: 10px;
+          color: #94a3b8;
+        }
+
+        .wallet-item-chip strong {
+          font-size: 10.5px;
+          font-weight: 800;
+          color: #f8fafc;
+        }
+
+        .gold-chip strong { color: #fde047; }
+        .stone-chip strong { color: #93c5fd; }
+        .stardust-chip strong { color: #d8b4fe; }
+
+        .upgrade-card-col-wrap {
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: stretch !important;
+          gap: 8px !important;
+        }
+
+        .upgrade-card-main-line {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          width: 100%;
+        }
+
+        .upgrade-delta-txt {
+          font-size: 10.5px;
+          color: #94a3b8;
+          line-height: 1.3;
+        }
+
+        .upgrade-delta-txt strong {
+          color: #34d399;
+          font-weight: 800;
+        }
+
+        .upgrade-afford-tag {
+          font-size: 9px;
+          font-weight: 800;
+          padding: 1px 6px;
+          border-radius: 999px;
+        }
+
+        .upgrade-afford-tag.tag-ready {
+          background: rgba(16, 185, 129, 0.2);
+          border: 1px solid rgba(52, 211, 153, 0.45);
+          color: #6ee7b7;
+        }
+
+        .upgrade-afford-tag.tag-short {
+          background: rgba(239, 68, 68, 0.18);
+          border: 1px solid rgba(248, 113, 113, 0.45);
+          color: #fca5a5;
+        }
+
+        .upgrade-afford-tag.tag-short-star {
+          background: rgba(168, 85, 247, 0.2);
+          border: 1px solid rgba(192, 132, 252, 0.45);
+          color: #e9d5ff;
+        }
+
+        .upgrade-shortage-bar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          padding: 6px 10px;
+          border-radius: 8px;
+          background: rgba(15, 23, 42, 0.68);
+          border: 1px dashed rgba(248, 113, 113, 0.35);
+          flex-wrap: wrap;
+        }
+
+        .shortage-amount-txt {
+          font-size: 10.5px;
+          font-weight: 800;
+          color: #fca5a5;
+        }
+
+        .shortage-links-group {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .shortage-go-btn {
+          font-size: 10px;
+          font-weight: 800;
+          padding: 3px 9px;
+          border-radius: 6px;
+          background: rgba(30, 41, 59, 0.9);
+          border: 1px solid rgba(148, 163, 184, 0.35);
+          color: #e2e8f0;
+          cursor: pointer;
+          transition: transform 0.1s ease, border-color 0.15s ease;
+        }
+
+        .shortage-go-btn:active {
+          transform: scale(0.96);
+        }
+
+        .shortage-dungeon-btn {
+          background: rgba(120, 53, 15, 0.45);
+          border-color: rgba(251, 191, 36, 0.45);
+          color: #fef08a;
+        }
+
+        .shortage-star-btn {
+          background: rgba(88, 28, 135, 0.45);
+          border-color: rgba(192, 132, 252, 0.5);
+          color: #f3e8ff;
+        }
+
+        .stardust-shortage-action-row {
+          margin-top: 4px;
+        }
+
         .stat-card-interactive {
           cursor: pointer;
           transition: transform 0.15s ease, border-color 0.15s ease;

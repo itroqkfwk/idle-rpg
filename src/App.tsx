@@ -93,11 +93,12 @@ import { DungeonPage } from './pages/DungeonPage';
 import confetti from 'canvas-confetti';
 
 export const App: React.FC = () => {
-  // --- Game State from LocalStorage ---
-  const [saveData, setSaveData] = useState<GameSaveData>(() => {
-    const { data } = loadGameData();
-    return data;
-  });
+  // --- Game State from LocalStorage (Loaded once on initial mount) ---
+  const initialBootRef = useRef<{ data: GameSaveData; offlineSeconds: number } | null>(null);
+  if (!initialBootRef.current) {
+    initialBootRef.current = loadGameData();
+  }
+  const [saveData, setSaveData] = useState<GameSaveData>(() => initialBootRef.current!.data);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>(() => {
     const urlTab = new URLSearchParams(window.location.search).get('tab') as ActiveTab | null;
@@ -274,9 +275,16 @@ export const App: React.FC = () => {
     sound.bgmEnabled = settings.bgmEnabled;
   }, [settings]);
 
-  // Check Offline Rewards on Mount
+  // Optimized Auto-Save & Offline Reward Non-Duplication
+  const saveDataRef = useRef(saveData);
   useEffect(() => {
-    const { offlineSeconds } = loadGameData();
+    saveDataRef.current = saveData;
+  }, [saveData]);
+
+  // Check Offline Rewards on Mount & Immediately Stamp lastOnlineTime to Prevent Duplicate Payouts on Reload
+  useEffect(() => {
+    const offlineSeconds = initialBootRef.current?.offlineSeconds ?? 0;
+    saveGameData(saveDataRef.current);
     if (offlineSeconds >= 30) {
       const multiplier = stage.chapter * 0.8;
       const gold = Math.floor(offlineSeconds * 3.5 * multiplier);
@@ -285,18 +293,36 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // Optimized Auto-Save: single interval on mount with fresh ref to eliminate GC churn
-  const saveDataRef = useRef(saveData);
-  useEffect(() => {
-    saveDataRef.current = saveData;
-  }, [saveData]);
-
   useEffect(() => {
     const timer = setInterval(() => {
       saveGameData(saveDataRef.current);
     }, 3000);
-    return () => clearInterval(timer);
+
+    const handleBeforeUnload = () => {
+      saveGameData(saveDataRef.current);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        saveGameData(saveDataRef.current);
+      } else if (document.visibilityState === 'visible') {
+        lastMonsterAttackTimeRef.current = Date.now();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
+
+  // Persist immediately on tab navigation so state is never lost across tab switches
+  useEffect(() => {
+    saveGameData(saveDataRef.current);
+  }, [activeTab]);
 
   const equipmentCatalog = useMemo(() => {
     return saveData.equipmentCatalog && saveData.equipmentCatalog.length > 0
@@ -598,6 +624,11 @@ export const App: React.FC = () => {
     setIsMonsterDefeated(false);
     isMonsterDefeatedRef.current = false;
     lastMonsterAttackTimeRef.current = Date.now();
+
+    setStageNotice(
+      `🏰 던전 종료 · 원래 스테이지 Ch.${curSave.stage.chapter}-${curSave.stage.stage} 자동 전투로 복귀했습니다.`
+    );
+    setTimeout(() => setStageNotice(null), 2400);
 
     setDungeonResult({
       ...currentRun,
@@ -3202,6 +3233,7 @@ export const App: React.FC = () => {
       {/* 1. Floating Top Game Crest & HUD */}
       <TopHUD
         stats={stats}
+        maxHp={combatCalculations.totalMaxHp}
         stage={stage}
         classId={classId}
         promotion={promotion}
@@ -3270,6 +3302,7 @@ export const App: React.FC = () => {
           onAbandonDungeon={handleAbandonDungeon}
           dungeonVfxEvent={dungeonVfxEvent}
           summonVfxEvent={summonVfxEvent}
+          prestigeCount={prestigeCount}
         />
 
         {/* Quest Parchment Ribbon (Displayed only in main Adventure tab when not in Dungeon) */}
@@ -3336,6 +3369,8 @@ export const App: React.FC = () => {
             hasPrestigeUnlocked={hasPrestigeUnlocked}
             onOpenPrestigeModal={() => setShowPrestigeModal(true)}
             onUpgradePrestige={handleUpgradePrestige}
+            enhancementStones={enhancementStones}
+            onNavigateTab={(tab) => setActiveTab(tab)}
             onClose={() => setActiveTab('adventure')}
           />
         )}
@@ -3349,6 +3384,7 @@ export const App: React.FC = () => {
             enhancementStones={enhancementStones}
             combatPower={combatCalculations.combatPower}
             equipmentPityCount={equipmentPityCount}
+            totalEquipmentSummons={totalEquipmentSummons}
             onEquip={handleEquip}
             onUpgradeItem={handleUpgradeItem}
             onUpgradeItemWithStones={handleUpgradeItemWithStones}
@@ -3357,6 +3393,7 @@ export const App: React.FC = () => {
             onBatchUpgrade={handleBatchUpgradeEquip}
             onAutoEquip={handleAutoEquip}
             onSummonEquipment={handleSummonEquipment}
+            onNavigateTab={(tab) => setActiveTab(tab)}
             onClose={() => setActiveTab('adventure')}
           />
         )}
@@ -3420,6 +3457,7 @@ export const App: React.FC = () => {
           sessionId={summonSession?.id}
           gems={stats.gems}
           pityCount={equipmentPityCount}
+          totalSummons={totalEquipmentSummons}
           onSummonAgain={handleSummonEquipment}
           onRitualComplete={() => {
             isSummoningRef.current = false;
@@ -3429,6 +3467,12 @@ export const App: React.FC = () => {
             if (revealedItem && !summonSession) {
               setRevealedItem(null);
             }
+          }}
+          onGoToEquipment={() => {
+            isSummoningRef.current = false;
+            setSummonSession(null);
+            setRevealedItem(null);
+            setActiveTab('equipment');
           }}
           onClose={() => {
             isSummoningRef.current = false;
