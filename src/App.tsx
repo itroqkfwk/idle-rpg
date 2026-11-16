@@ -41,6 +41,12 @@ import {
   getClaimableMissionsCount,
 } from './data/missions';
 import {
+  normalizeMonsterCodex,
+  recordMonsterDiscovery,
+  recordMonsterDefeat,
+  calculateMonsterCodexBonuses,
+} from './data/monsterCodex';
+import {
   DUNGEONS_DATA,
   checkAndResetDailyDungeonTickets,
   getDungeonDifficultyConfig,
@@ -93,6 +99,7 @@ import { ClassSelectScreen } from './components/ClassSelectScreen';
 import { PrestigeModal } from './components/PrestigeModal';
 import { DungeonResultModal } from './components/DungeonResultModal';
 import { MissionModal } from './components/MissionModal';
+import { MonsterCodexModal } from './components/MonsterCodexModal';
 
 import { HeroPage } from './pages/HeroPage';
 import { EquipmentPage } from './pages/EquipmentPage';
@@ -122,6 +129,7 @@ export const App: React.FC = () => {
   const [showDevModal, setShowDevModal] = useState(false);
   const [showPrestigeModal, setShowPrestigeModal] = useState(false);
   const [showMissionModal, setShowMissionModal] = useState(false);
+  const [showMonsterCodex, setShowMonsterCodex] = useState(false);
   const [c4BossPhase, setC4BossPhase] = useState<1 | 2>(1);
   const c4BossPhaseRef = useRef<1 | 2>(1);
   const [bossPatternWarning, setBossPatternWarning] = useState<BossPatternType | null>(null);
@@ -191,6 +199,8 @@ export const App: React.FC = () => {
   const dungeons = useMemo(() => checkAndResetDailyDungeonTickets(saveData.dungeons), [saveData.dungeons]);
   const missions = useMemo(() => checkAndResetMissions(saveData.missions), [saveData.missions]);
   const claimableMissionsCount = useMemo(() => getClaimableMissionsCount(missions).total, [missions]);
+  const monsterCodex = useMemo(() => normalizeMonsterCodex(saveData.monsterCodex), [saveData.monsterCodex]);
+  const monsterCodexBonuses = useMemo(() => calculateMonsterCodexBonuses(monsterCodex), [monsterCodex]);
 
   // --- Dedicated Dungeon Mode State & Refs ---
   const [activeDungeonRun, setActiveDungeonRun] = useState<ActiveDungeonRun | null>(null);
@@ -423,10 +433,16 @@ export const App: React.FC = () => {
     // 전직 시스템 환생 처리: 전직 자격(promotion)은 유지하되 stats.level < 30 일 때는 비활성화, 레벨 30 재도달 시 자동 복구
     const isPromoted = promotion !== 'none' && stats.level >= 30;
 
-    // Layered Base stat adjustments by class (Zero double counting)
+    // Layered Base stat adjustments by class (Zero double counting; Monster Codex bonus separated from Equipment Codex)
     const rawHpBase = stats.baseHp + (stats.hpLevel - 1) * 35 + equipHp + equipOwnedBonus.ownedHp + skillOwnedBonus.ownedHp;
     const rawDefBase = stats.baseDef + (stats.defLevel - 1) * 2 + equipDef + equipOwnedBonus.ownedDef + skillOwnedBonus.ownedDef;
-    const rawAtkBase = stats.baseAtk + (stats.atkLevel - 1) * 4 + equipAtk + equipOwnedBonus.ownedAtk + skillOwnedBonus.ownedAtk;
+    const rawAtkBase =
+      stats.baseAtk +
+      (stats.atkLevel - 1) * 4 +
+      equipAtk +
+      equipOwnedBonus.ownedAtk +
+      skillOwnedBonus.ownedAtk +
+      monsterCodexBonuses.flatAtk;
 
     const baseClassHp = rawHpBase * classConf.statBuffs.hpMult;
     const baseClassDef = rawDefBase * classConf.statBuffs.defMult;
@@ -472,6 +488,8 @@ export const App: React.FC = () => {
       petGoldMult,
       prestigeGoldMult,
       prestigeExpMult,
+      codexGoldMult: monsterCodexBonuses.goldBonusRate,
+      codexExpMult: monsterCodexBonuses.expBonusRate,
       prestigeDefMult,
       prestigeAtkMult,
       prestigeHpMult,
@@ -481,7 +499,7 @@ export const App: React.FC = () => {
       skillOwnedBonus,
       isPromoted,
     };
-  }, [stats, equipped, equipmentCatalog, skills, activePet, classId, promotion, saveData.prestigeUpgrades]);
+  }, [stats, equipped, equipmentCatalog, skills, activePet, classId, promotion, saveData.prestigeUpgrades, monsterCodexBonuses]);
 
 
   // Combat Power Growth Tracking & Floating Chip
@@ -808,11 +826,11 @@ export const App: React.FC = () => {
       setIsMonsterDefeated(true);
 
       const run = activeDungeonRef.current;
-      const { petGoldMult, prestigeGoldMult = 0, prestigeExpMult = 0 } = combatCalculations;
+      const { petGoldMult, prestigeGoldMult = 0, prestigeExpMult = 0, codexGoldMult = 0, codexExpMult = 0 } = combatCalculations;
       const defeatedMon = currentMonsterRef.current;
 
       if (run.dungeonId === 'gold_mine') {
-        const earnedGold = Math.floor(defeatedMon.goldReward * (1 + petGoldMult + prestigeGoldMult));
+        const earnedGold = Math.floor(defeatedMon.goldReward * (1 + petGoldMult + prestigeGoldMult + codexGoldMult));
         const nextKills = run.kills + 1;
         const nextRun: ActiveDungeonRun = {
           ...run,
@@ -849,7 +867,7 @@ export const App: React.FC = () => {
       }
 
       if (run.dungeonId === 'training_forest') {
-        const waveExp = Math.floor(defeatedMon.expReward * (1 + prestigeExpMult));
+        const waveExp = Math.floor(defeatedMon.expReward * (1 + prestigeExpMult + codexExpMult));
         const nextKills = run.kills + 1;
         setDungeonVfxEvent({ id: `dg_wave_${Date.now()}`, type: 'wave_clear' });
         setSaveData((prev) => ({
@@ -859,7 +877,7 @@ export const App: React.FC = () => {
 
         if (nextKills >= run.maxWave) {
           const diffCfg = getDungeonDifficultyConfig('training_forest', run.difficulty);
-          const clearBonusExp = Math.floor(diffCfg.baseExpReward * 1.6 * (1 + prestigeExpMult));
+          const clearBonusExp = Math.floor(diffCfg.baseExpReward * 1.6 * (1 + prestigeExpMult + codexExpMult));
           const finalRun: ActiveDungeonRun = {
             ...run,
             kills: nextKills,
@@ -902,8 +920,8 @@ export const App: React.FC = () => {
 
       // ancient_ruins boss defeated
       const diffCfg = getDungeonDifficultyConfig('ancient_ruins', run.difficulty);
-      const earnedGold = Math.floor(diffCfg.baseGoldReward * (1 + petGoldMult + prestigeGoldMult));
-      const earnedExp = Math.floor(diffCfg.baseExpReward * (1 + prestigeExpMult));
+      const earnedGold = Math.floor(diffCfg.baseGoldReward * (1 + petGoldMult + prestigeGoldMult + codexGoldMult));
+      const earnedExp = Math.floor(diffCfg.baseExpReward * (1 + prestigeExpMult + codexExpMult));
       const earnedStones = diffCfg.stoneReward;
       setDungeonVfxEvent({ id: `dg_ruins_${Date.now()}`, type: 'ruins_clear' });
       setSaveData((prev) => ({
@@ -931,9 +949,11 @@ export const App: React.FC = () => {
     sound.playMonsterDefeat();
     setIsMonsterDefeated(true);
 
-    const { petGoldMult, prestigeGoldMult = 0, prestigeExpMult = 0 } = combatCalculations;
-    const earnedGold = Math.floor(currentMonster.goldReward * (1 + petGoldMult + prestigeGoldMult));
-    const earnedExp = Math.floor(currentMonster.expReward * (1 + prestigeExpMult));
+    const { petGoldMult, prestigeGoldMult = 0, prestigeExpMult = 0, codexGoldMult = 0, codexExpMult = 0 } = combatCalculations;
+    const defeatedMonster = currentMonsterRef.current || currentMonster;
+    const earnedGold = Math.floor(defeatedMonster.goldReward * (1 + petGoldMult + prestigeGoldMult + codexGoldMult));
+    const earnedExp = Math.floor(defeatedMonster.expReward * (1 + prestigeExpMult + codexExpMult));
+    const defeatedMonsterId = defeatedMonster.id;
 
     // 🪙 Trigger Floating Gold Drop FX on Monster defeat
     const dropId = `gold_${Date.now()}`;
@@ -965,7 +985,7 @@ export const App: React.FC = () => {
       } else {
         nextChapter = MAX_CHAPTER;
         nextStageNum = 10;
-        setStageNotice(`🎉 최종 챕터 4-10 달그림자 수호자 토벌 완료!`);
+        setStageNotice(`🎉 최종 챕터 ${MAX_CHAPTER}-10 ${currentMonster.name.replace(' [BOSS]', '')} 토벌 완료!`);
       }
       setTimeout(() => setStageNotice(null), 1600);
     } else if (stage.stage < 10) {
@@ -1087,6 +1107,7 @@ export const App: React.FC = () => {
           equipmentCatalog: currentCatalog,
           equipped: currentEquipped,
           missions: nextMissions,
+          monsterCodex: recordMonsterDefeat(prev.monsterCodex, defeatedMonsterId),
           stats: {
             ...prev.stats,
             gold: prev.stats.gold + earnedGold - goldSpentOnAuto,
@@ -1099,7 +1120,10 @@ export const App: React.FC = () => {
           stage: newStage,
         };
         if (stageDidAdvance || clearedChapter3OrHigherBoss) {
+          saveDataRef.current = updatedSave;
           saveGameData(updatedSave);
+        } else {
+          saveDataRef.current = updatedSave;
         }
         return updatedSave;
       });
@@ -1158,8 +1182,21 @@ export const App: React.FC = () => {
   const currentMonsterRef = useRef(currentMonster);
   useEffect(() => {
     currentMonsterRef.current = currentMonster;
+
+    // Record first discovery in Monster Codex when encountering a field/boss monster
+    const monId = currentMonster.id;
+    if (monId && !saveDataRef.current.monsterCodex?.[monId]?.discovered) {
+      setSaveData((prev) => {
+        const nextCodex = recordMonsterDiscovery(prev.monsterCodex, monId);
+        if (nextCodex === prev.monsterCodex) return prev;
+        const nextSave = { ...prev, monsterCodex: nextCodex };
+        saveDataRef.current = nextSave;
+        return nextSave;
+      });
+    }
+
     if (
-      currentMonster.id === 'c4_boss' &&
+      (currentMonster.id === 'c4_boss' || currentMonster.id === 'c5_boss') &&
       currentMonster.currentHp > 0 &&
       currentMonster.currentHp <= currentMonster.maxHp * 0.5 &&
       c4BossPhaseRef.current === 1
@@ -1167,7 +1204,11 @@ export const App: React.FC = () => {
       c4BossPhaseRef.current = 2;
       setC4BossPhase(2);
       bossPatternTimerRef.current = Date.now() - 2600;
-      setStageNotice('🌑 달그림자 수호자 2페이즈 돌입! [그림자 낙하] 발동 개시!');
+      setStageNotice(
+        currentMonster.id === 'c5_boss'
+          ? '💎 별빛 정원 수호자 2페이즈 돌입! [수정 폭발] 발동 개시!'
+          : '🌑 달그림자 수호자 2페이즈 돌입! [그림자 낙하] 발동 개시!'
+      );
       setTimeout(() => setStageNotice(null), 2200);
     }
   }, [currentMonster]);
@@ -1339,6 +1380,8 @@ export const App: React.FC = () => {
         });
       },
       getMissionState: () => saveDataRef.current.missions,
+      getCodexState: () => saveDataRef.current.monsterCodex || {},
+      getCodexBonuses: () => calculateMonsterCodexBonuses(saveDataRef.current.monsterCodex),
       applyMissionResetAt: (nowMs: number) => {
         setSaveData((prev) => {
           const nextMissions = checkAndResetMissions(prev.missions, nowMs);
@@ -1919,17 +1962,25 @@ export const App: React.FC = () => {
         return;
       }
 
-      // Chapter 4 Boss Special Pattern Scheduler (Phase 1: moonlight_shockwave, Phase 2: unlocks shadow_drop)
+      // Chapter 4 & Chapter 5 Boss Special Pattern Scheduler (Paused during freeze/stun CC above)
       const curMonSnapshot = currentMonsterRef.current;
+      const isPatternBoss = curMonSnapshot.id === 'c4_boss' || curMonSnapshot.id === 'c5_boss';
       if (
-        curMonSnapshot.id === 'c4_boss' &&
+        isPatternBoss &&
         !activeDungeonRef.current &&
         !bossPatternPendingRef.current &&
         now - bossPatternTimerRef.current >= 4000
       ) {
         bossPatternTimerRef.current = now;
+        const targetBossId = curMonSnapshot.id;
         const chosenPattern: BossPatternType =
-          c4BossPhaseRef.current === 2 && Math.random() < 0.65 ? 'shadow_drop' : 'moonlight_shockwave';
+          targetBossId === 'c5_boss'
+            ? c4BossPhaseRef.current === 2 && Math.random() < 0.65
+              ? 'crystal_explosion'
+              : 'starlight_spear'
+            : c4BossPhaseRef.current === 2 && Math.random() < 0.65
+            ? 'shadow_drop'
+            : 'moonlight_shockwave';
         setBossPatternWarning(chosenPattern);
         setBossPatternVfxEvent({
           id: `bp_tel_${now}`,
@@ -1944,7 +1995,7 @@ export const App: React.FC = () => {
           if (
             isMonsterDefeatedRef.current ||
             activeDungeonRef.current ||
-            currentMonsterRef.current.id !== 'c4_boss' ||
+            currentMonsterRef.current.id !== targetBossId ||
             currentMonsterRef.current.currentHp <= 0 ||
             monsterStatusesRef.current.some((s) => s.type === 'freeze' || s.type === 'stun')
           ) {
@@ -1953,8 +2004,23 @@ export const App: React.FC = () => {
 
           const bossMon = currentMonsterRef.current;
           const calc = combatCalcRef.current;
-          const mult = chosenPattern === 'shadow_drop' ? 1.85 : 1.35;
+          const mult =
+            chosenPattern === 'shadow_drop'
+              ? 1.85
+              : chosenPattern === 'moonlight_shockwave'
+              ? 1.35
+              : chosenPattern === 'crystal_explosion'
+              ? 1.95
+              : 1.4;
           const patternDmg = Math.floor(Math.max(1, bossMon.atk * mult - calc.totalDef * 0.35));
+          const patternLabel =
+            chosenPattern === 'shadow_drop'
+              ? '그림자 낙하'
+              : chosenPattern === 'moonlight_shockwave'
+              ? '달빛 충격파'
+              : chosenPattern === 'crystal_explosion'
+              ? '수정 폭발'
+              : '별빛 창';
 
           setIsMonsterAttacking(true);
           setBossPatternVfxEvent({
@@ -1968,10 +2034,10 @@ export const App: React.FC = () => {
           setIsPlayerHit(true);
           addDamageNumberRef.current(
             patternDmg,
-            chosenPattern === 'shadow_drop',
+            chosenPattern === 'shadow_drop' || chosenPattern === 'crystal_explosion',
             true,
             true,
-            chosenPattern === 'shadow_drop' ? '그림자 낙하' : '달빛 충격파'
+            patternLabel
           );
 
           setSaveData((prev) => {
@@ -3662,6 +3728,9 @@ export const App: React.FC = () => {
             }
             onOpenMissions={() => setShowMissionModal(true)}
             claimableMissionsCount={claimableMissionsCount}
+            onOpenMonsterCodex={() => setShowMonsterCodex(true)}
+            codexDiscoveredCount={monsterCodexBonuses.discoveredCount}
+            codexTotalCount={monsterCodexBonuses.totalCount}
           />
         )}
 
@@ -3672,8 +3741,8 @@ export const App: React.FC = () => {
             heroLevel={stats.level}
             heroAtk={combatCalculations.totalAtk}
             enhancementStones={enhancementStones}
-            goldBonusMultiplier={1 + combatCalculations.petGoldMult + (combatCalculations.prestigeGoldMult || 0)}
-            expBonusMultiplier={1 + (combatCalculations.prestigeExpMult || 0)}
+            goldBonusMultiplier={1 + combatCalculations.petGoldMult + (combatCalculations.prestigeGoldMult || 0) + (combatCalculations.codexGoldMult || 0)}
+            expBonusMultiplier={1 + (combatCalculations.prestigeExpMult || 0) + (combatCalculations.codexExpMult || 0)}
             onEnterDungeon={(id, diff) => {
               handleEnterDungeon(id, diff);
             }}
@@ -3895,6 +3964,13 @@ export const App: React.FC = () => {
         onClaimMission={handleClaimMission}
         onNavigateTab={(tab) => setActiveTab(tab)}
       />
+
+      {showMonsterCodex && (
+        <MonsterCodexModal
+          codex={monsterCodex}
+          onClose={() => setShowMonsterCodex(false)}
+        />
+      )}
     </div>
   );
 };

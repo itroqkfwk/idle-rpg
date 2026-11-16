@@ -5,6 +5,8 @@ import { INITIAL_QUESTS } from '../data/quests';
 import { INITIAL_SKILLS, STARTER_EQUIPPED_SKILLS, getSkillPiecesRequired } from '../data/skills';
 import { createDefaultDungeonState, checkAndResetDailyDungeonTickets } from '../data/dungeons';
 import { createDefaultMissionsState, checkAndResetMissions } from '../data/missions';
+import { normalizeMonsterCodex } from '../data/monsterCodex';
+import { MAX_CHAPTER } from '../data/monsters';
 
 const SAVE_KEY = 'COZY_IDLE_RPG_SAVE_V1';
 const SAVE_KEY_LOWER = 'cozy_idle_rpg_save_v1';
@@ -119,6 +121,7 @@ export function getDefaultSaveData(): GameSaveData {
     equipmentPityCount: 0,
     totalEquipmentSummons: 0,
     missions: createDefaultMissionsState(),
+    monsterCodex: {},
   };
 }
 
@@ -225,19 +228,20 @@ export function loadGameData(): { data: GameSaveData; offlineSeconds: number } {
     mergedData.equipmentPityCount = Math.max(0, parsed.equipmentPityCount ?? 0);
     mergedData.totalEquipmentSummons = Math.max(0, parsed.totalEquipmentSummons ?? 0);
     mergedData.missions = checkAndResetMissions(parsed.missions);
+    mergedData.monsterCodex = normalizeMonsterCodex(parsed.monsterCodex);
 
-    // 4-chapter upper bound consistency migration
+    // Chapter upper-bound consistency migration (Chapters 1 ~ MAX_CHAPTER=5; preserves existing 4-10 records)
     if (mergedData.stage) {
-      if (mergedData.stage.chapter > 4) {
-        mergedData.stage.chapter = 4;
+      if (mergedData.stage.chapter > MAX_CHAPTER) {
+        mergedData.stage.chapter = MAX_CHAPTER;
         mergedData.stage.stage = 10;
         mergedData.stage.isBossStage = true;
         mergedData.stage.inBossFight = false;
       }
-      if (mergedData.stage.highestChapter > 4) {
-        mergedData.stage.highestChapter = 4;
+      if (mergedData.stage.highestChapter > MAX_CHAPTER) {
+        mergedData.stage.highestChapter = MAX_CHAPTER;
         mergedData.stage.highestStage = 10;
-      } else if (mergedData.stage.highestChapter === 4) {
+      } else if (mergedData.stage.highestChapter >= 4) {
         mergedData.stage.highestStage = Math.min(10, Math.max(1, mergedData.stage.highestStage || 1));
       }
       if (

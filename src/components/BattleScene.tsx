@@ -449,7 +449,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
               <span>
                 {activeDungeonRun
                   ? 'ANCIENT RUINS BOSS'
-                  : monster.id === 'c4_boss' && bossPhase === 2
+                  : (monster.id === 'c4_boss' || monster.id === 'c5_boss') && bossPhase === 2
                   ? 'PHASE 2 · BOSS RAID'
                   : 'BOSS RAID'}
               </span>
@@ -461,9 +461,19 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
               <Flame size={15} color="#f97316" />
             </div>
             {bossPatternWarning && !activeDungeonRun && (
-              <div className={`boss-pattern-warning-pill ${bossPatternWarning === 'shadow_drop' ? 'warn-shadow' : 'warn-moon'}`}>
+              <div
+                className={`boss-pattern-warning-pill ${
+                  bossPatternWarning === 'shadow_drop' || bossPatternWarning === 'crystal_explosion'
+                    ? 'warn-shadow'
+                    : 'warn-moon'
+                }`}
+              >
                 {bossPatternWarning === 'shadow_drop'
                   ? '2페이즈 특수 패턴 · 그림자 낙하 경고!'
+                  : bossPatternWarning === 'crystal_explosion'
+                  ? '2페이즈 특수 패턴 · 수정 폭발 경고!'
+                  : bossPatternWarning === 'starlight_spear'
+                  ? '보스 패턴 · 별빛 창 마력 충전 중!'
                   : '보스 패턴 · 달빛 충격파 시전 중!'}
               </div>
             )}
@@ -1279,9 +1289,11 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         /* ⚔️ Dropped Item Loot Alert */
         .battle-loot-alert-banner {
           position: absolute;
-          top: 70px;
+          top: 104px;
           left: 50%;
           transform: translateX(-50%);
+          max-width: calc(100% - 24px);
+          white-space: nowrap;
           background: rgba(15, 23, 42, 0.92);
           border: 1.5px solid #f59e0b;
           border-radius: 9999px;
@@ -1289,9 +1301,15 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           display: flex;
           align-items: center;
           gap: 6px;
+          font-size: 12px;
           z-index: 30;
           pointer-events: none;
           animation: lootPopIn 1.6s ease-out forwards;
+        }
+        @media (min-width: 700px) {
+          .battle-loot-alert-banner {
+            top: 84px;
+          }
         }
 
         @keyframes lootPopIn {

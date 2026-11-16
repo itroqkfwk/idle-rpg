@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { SkillEffectType, CharacterClassId, EquipmentRarity, BossPatternVfxEvent } from '../types/game';
+import { SkillEffectType, CharacterClassId, EquipmentRarity, BossPatternType, BossPatternVfxEvent } from '../types/game';
 import { AmbientParticleType } from '../data/stages';
 
 interface BattleFxCanvasProps {
@@ -708,7 +708,7 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
   const lastBossPatternEventIdRef = useRef<string | null>(null);
   const bossPatternAnimRef = useRef<{
     id: string;
-    pattern: 'moonlight_shockwave' | 'shadow_drop';
+    pattern: BossPatternType;
     phase: 'telegraph' | 'impact';
     startTime: number;
     duration: number;
@@ -1999,6 +1999,32 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
         spawnShockwave(monsterX, monsterY, 150, 480, '#818cf8', 0.6, 5.5);
         spawnShockwave(heroX, heroY, 95, 390, '#38bdf8', 0.75, 4);
         spawnDirectionalSparks(heroX, heroY, 18, '#a5b4fc', Math.PI, 2.2, 8.0, groundY);
+      } else if (bossPatternVfxEvent.pattern === 'starlight_spear') {
+        spawnShockwave(monsterX, monsterY, 125, 440, '#fbbf24', 0.65, 4.5);
+        spawnShockwave(heroX, heroY, 110, 430, '#38bdf8', 0.8, 5);
+        spawnDirectionalSparks(heroX, heroY, 22, '#67e8f9', Math.PI, 2.5, 9.0, groundY);
+      } else if (bossPatternVfxEvent.pattern === 'crystal_explosion') {
+        spawnShockwave(heroX, groundY, 145, 500, '#e879f9', 0.44, 7.5);
+        spawnShockwave(heroX, heroY, 120, 440, '#38bdf8', 0.85, 5.5);
+        spawnDirectionalSparks(heroX, groundY - 14, 26, '#f472b6', -Math.PI * 0.5, 3.0, 10.0, groundY);
+        const crystalCracks: { x: number; y: number }[][] = [];
+        for (let c = 0; c < 5; c++) {
+          const ang = (c / 5) * Math.PI * 2 + 0.2;
+          crystalCracks.push([
+            { x: heroX, y: groundY },
+            { x: heroX + Math.cos(ang) * 28, y: groundY + Math.sin(ang) * 10 },
+            { x: heroX + Math.cos(ang + 0.15) * 52, y: groundY + Math.sin(ang + 0.15) * 15 },
+          ]);
+        }
+        fissuresRef.current.push({
+          id: `fis_ce_${Date.now()}`,
+          originX: heroX,
+          originY: groundY,
+          cracks: crystalCracks,
+          color: '#e879f9',
+          life: 0,
+          maxLife: 0.8,
+        });
       } else {
         // shadow_drop impact slam at hero position
         spawnShockwave(heroX, groundY, 130, 460, '#a855f7', 0.45, 7);
@@ -2024,12 +2050,21 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
         });
       }
     } else {
+      const isGroundAoE =
+        bossPatternVfxEvent.pattern === 'shadow_drop' ||
+        bossPatternVfxEvent.pattern === 'crystal_explosion';
       spawnShockwave(
-        bossPatternVfxEvent.pattern === 'shadow_drop' ? heroX : monsterX,
-        bossPatternVfxEvent.pattern === 'shadow_drop' ? groundY : monsterY,
-        75,
-        240,
-        bossPatternVfxEvent.pattern === 'shadow_drop' ? '#c084fc' : '#7dd3fc',
+        isGroundAoE ? heroX : monsterX,
+        isGroundAoE ? groundY : monsterY,
+        78,
+        250,
+        bossPatternVfxEvent.pattern === 'crystal_explosion'
+          ? '#e879f9'
+          : bossPatternVfxEvent.pattern === 'starlight_spear'
+          ? '#fbbf24'
+          : bossPatternVfxEvent.pattern === 'shadow_drop'
+          ? '#c084fc'
+          : '#7dd3fc',
         0.45,
         3
       );
@@ -2072,13 +2107,26 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
     // Initialize ambient particles (capped lower on narrow mobile viewports)
     ambientParticlesRef.current = [];
     const isMobileViewport = (canvas.width || window.innerWidth) < 640;
-    const ambientCount = isMobileViewport ? 14 : 20;
+    const ambientCount =
+      ambientType === 'starlight_crystals'
+        ? isMobileViewport
+          ? 12
+          : 18
+        : isMobileViewport
+        ? 14
+        : 20;
     for (let i = 0; i < ambientCount; i++) {
       ambientParticlesRef.current.push({
         x: Math.random() * (canvas.width || 800),
         y: Math.random() * (canvas.height || 600),
-        vx: ambientType === 'marsh_mist' ? (Math.random() - 0.5) * 0.35 + 0.15 : (Math.random() - 0.5) * 0.6 + 0.35,
-        vy: ambientType === 'marsh_mist' ? -(Math.random() * 0.25 + 0.1) : Math.random() * 0.45 + 0.25,
+        vx:
+          ambientType === 'marsh_mist' || ambientType === 'starlight_crystals'
+            ? (Math.random() - 0.5) * 0.32 + 0.12
+            : (Math.random() - 0.5) * 0.6 + 0.35,
+        vy:
+          ambientType === 'marsh_mist' || ambientType === 'starlight_crystals'
+            ? -(Math.random() * 0.24 + 0.08)
+            : Math.random() * 0.45 + 0.25,
         life: Math.random() * 5,
         maxLife: 8,
         size: Math.random() * 4 + 2,
@@ -2089,12 +2137,21 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
             ? '#38bdf8'
             : ambientType === 'boss_embers'
             ? '#f97316'
+            : ambientType === 'starlight_crystals'
+            ? i % 3 === 0
+              ? '#67e8f9'
+              : i % 3 === 1
+              ? '#f472b6'
+              : '#fde047'
             : ambientType === 'marsh_mist'
             ? i % 2 === 0
               ? '#a5b4fc'
               : '#67e8f9'
             : '#4ade80',
-        alpha: ambientType === 'marsh_mist' ? Math.random() * 0.45 + 0.2 : Math.random() * 0.6 + 0.25,
+        alpha:
+          ambientType === 'marsh_mist' || ambientType === 'starlight_crystals'
+            ? Math.random() * 0.45 + 0.2
+            : Math.random() * 0.6 + 0.25,
         rotation: Math.random() * Math.PI * 2,
         vRot: (Math.random() - 0.5) * 0.04,
       });
@@ -2152,6 +2209,21 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
           ctx.lineTo(-p.size * 0.5, p.size * 0.8);
           ctx.lineTo(-p.size * 1.6, 0);
           ctx.lineTo(-p.size * 0.8, -p.size * 0.3);
+          ctx.closePath();
+          ctx.fill();
+        } else if (ambientType === 'starlight_crystals') {
+          const r = p.size * 0.95;
+          // Soft prism diamond crystal mote (no shadowBlur)
+          ctx.globalAlpha = p.alpha * 0.24;
+          ctx.beginPath();
+          ctx.arc(0, 0, r * 1.85, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = p.alpha;
+          ctx.beginPath();
+          ctx.moveTo(0, -r * 1.35);
+          ctx.lineTo(r * 0.8, 0);
+          ctx.lineTo(0, r * 1.35);
+          ctx.lineTo(-r * 0.8, 0);
           ctx.closePath();
           ctx.fill();
         } else if (ambientType === 'water_orbs' || ambientType === 'marsh_mist') {
@@ -2653,8 +2725,7 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
               ctx.lineTo(curX, curY);
               ctx.stroke();
             }
-          } else {
-            // shadow_drop
+          } else if (bp.pattern === 'shadow_drop') {
             if (bp.phase === 'telegraph') {
               const alpha = 0.4 + Math.sin(prog * Math.PI * 4) * 0.25;
               const r = 46 * (1 - prog * 0.35);
@@ -2679,6 +2750,76 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
               ctx.beginPath();
               ctx.arc(bp.heroX, Math.min(bp.groundY, dropY), 18 * fade + 6, 0, Math.PI * 2);
               ctx.fill();
+            }
+          } else if (bp.pattern === 'starlight_spear') {
+            if (bp.phase === 'telegraph') {
+              const alpha = 0.45 + Math.sin(prog * Math.PI * 4) * 0.25;
+              const r = 36 + prog * 24;
+              ctx.strokeStyle = `rgba(253, 224, 71, ${alpha})`;
+              ctx.lineWidth = 2.6;
+              ctx.beginPath();
+              ctx.arc(bp.monsterX, bp.monsterY, r, 0, Math.PI * 2);
+              ctx.stroke();
+              // 4-point converging star telegraph
+              ctx.strokeStyle = `rgba(103, 232, 249, ${alpha})`;
+              ctx.beginPath();
+              ctx.moveTo(bp.monsterX - r * 1.2, bp.monsterY);
+              ctx.lineTo(bp.monsterX + r * 1.2, bp.monsterY);
+              ctx.moveTo(bp.monsterX, bp.monsterY - r * 1.2);
+              ctx.lineTo(bp.monsterX, bp.monsterY + r * 1.2);
+              ctx.stroke();
+            } else {
+              const flight = Math.min(1, prog * 1.35);
+              const curX = bp.monsterX + (bp.heroX - bp.monsterX) * flight;
+              const curY = bp.monsterY + (bp.heroY - bp.monsterY) * flight;
+              const fade = 1 - prog;
+              const angle = Math.atan2(bp.heroY - bp.monsterY, bp.heroX - bp.monsterX);
+              ctx.translate(curX, curY);
+              ctx.rotate(angle);
+              // Soft outer prism glow + crisp starlight lance head
+              ctx.fillStyle = `rgba(56, 189, 248, ${fade * 0.4})`;
+              ctx.beginPath();
+              ctx.moveTo(32, 0);
+              ctx.lineTo(-28, -14);
+              ctx.lineTo(-18, 0);
+              ctx.lineTo(-28, 14);
+              ctx.closePath();
+              ctx.fill();
+              ctx.fillStyle = `rgba(254, 240, 138, ${fade})`;
+              ctx.beginPath();
+              ctx.moveTo(26, 0);
+              ctx.lineTo(-20, -7);
+              ctx.lineTo(-12, 0);
+              ctx.lineTo(-20, 7);
+              ctx.closePath();
+              ctx.fill();
+            }
+          } else {
+            // crystal_explosion (Chapter 5 Boss Phase 2 AoE)
+            if (bp.phase === 'telegraph') {
+              const alpha = 0.45 + Math.sin(prog * Math.PI * 4) * 0.25;
+              const r = 52 * (1 - prog * 0.25);
+              ctx.strokeStyle = `rgba(232, 121, 249, ${alpha})`;
+              ctx.fillStyle = `rgba(56, 189, 248, ${alpha * 0.26})`;
+              ctx.lineWidth = 2.6;
+              ctx.beginPath();
+              ctx.ellipse(bp.heroX, bp.groundY, r, r * 0.34, 0, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.stroke();
+            } else {
+              const fade = 1 - prog;
+              const spikeH = 95 * Math.sin(Math.min(1, prog * 1.4) * (Math.PI / 2));
+              const offsets = [-24, 0, 24];
+              offsets.forEach((ox, idx) => {
+                const h = idx === 1 ? spikeH : spikeH * 0.78;
+                ctx.fillStyle = idx % 2 === 0 ? `rgba(103, 232, 249, ${fade * 0.85})` : `rgba(232, 121, 249, ${fade * 0.9})`;
+                ctx.beginPath();
+                ctx.moveTo(bp.heroX + ox, bp.groundY - h);
+                ctx.lineTo(bp.heroX + ox - 11, bp.groundY + 4);
+                ctx.lineTo(bp.heroX + ox + 11, bp.groundY + 4);
+                ctx.closePath();
+                ctx.fill();
+              });
             }
           }
           ctx.restore();

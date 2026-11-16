@@ -250,8 +250,97 @@ export const CHAPTERS_DATA: ChapterTheme[] = [
       isBoss: true,
       element: 'dark'
     }
+  },
+  {
+    chapter: 5,
+    name: '별빛 유리 정원 (Starlit Crystal Garden)',
+    subTitle: '별자리 빛과 수정 꽃이 영롱하게 반짝이는 천상의 유리 정원',
+    bgGradient: 'linear-gradient(180deg, #1e1b4b 0%, #3b0764 52%, #0f172a 100%)',
+    accentColor: '#38bdf8',
+    monsters: [
+      {
+        id: 'c5_m1',
+        name: '수정 꽃 슬라임',
+        icon: 'M5-1',
+        maxHp: 5800,
+        atk: 270,
+        def: 105,
+        expReward: 1150,
+        goldReward: 2100,
+        isBoss: false,
+        element: 'water'
+      },
+      {
+        id: 'c5_m2',
+        name: '유리 날개 나비 정령',
+        icon: 'M5-2',
+        maxHp: 7600,
+        atk: 335,
+        def: 130,
+        expReward: 1480,
+        goldReward: 2680,
+        isBoss: false,
+        element: 'light'
+      },
+      {
+        id: 'c5_m3',
+        name: '별빛 여우',
+        icon: 'M5-3',
+        maxHp: 9800,
+        atk: 410,
+        def: 160,
+        expReward: 1900,
+        goldReward: 3450,
+        isBoss: false,
+        element: 'light'
+      },
+      {
+        id: 'c5_m4',
+        name: '수정 갑옷 골렘',
+        icon: 'M5-4',
+        maxHp: 12800,
+        atk: 495,
+        def: 205,
+        expReward: 2450,
+        goldReward: 4400,
+        isBoss: false,
+        element: 'grass'
+      }
+    ],
+    boss: {
+      id: 'c5_boss',
+      name: '별빛 정원 수호자 [BOSS]',
+      icon: 'B5',
+      maxHp: 56000,
+      atk: 680,
+      def: 290,
+      expReward: 16500,
+      goldReward: 36000,
+      isBoss: true,
+      element: 'light'
+    }
   }
 ];
+
+export const CHAPTER5_STAGE_NAMES: Record<number, string> = {
+  1: '별빛 정원 입구',
+  2: '수정 꽃길',
+  3: '유리 나비의 숲',
+  4: '반짝이는 호수',
+  5: '오래된 별의 온실',
+  6: '별가루 꽃밭',
+  7: '수정의 회랑',
+  8: '잊힌 별의 제단',
+  9: '여명의 정원',
+  10: '별빛 정원 수호자',
+};
+
+export function getStageDisplayName(chapter: number, stage: number): string | null {
+  if (chapter === 5) {
+    return CHAPTER5_STAGE_NAMES[Math.max(1, Math.min(10, stage))] || null;
+  }
+  return null;
+}
 
 export const MAX_CHAPTER = CHAPTERS_DATA.length;
 

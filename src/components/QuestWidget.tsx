@@ -1,6 +1,6 @@
 import React from 'react';
 import { Quest } from '../types/game';
-import { Scroll, Sparkles, CheckCircle2, ChevronRight, ChevronLeft, CalendarCheck } from 'lucide-react';
+import { Scroll, Sparkles, CheckCircle2, ChevronRight, ChevronLeft, CalendarCheck, BookOpen } from 'lucide-react';
 
 interface QuestWidgetProps {
   quest: Quest | null;
@@ -9,6 +9,9 @@ interface QuestWidgetProps {
   onToggleCollapse?: (collapsed: boolean) => void;
   onOpenMissions?: () => void;
   claimableMissionsCount?: number;
+  onOpenMonsterCodex?: () => void;
+  codexDiscoveredCount?: number;
+  codexTotalCount?: number;
 }
 
 export const QuestWidget: React.FC<QuestWidgetProps> = ({
@@ -18,6 +21,9 @@ export const QuestWidget: React.FC<QuestWidgetProps> = ({
   onToggleCollapse,
   onOpenMissions,
   claimableMissionsCount = 0,
+  onOpenMonsterCodex,
+  codexDiscoveredCount = 0,
+  codexTotalCount = 22,
 }) => {
   const percent = quest ? Math.min(100, Math.floor((quest.currentCount / quest.targetCount) * 100)) : 100;
   const isReady = quest ? quest.currentCount >= quest.targetCount && !quest.claimed : false;
@@ -75,6 +81,16 @@ export const QuestWidget: React.FC<QuestWidgetProps> = ({
             {claimableMissionsCount > 0 && <span className="mission-count-dot">{claimableMissionsCount}</span>}
           </button>
         )}
+        {onOpenMonsterCodex && (
+          <button
+            className="quest-codex-entry-btn"
+            onClick={onOpenMonsterCodex}
+            title={`몬스터 도감 (${codexDiscoveredCount}/${codexTotalCount})`}
+          >
+            <BookOpen size={12} />
+            <span>도감</span>
+          </button>
+        )}
       </div>
 
       {/* 🖥️ PC / Compact Desktop View (width >= 700px) */}
@@ -104,6 +120,16 @@ export const QuestWidget: React.FC<QuestWidgetProps> = ({
                 <CalendarCheck size={12} />
                 <span>미션</span>
                 {claimableMissionsCount > 0 && <span className="mission-count-dot">{claimableMissionsCount}</span>}
+              </button>
+            )}
+            {onOpenMonsterCodex && (
+              <button
+                className="quest-codex-entry-btn"
+                onClick={onOpenMonsterCodex}
+                title={`몬스터 도감 (${codexDiscoveredCount}/${codexTotalCount})`}
+              >
+                <BookOpen size={12} />
+                <span>도감</span>
               </button>
             )}
           </div>
@@ -159,6 +185,16 @@ export const QuestWidget: React.FC<QuestWidgetProps> = ({
                     <CalendarCheck size={11} />
                     <span>미션</span>
                     {claimableMissionsCount > 0 && <span className="mission-count-dot">{claimableMissionsCount}</span>}
+                  </button>
+                )}
+                {onOpenMonsterCodex && (
+                  <button
+                    className="quest-codex-entry-btn pc-mission-btn"
+                    onClick={onOpenMonsterCodex}
+                    title={`몬스터 도감 (${codexDiscoveredCount}/${codexTotalCount})`}
+                  >
+                    <BookOpen size={11} />
+                    <span>도감</span>
                   </button>
                 )}
               </div>
@@ -545,9 +581,26 @@ export const QuestWidget: React.FC<QuestWidgetProps> = ({
           flex-shrink: 0;
           transition: transform 0.12s ease, box-shadow 0.15s ease;
         }
-        .quest-mission-entry-btn.pc-mission-btn {
+        .quest-mission-entry-btn.pc-mission-btn,
+        .quest-codex-entry-btn.pc-mission-btn {
           padding: 3px 7px;
           font-size: 9.5px;
+        }
+        .quest-codex-entry-btn {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 4px 8px;
+          border-radius: 9999px;
+          border: 1px solid rgba(56, 189, 248, 0.55);
+          background: linear-gradient(135deg, rgba(14, 116, 144, 0.85), rgba(15, 23, 42, 0.92));
+          color: #e0f2fe;
+          font-size: 10px;
+          font-weight: 800;
+          cursor: pointer;
+          flex-shrink: 0;
+          transition: transform 0.12s ease, box-shadow 0.15s ease;
         }
         .quest-mission-entry-btn.has-claimable {
           border-color: rgba(251, 191, 36, 0.85);

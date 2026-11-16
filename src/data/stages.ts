@@ -11,6 +11,9 @@ export type EnvironmentTheme =
   | 'marsh_entrance'
   | 'marsh_fog'
   | 'marsh_altar'
+  | 'crystal_entrance'
+  | 'crystal_conservatory'
+  | 'crystal_altar'
   | 'boss_crimson';
 
 export type AmbientParticleType =
@@ -19,6 +22,7 @@ export type AmbientParticleType =
   | 'water_orbs'
   | 'maple_leaves'
   | 'marsh_mist'
+  | 'starlight_crystals'
   | 'boss_embers';
 
 export interface StageEnvironment {
@@ -227,12 +231,12 @@ export const STAGE_ENVIRONMENTS: StageEnvironment[] = [
     stageMax: 3,
     areaName: '초승달 습지 입구',
     subTitle: '은빛 달빛 아래 옅은 보랏빛 물안개가 피어오르는 길',
-    bgImage: './assets/lake_bg.jpg',
+    bgImage: './assets/marsh_bg.webp',
     theme: 'marsh_entrance',
     ambientParticleType: 'marsh_mist',
-    filterStyle: 'brightness(0.68) contrast(1.16) saturate(0.88) hue-rotate(25deg)',
-    fogGradient: 'radial-gradient(ellipse at 50% 25%, rgba(129, 140, 248, 0.24) 0%, rgba(49, 46, 129, 0.14) 55%, transparent 82%)',
-    vignetteColor: 'rgba(15, 23, 42, 0.36)',
+    filterStyle: 'brightness(1.00) contrast(1.06) saturate(1.04)',
+    fogGradient: 'radial-gradient(ellipse at 50% 25%, rgba(129, 140, 248, 0.16) 0%, rgba(49, 46, 129, 0.10) 55%, transparent 82%)',
+    vignetteColor: 'rgba(15, 23, 42, 0.24)',
   },
   {
     mapId: 'marsh_fog',
@@ -241,12 +245,12 @@ export const STAGE_ENVIRONMENTS: StageEnvironment[] = [
     stageMax: 6,
     areaName: '깊은 물안개 늪',
     subTitle: '달빛 포자와 반딧불이 맴도는 신비로운 심야 습지',
-    bgImage: './assets/lake_bg.jpg',
+    bgImage: './assets/marsh_bg.webp',
     theme: 'marsh_fog',
     ambientParticleType: 'marsh_mist',
-    filterStyle: 'brightness(0.60) contrast(1.22) saturate(0.95) hue-rotate(38deg)',
-    fogGradient: 'radial-gradient(ellipse at 50% 30%, rgba(56, 189, 248, 0.22) 0%, rgba(88, 28, 135, 0.2) 55%, transparent 85%)',
-    vignetteColor: 'rgba(17, 24, 39, 0.44)',
+    filterStyle: 'brightness(0.92) contrast(1.10) saturate(1.08)',
+    fogGradient: 'radial-gradient(ellipse at 50% 30%, rgba(56, 189, 248, 0.18) 0%, rgba(88, 28, 135, 0.16) 55%, transparent 85%)',
+    vignetteColor: 'rgba(17, 24, 39, 0.34)',
   },
   {
     mapId: 'marsh_altar',
@@ -255,12 +259,12 @@ export const STAGE_ENVIRONMENTS: StageEnvironment[] = [
     stageMax: 9,
     areaName: '잠긴 달빛 제단',
     subTitle: '고대 룬과 그림자 늑대의 울음소리가 깃든 습지 유적',
-    bgImage: './assets/lake_bg.jpg',
+    bgImage: './assets/marsh_bg.webp',
     theme: 'marsh_altar',
     ambientParticleType: 'marsh_mist',
-    filterStyle: 'brightness(0.54) contrast(1.26) saturate(1.05) hue-rotate(50deg)',
-    fogGradient: 'radial-gradient(ellipse at 50% 35%, rgba(168, 85, 247, 0.26) 0%, rgba(15, 23, 42, 0.22) 60%, transparent 88%)',
-    vignetteColor: 'rgba(15, 10, 35, 0.5)',
+    filterStyle: 'brightness(0.86) contrast(1.14) saturate(1.10)',
+    fogGradient: 'radial-gradient(ellipse at 50% 35%, rgba(168, 85, 247, 0.22) 0%, rgba(15, 23, 42, 0.18) 60%, transparent 88%)',
+    vignetteColor: 'rgba(15, 10, 35, 0.42)',
   },
   {
     mapId: 'marsh_boss',
@@ -269,21 +273,81 @@ export const STAGE_ENVIRONMENTS: StageEnvironment[] = [
     stageMax: 10,
     areaName: '달그림자 성소',
     subTitle: '달그림자 수호자가 깨어나는 결전의 밤',
-    bgImage: './assets/lake_bg.jpg',
+    bgImage: './assets/marsh_bg.webp',
     theme: 'boss_crimson',
     ambientParticleType: 'marsh_mist',
-    filterStyle: 'brightness(0.48) contrast(1.34) saturate(1.15) hue-rotate(62deg)',
-    fogGradient: 'radial-gradient(ellipse at 50% 38%, rgba(139, 92, 246, 0.34) 0%, rgba(30, 27, 75, 0.28) 55%, transparent 88%)',
-    vignetteColor: 'rgba(10, 8, 28, 0.58)',
+    filterStyle: 'brightness(0.78) contrast(1.20) saturate(1.15)',
+    fogGradient: 'radial-gradient(ellipse at 50% 38%, rgba(139, 92, 246, 0.30) 0%, rgba(30, 27, 75, 0.24) 55%, transparent 88%)',
+    vignetteColor: 'rgba(10, 8, 28, 0.50)',
+  },
+
+  // ==========================================
+  // CHAPTER 5: 별빛 유리 정원 (Starlit Crystal Garden)
+  // ==========================================
+  {
+    mapId: 'crystal_entrance',
+    chapter: 5,
+    stageMin: 1,
+    stageMax: 3,
+    areaName: '별빛 정원 · 수정 꽃길',
+    subTitle: '별자리 아래 유리 온실과 수정 꽃이 반짝이는 정원 입구',
+    bgImage: './assets/crystal_garden_bg.webp',
+    theme: 'crystal_entrance',
+    ambientParticleType: 'starlight_crystals',
+    filterStyle: 'brightness(1.02) contrast(1.05) saturate(1.06)',
+    fogGradient: 'radial-gradient(ellipse at 50% 24%, rgba(103, 232, 249, 0.16) 0%, rgba(244, 114, 182, 0.10) 55%, transparent 84%)',
+    vignetteColor: 'rgba(30, 27, 75, 0.22)',
+  },
+  {
+    mapId: 'crystal_conservatory',
+    chapter: 5,
+    stageMin: 4,
+    stageMax: 6,
+    areaName: '반짝이는 별의 온실',
+    subTitle: '유리 호수와 별가루 꽃밭이 펼쳐진 신비의 온실 구역',
+    bgImage: './assets/crystal_garden_bg.webp',
+    theme: 'crystal_conservatory',
+    ambientParticleType: 'starlight_crystals',
+    filterStyle: 'brightness(0.96) contrast(1.09) saturate(1.12)',
+    fogGradient: 'radial-gradient(ellipse at 50% 30%, rgba(192, 132, 252, 0.18) 0%, rgba(56, 189, 248, 0.14) 58%, transparent 86%)',
+    vignetteColor: 'rgba(30, 20, 65, 0.28)',
+  },
+  {
+    mapId: 'crystal_altar',
+    chapter: 5,
+    stageMin: 7,
+    stageMax: 9,
+    areaName: '잊힌 별의 회랑',
+    subTitle: '여명의 빛과 수정 갑옷 파수꾼이 잠든 고대 별빛 제단',
+    bgImage: './assets/crystal_garden_bg.webp',
+    theme: 'crystal_altar',
+    ambientParticleType: 'starlight_crystals',
+    filterStyle: 'brightness(0.90) contrast(1.14) saturate(1.16)',
+    fogGradient: 'radial-gradient(ellipse at 50% 35%, rgba(251, 191, 36, 0.16) 0%, rgba(168, 85, 247, 0.18) 58%, transparent 88%)',
+    vignetteColor: 'rgba(20, 15, 50, 0.36)',
+  },
+  {
+    mapId: 'crystal_boss',
+    chapter: 5,
+    stageMin: 10,
+    stageMax: 10,
+    areaName: '별빛 정원 수호자의 성소',
+    subTitle: '별빛 창과 수정 폭발이 교차하는 최상층 보스 결전',
+    bgImage: './assets/crystal_garden_bg.webp',
+    theme: 'boss_crimson',
+    ambientParticleType: 'starlight_crystals',
+    filterStyle: 'brightness(0.84) contrast(1.22) saturate(1.20)',
+    fogGradient: 'radial-gradient(ellipse at 50% 38%, rgba(232, 121, 249, 0.26) 0%, rgba(56, 189, 248, 0.22) 55%, transparent 88%)',
+    vignetteColor: 'rgba(24, 10, 48, 0.45)',
   },
 ];
 
 /**
  * Returns the exact StageEnvironment configuration for a given chapter, stage and boss state.
- * Clamped cleanly within Chapters 1~4.
+ * Clamped cleanly within Chapters 1~5.
  */
 export function getStageEnvironment(chapter: number, stage: number, isBossFight: boolean): StageEnvironment {
-  const normChapter = Math.min(Math.max(1, chapter), 4);
+  const normChapter = Math.min(Math.max(1, chapter), 5);
   const normStage = Math.max(1, Math.min(10, stage));
 
   if (normStage === 10 && isBossFight) {

@@ -353,6 +353,7 @@ export interface GameSaveData {
   equipmentPityCount?: number;
   totalEquipmentSummons?: number;
   missions?: MissionsSaveState;
+  monsterCodex?: MonsterCodexSaveState;
 }
 
 export type MissionFrequency = 'daily' | 'weekly';
@@ -386,7 +387,22 @@ export interface MissionsSaveState {
   weekly: MissionProgressItem[];
 }
 
-export type BossPatternType = 'moonlight_shockwave' | 'shadow_drop';
+export interface MonsterCodexRecord {
+  id: string;
+  discovered: boolean;
+  firstDefeated: boolean;
+  killCount: number;
+  firstDiscoveredAt?: number;
+  firstDefeatedAt?: number;
+}
+
+export type MonsterCodexSaveState = Record<string, MonsterCodexRecord>;
+
+export type BossPatternType =
+  | 'moonlight_shockwave'
+  | 'shadow_drop'
+  | 'starlight_spear'
+  | 'crystal_explosion';
 
 export interface BossPatternVfxEvent {
   id: string;

@@ -1,7 +1,7 @@
 import React from 'react';
 import { CharacterStats, StageState, CharacterClassId, PromotionId, ActiveDungeonRun } from '../types/game';
 import { Settings } from 'lucide-react';
-import { CHAPTERS_DATA } from '../data/monsters';
+import { CHAPTERS_DATA, getStageDisplayName } from '../data/monsters';
 import { DUNGEONS_DATA } from '../data/dungeons';
 
 interface TopHUDProps {
@@ -40,7 +40,9 @@ export const TopHUD: React.FC<TopHUDProps> = ({
   const effectiveMaxHp = maxHp && maxHp > 0 ? maxHp : Math.max(1, stats.baseHp + (stats.hpLevel - 1) * 35);
   const hpPercent = Math.min(100, Math.max(0, Math.round((currentHp / effectiveMaxHp) * 100)));
 
-  const chapterShortName = currentChapter.name.replace(/\s*\(.*?\)/, '');
+  const chapterShortName =
+    getStageDisplayName(stage.chapter, stage.stage) ||
+    currentChapter.name.replace(/\s*\(.*?\)/, '');
 
   const formatNumber = (num: number) => {
     if (num < 1000) return num.toLocaleString();

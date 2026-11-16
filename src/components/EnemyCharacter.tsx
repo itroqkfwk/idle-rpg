@@ -55,7 +55,9 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
   const isRuinsDungeonBoss = monster.id.startsWith('dg_ruins_');
   const isCh4Mob = monster.id.startsWith('c4_');
   const isCh4Boss = monster.id === 'c4_boss';
-  const ch4VariantClass =
+  const isCh5Mob = monster.id.startsWith('c5_');
+  const isCh5Boss = monster.id === 'c5_boss';
+  const chapterVariantClass =
     monster.id === 'c4_m1'
       ? 'ch4-moon-mushroom'
       : monster.id === 'c4_m2'
@@ -68,6 +70,18 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
       ? bossPhase === 2
         ? 'ch4-boss-moonshadow ch4-boss-phase2'
         : 'ch4-boss-moonshadow'
+      : monster.id === 'c5_m1'
+      ? 'ch5-crystal-slime'
+      : monster.id === 'c5_m2'
+      ? 'ch5-butterfly-spirit'
+      : monster.id === 'c5_m3'
+      ? 'ch5-starlight-fox'
+      : monster.id === 'c5_m4'
+      ? 'ch5-crystal-golem'
+      : monster.id === 'c5_boss'
+      ? bossPhase === 2
+        ? 'ch5-boss-starlight ch5-boss-phase2'
+        : 'ch5-boss-starlight'
       : '';
   const isFrozen = monsterStatuses.some((s) => s.type === 'freeze');
   const isBurning = monsterStatuses.some((s) => s.type === 'burn');
@@ -87,20 +101,41 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
 
   // Determine monster sprite & idle animation type (preserving original PNG assets)
   const getMonsterType = () => {
-    if (isRuinsDungeonBoss || isBoss) {
+    if (isRuinsDungeonBoss || monster.id === 'c1_boss' || monster.id === 'c2_boss' || monster.id === 'c3_boss') {
       return { sprite: './assets/boss_golem.png', idleClass: 'boss-act-idle', sizeClass: 'boss-size' };
+    }
+    if (isCh4Boss || monster.id === 'c4_boss') {
+      return { sprite: './assets/ch4_boss.png', idleClass: 'boss-act-idle', sizeClass: 'boss-size' };
+    }
+    if (isCh5Boss || monster.id === 'c5_boss') {
+      return { sprite: './assets/ch5_boss.png', idleClass: 'boss-act-idle', sizeClass: 'boss-size' };
     }
     if (isCh4Mob) {
       if (monster.id === 'c4_m1') {
-        return { sprite: './assets/monster_mushroom.png', idleClass: 'mushroom-act-idle', sizeClass: 'slime-size' };
+        return { sprite: './assets/ch4_slime.png', idleClass: 'slime-act-idle', sizeClass: 'slime-size' };
       }
       if (monster.id === 'c4_m2') {
-        return { sprite: './assets/monster_spirit.png', idleClass: 'spirit-act-idle', sizeClass: 'medium-size' };
+        return { sprite: './assets/ch4_spirit.png', idleClass: 'spirit-act-idle', sizeClass: 'medium-size' };
       }
       if (monster.id === 'c4_m3') {
-        return { sprite: './assets/monster_bee.png', idleClass: 'bee-act-idle', sizeClass: 'medium-size' };
+        return { sprite: './assets/ch4_wolf.png', idleClass: 'beast-act-idle', sizeClass: 'medium-size' };
       }
-      return { sprite: './assets/boss_golem.png', idleClass: 'mushroom-act-idle', sizeClass: 'medium-size' };
+      return { sprite: './assets/ch4_golem.png', idleClass: 'golem-act-idle', sizeClass: 'medium-size' };
+    }
+    if (isCh5Mob) {
+      if (monster.id === 'c5_m1') {
+        return { sprite: './assets/ch5_slime.png', idleClass: 'slime-act-idle', sizeClass: 'slime-size' };
+      }
+      if (monster.id === 'c5_m2') {
+        return { sprite: './assets/ch5_butterfly.png', idleClass: 'spirit-act-idle', sizeClass: 'medium-size' };
+      }
+      if (monster.id === 'c5_m3') {
+        return { sprite: './assets/ch5_fox.png', idleClass: 'beast-act-idle', sizeClass: 'medium-size' };
+      }
+      return { sprite: './assets/ch5_golem.png', idleClass: 'golem-act-idle', sizeClass: 'medium-size' };
+    }
+    if (isBoss) {
+      return { sprite: './assets/boss_golem.png', idleClass: 'boss-act-idle', sizeClass: 'boss-size' };
     }
     if (isGoldDungeonMob) {
       return { sprite: './assets/monster_spirit.png', idleClass: 'spirit-act-idle', sizeClass: 'medium-size' };
@@ -239,16 +274,30 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
         className={`enemy-sprite-wrapper ${getHitActionClass()} ${!isDeadState && isCriticalHit ? 'hit-crit-recoil' : ''} ${
           isHitStop ? 'hit-stop-freeze' : ''
         } ${isFrozen ? 'status-tint-freeze' : isBurning ? 'status-tint-burn' : ''} ${
-          isGoldDungeonMob ? 'dungeon-gold-aura' : isExpDungeonMob ? 'dungeon-exp-aura' : isRuinsDungeonBoss ? 'dungeon-ruins-aura' : ch4VariantClass
+          isGoldDungeonMob ? 'dungeon-gold-aura' : isExpDungeonMob ? 'dungeon-exp-aura' : isRuinsDungeonBoss ? 'dungeon-ruins-aura' : chapterVariantClass
         } ${bossPatternWarning ? 'boss-telegraph-glow' : ''}`}
         data-enemy-state={enemyAnimState}
       >
-        {/* Chapter 4 Pure SVG/CSS Halo & Crest Overlays (Non-Emoji) */}
-        {isCh4Boss && !isDeadState && (
-          <div className={`ch4-boss-halo ${bossPhase === 2 ? 'halo-phase2' : ''}`} aria-hidden="true" />
+        {/* Chapter 4 & 5 Pure CSS Halo & Telegraph Overlays (Non-Emoji) */}
+        {(isCh4Boss || isCh5Boss) && !isDeadState && (
+          <div
+            className={`ch4-boss-halo ${isCh5Boss ? 'halo-starlight' : ''} ${bossPhase === 2 ? 'halo-phase2' : ''}`}
+            aria-hidden="true"
+          />
         )}
         {bossPatternWarning && !isDeadState && (
-          <div className={`boss-pattern-charge-ring ${bossPatternWarning === 'shadow_drop' ? 'charge-shadow' : 'charge-moon'}`} aria-hidden="true" />
+          <div
+            className={`boss-pattern-charge-ring ${
+              bossPatternWarning === 'shadow_drop'
+                ? 'charge-shadow'
+                : bossPatternWarning === 'crystal_explosion'
+                ? 'charge-crystal'
+                : bossPatternWarning === 'starlight_spear'
+                ? 'charge-star'
+                : 'charge-moon'
+            }`}
+            aria-hidden="true"
+          />
         )}
         {/* Soft Ground Contact Shadow synchronized with hit & defeat states */}
         <div
@@ -372,25 +421,57 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           filter: hue-rotate(215deg) saturate(1.45) brightness(1.06) drop-shadow(0 0 22px rgba(168, 85, 247, 0.9));
         }
 
-        /* Chapter 4 Moonlit Marsh distinct visual styles (original PNGs untouched) */
-        .ch4-moon-mushroom .monster-2d-sprite {
-          filter: hue-rotate(195deg) saturate(1.25) brightness(1.06) drop-shadow(0 0 12px rgba(56, 189, 248, 0.72));
-        }
-        .ch4-fog-spirit .monster-2d-sprite {
-          filter: hue-rotate(165deg) saturate(1.2) brightness(1.1) drop-shadow(0 0 14px rgba(167, 139, 250, 0.78));
-        }
-        .ch4-shadow-wolf .monster-2d-sprite {
-          filter: hue-rotate(235deg) contrast(1.2) saturate(1.3) brightness(0.9) drop-shadow(0 0 14px rgba(139, 92, 246, 0.85));
-        }
-        .ch4-moon-golem .monster-2d-sprite {
+        /* Chapter 4 & 5 Dedicated Hand-Painted Sprites (zero per-frame drop-shadow filter overhead) */
+        .ch4-moon-mushroom .monster-2d-sprite,
+        .ch4-fog-spirit .monster-2d-sprite,
+        .ch4-shadow-wolf .monster-2d-sprite,
+        .ch4-moon-golem .monster-2d-sprite,
+        .ch4-boss-moonshadow .monster-2d-sprite,
+        .ch5-crystal-slime .monster-2d-sprite,
+        .ch5-butterfly-spirit .monster-2d-sprite,
+        .ch5-starlight-fox .monster-2d-sprite,
+        .ch5-crystal-golem .monster-2d-sprite,
+        .ch5-boss-starlight .monster-2d-sprite {
           transform-origin: center bottom;
-          filter: hue-rotate(195deg) saturate(0.85) contrast(1.18) brightness(0.95) drop-shadow(0 0 14px rgba(99, 102, 241, 0.75));
+          will-change: transform;
         }
-        .ch4-boss-moonshadow .monster-2d-sprite {
-          filter: hue-rotate(242deg) saturate(1.38) contrast(1.22) brightness(0.92) drop-shadow(0 0 22px rgba(129, 140, 248, 0.88));
+        .ch4-boss-phase2 .monster-2d-sprite,
+        .ch5-boss-phase2 .monster-2d-sprite {
+          filter: brightness(1.08) saturate(1.18);
         }
-        .ch4-boss-phase2 .monster-2d-sprite {
-          filter: hue-rotate(268deg) saturate(1.65) contrast(1.3) brightness(1.02) drop-shadow(0 0 26px rgba(192, 132, 252, 0.95));
+        .ch4-boss-halo.halo-starlight {
+          border-color: rgba(103, 232, 249, 0.85);
+          box-shadow: 0 0 18px rgba(56, 189, 248, 0.75), inset 0 0 10px rgba(251, 191, 36, 0.45);
+        }
+        .ch4-boss-halo.halo-starlight.halo-phase2 {
+          border-color: rgba(251, 191, 36, 0.95);
+          box-shadow: 0 0 22px rgba(232, 121, 249, 0.95), inset 0 0 12px rgba(103, 232, 249, 0.7);
+        }
+        .boss-pattern-charge-ring.charge-star {
+          border: 2px solid rgba(251, 191, 36, 0.92);
+          box-shadow: 0 0 24px rgba(56, 189, 248, 0.85);
+        }
+        .boss-pattern-charge-ring.charge-crystal {
+          border: 2px solid rgba(232, 121, 249, 0.95);
+          box-shadow: 0 0 28px rgba(192, 132, 252, 0.95);
+        }
+
+        /* Grounded Beast (Shadow Wolf / Starlight Fox) & Heavy Golem Idle Motions */
+        .beast-act-idle .monster-2d-sprite {
+          transform-origin: center bottom;
+          animation: beastProwlIdle 1.6s ease-in-out infinite;
+        }
+        .golem-act-idle .monster-2d-sprite {
+          transform-origin: center bottom;
+          animation: golemStanceIdle 2.1s ease-in-out infinite;
+        }
+        @keyframes beastProwlIdle {
+          0%, 100% { transform: translateY(0) scale(1, 1); }
+          50% { transform: translateY(2px) scale(1.03, 0.96); }
+        }
+        @keyframes golemStanceIdle {
+          0%, 100% { transform: translateY(0) scale(1, 1); }
+          50% { transform: translateY(1.5px) scale(1.02, 0.98); }
         }
         .ch4-boss-halo {
           position: absolute;
