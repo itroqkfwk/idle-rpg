@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Monster, DamageNumberData, MonsterStatusEffect } from '../types/game';
+import { Monster, DamageNumberData, MonsterStatusEffect, BossPatternType } from '../types/game';
 import { Skull } from 'lucide-react';
 
 interface EnemyCharacterProps {
@@ -13,6 +13,8 @@ interface EnemyCharacterProps {
   isFinisherHit?: boolean;
   hitComboStep?: 1 | 2 | 3 | null;
   isCriticalHit?: boolean;
+  bossPhase?: 1 | 2;
+  bossPatternWarning?: BossPatternType | null;
 }
 
 const STATUS_META: Record<MonsterStatusEffect['type'], { label: string; icon: string; color: string; bg: string }> = {
@@ -34,6 +36,8 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
   isFinisherHit = false,
   hitComboStep = null,
   isCriticalHit = false,
+  bossPhase = 1,
+  bossPatternWarning = null,
 }) => {
   const [ghostHpPercent, setGhostHpPercent] = useState(100);
   const hpPercent = Math.max(0, Math.min(100, Math.round((monster.currentHp / monster.maxHp) * 100)));
@@ -49,6 +53,22 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
   const isGoldDungeonMob = monster.id.startsWith('dg_gold_');
   const isExpDungeonMob = monster.id.startsWith('dg_exp_');
   const isRuinsDungeonBoss = monster.id.startsWith('dg_ruins_');
+  const isCh4Mob = monster.id.startsWith('c4_');
+  const isCh4Boss = monster.id === 'c4_boss';
+  const ch4VariantClass =
+    monster.id === 'c4_m1'
+      ? 'ch4-moon-mushroom'
+      : monster.id === 'c4_m2'
+      ? 'ch4-fog-spirit'
+      : monster.id === 'c4_m3'
+      ? 'ch4-shadow-wolf'
+      : monster.id === 'c4_m4'
+      ? 'ch4-moon-golem'
+      : monster.id === 'c4_boss'
+      ? bossPhase === 2
+        ? 'ch4-boss-moonshadow ch4-boss-phase2'
+        : 'ch4-boss-moonshadow'
+      : '';
   const isFrozen = monsterStatuses.some((s) => s.type === 'freeze');
   const isBurning = monsterStatuses.some((s) => s.type === 'burn');
   const isStunned = monsterStatuses.some((s) => s.type === 'stun');
@@ -69,6 +89,18 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
   const getMonsterType = () => {
     if (isRuinsDungeonBoss || isBoss) {
       return { sprite: './assets/boss_golem.png', idleClass: 'boss-act-idle', sizeClass: 'boss-size' };
+    }
+    if (isCh4Mob) {
+      if (monster.id === 'c4_m1') {
+        return { sprite: './assets/monster_mushroom.png', idleClass: 'mushroom-act-idle', sizeClass: 'slime-size' };
+      }
+      if (monster.id === 'c4_m2') {
+        return { sprite: './assets/monster_spirit.png', idleClass: 'spirit-act-idle', sizeClass: 'medium-size' };
+      }
+      if (monster.id === 'c4_m3') {
+        return { sprite: './assets/monster_bee.png', idleClass: 'bee-act-idle', sizeClass: 'medium-size' };
+      }
+      return { sprite: './assets/boss_golem.png', idleClass: 'mushroom-act-idle', sizeClass: 'medium-size' };
     }
     if (isGoldDungeonMob) {
       return { sprite: './assets/monster_spirit.png', idleClass: 'spirit-act-idle', sizeClass: 'medium-size' };
@@ -181,7 +213,7 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
             </span>
           ) : isBoss ? (
             <span className="boss-lvl-badge">
-              <Skull size={10} /> BOSS
+              <Skull size={10} /> {isCh4Boss && bossPhase === 2 ? 'BOSS · P2' : 'BOSS'}
             </span>
           ) : (
             <span className="enemy-lvl-badge">MONSTER</span>
@@ -207,10 +239,17 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
         className={`enemy-sprite-wrapper ${getHitActionClass()} ${!isDeadState && isCriticalHit ? 'hit-crit-recoil' : ''} ${
           isHitStop ? 'hit-stop-freeze' : ''
         } ${isFrozen ? 'status-tint-freeze' : isBurning ? 'status-tint-burn' : ''} ${
-          isGoldDungeonMob ? 'dungeon-gold-aura' : isExpDungeonMob ? 'dungeon-exp-aura' : isRuinsDungeonBoss ? 'dungeon-ruins-aura' : ''
-        }`}
+          isGoldDungeonMob ? 'dungeon-gold-aura' : isExpDungeonMob ? 'dungeon-exp-aura' : isRuinsDungeonBoss ? 'dungeon-ruins-aura' : ch4VariantClass
+        } ${bossPatternWarning ? 'boss-telegraph-glow' : ''}`}
         data-enemy-state={enemyAnimState}
       >
+        {/* Chapter 4 Pure SVG/CSS Halo & Crest Overlays (Non-Emoji) */}
+        {isCh4Boss && !isDeadState && (
+          <div className={`ch4-boss-halo ${bossPhase === 2 ? 'halo-phase2' : ''}`} aria-hidden="true" />
+        )}
+        {bossPatternWarning && !isDeadState && (
+          <div className={`boss-pattern-charge-ring ${bossPatternWarning === 'shadow_drop' ? 'charge-shadow' : 'charge-moon'}`} aria-hidden="true" />
+        )}
         {/* Soft Ground Contact Shadow synchronized with hit & defeat states */}
         <div
           className={`character-ground-shadow ${isBoss ? 'boss-ground-shadow' : 'normal-ground-shadow'} ${
@@ -331,6 +370,69 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
 
         .dungeon-ruins-aura .monster-2d-sprite {
           filter: hue-rotate(215deg) saturate(1.45) brightness(1.06) drop-shadow(0 0 22px rgba(168, 85, 247, 0.9));
+        }
+
+        /* Chapter 4 Moonlit Marsh distinct visual styles (original PNGs untouched) */
+        .ch4-moon-mushroom .monster-2d-sprite {
+          filter: hue-rotate(195deg) saturate(1.25) brightness(1.06) drop-shadow(0 0 12px rgba(56, 189, 248, 0.72));
+        }
+        .ch4-fog-spirit .monster-2d-sprite {
+          filter: hue-rotate(165deg) saturate(1.2) brightness(1.1) drop-shadow(0 0 14px rgba(167, 139, 250, 0.78));
+        }
+        .ch4-shadow-wolf .monster-2d-sprite {
+          filter: hue-rotate(235deg) contrast(1.2) saturate(1.3) brightness(0.9) drop-shadow(0 0 14px rgba(139, 92, 246, 0.85));
+        }
+        .ch4-moon-golem .monster-2d-sprite {
+          transform-origin: center bottom;
+          filter: hue-rotate(195deg) saturate(0.85) contrast(1.18) brightness(0.95) drop-shadow(0 0 14px rgba(99, 102, 241, 0.75));
+        }
+        .ch4-boss-moonshadow .monster-2d-sprite {
+          filter: hue-rotate(242deg) saturate(1.38) contrast(1.22) brightness(0.92) drop-shadow(0 0 22px rgba(129, 140, 248, 0.88));
+        }
+        .ch4-boss-phase2 .monster-2d-sprite {
+          filter: hue-rotate(268deg) saturate(1.65) contrast(1.3) brightness(1.02) drop-shadow(0 0 26px rgba(192, 132, 252, 0.95));
+        }
+        .ch4-boss-halo {
+          position: absolute;
+          top: -12px;
+          left: 50%;
+          width: 72px;
+          height: 22px;
+          transform: translateX(-50%);
+          border-radius: 9999px;
+          border: 2px solid rgba(165, 180, 252, 0.75);
+          box-shadow: 0 0 14px rgba(129, 140, 248, 0.7), inset 0 0 8px rgba(192, 132, 252, 0.45);
+          pointer-events: none;
+          animation: moonHaloFloat 2.4s ease-in-out infinite;
+          z-index: 2;
+        }
+        .ch4-boss-halo.halo-phase2 {
+          border-color: rgba(232, 121, 249, 0.9);
+          box-shadow: 0 0 20px rgba(192, 132, 252, 0.95), inset 0 0 12px rgba(244, 114, 182, 0.6);
+        }
+        @keyframes moonHaloFloat {
+          0%, 100% { transform: translateX(-50%) translateY(0px) scale(1); }
+          50% { transform: translateX(-50%) translateY(-4px) scale(1.06); }
+        }
+        .boss-pattern-charge-ring {
+          position: absolute;
+          inset: -10px;
+          border-radius: 50%;
+          pointer-events: none;
+          z-index: 3;
+          animation: bossChargePulse 0.45s ease-in-out infinite alternate;
+        }
+        .boss-pattern-charge-ring.charge-moon {
+          border: 2px solid rgba(125, 211, 252, 0.88);
+          box-shadow: 0 0 22px rgba(56, 189, 248, 0.85);
+        }
+        .boss-pattern-charge-ring.charge-shadow {
+          border: 2px solid rgba(192, 132, 252, 0.95);
+          box-shadow: 0 0 26px rgba(147, 51, 234, 0.95);
+        }
+        @keyframes bossChargePulse {
+          0% { transform: scale(0.92); opacity: 0.7; }
+          100% { transform: scale(1.08); opacity: 1; }
         }
 
         .enemy-act-cc-frozen {

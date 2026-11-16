@@ -23,7 +23,7 @@ export const PrestigeModal: React.FC<PrestigeModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const highestCh = Math.min(3, Math.max(stage.highestChapter || 1, stage.chapter));
+  const highestCh = Math.min(4, Math.max(stage.highestChapter || 1, stage.chapter));
   const highestSt = Math.min(10, Math.max(stage.highestStage || 1, stage.stage));
   const expectedStardust = calculatePrestigeStardustReward(highestCh, highestSt, stats.level, prestigeCount);
 

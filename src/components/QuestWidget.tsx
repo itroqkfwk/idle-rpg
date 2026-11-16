@@ -1,12 +1,14 @@
 import React from 'react';
 import { Quest } from '../types/game';
-import { Scroll, Sparkles, CheckCircle2, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Scroll, Sparkles, CheckCircle2, ChevronRight, ChevronLeft, CalendarCheck } from 'lucide-react';
 
 interface QuestWidgetProps {
   quest: Quest | null;
   onClaim: (questId: string) => void;
   isCollapsed?: boolean;
   onToggleCollapse?: (collapsed: boolean) => void;
+  onOpenMissions?: () => void;
+  claimableMissionsCount?: number;
 }
 
 export const QuestWidget: React.FC<QuestWidgetProps> = ({
@@ -14,64 +16,97 @@ export const QuestWidget: React.FC<QuestWidgetProps> = ({
   onClaim,
   isCollapsed = false,
   onToggleCollapse,
+  onOpenMissions,
+  claimableMissionsCount = 0,
 }) => {
-  if (!quest) return null;
-
-  const percent = Math.min(100, Math.floor((quest.currentCount / quest.targetCount) * 100));
-  const isReady = quest.currentCount >= quest.targetCount && !quest.claimed;
+  const percent = quest ? Math.min(100, Math.floor((quest.currentCount / quest.targetCount) * 100)) : 100;
+  const isReady = quest ? quest.currentCount >= quest.targetCount && !quest.claimed : false;
 
   return (
     <div
       className={`floating-quest-card ${isReady ? 'quest-ready-glow' : ''} ${
-        isCollapsed ? 'quest-is-collapsed' : ''
+        isCollapsed && quest ? 'quest-is-collapsed' : ''
       }`}
     >
       {/* 📱 Mobile Single Row Ribbon View (width < 700px) */}
       <div className="quest-mobile-view">
-        <div className="quest-icon-bubble">
-          <Scroll size={13} color="#f59e0b" />
-        </div>
+        {quest ? (
+          <>
+            <div className="quest-icon-bubble">
+              <Scroll size={13} color="#f59e0b" />
+            </div>
 
-        <div className="quest-info-body">
-          <div className="quest-title-row">
-            <span className="quest-title-text" title={quest.title}>{quest.title}</span>
-            <span className="quest-count-tag">
-              {quest.currentCount}/{quest.targetCount}
-            </span>
-          </div>
+            <div className="quest-info-body">
+              <div className="quest-title-row">
+                <span className="quest-title-text" title={quest.title}>{quest.title}</span>
+                <span className="quest-count-tag">
+                  {quest.currentCount}/{quest.targetCount}
+                </span>
+              </div>
 
-          <div className="quest-mini-progress">
-            <div className="quest-mini-fill" style={{ width: `${percent}%` }} />
-          </div>
-        </div>
+              <div className="quest-mini-progress">
+                <div className="quest-mini-fill" style={{ width: `${percent}%` }} />
+              </div>
+            </div>
 
-        {/* Claim Button displayed only when ready */}
-        {isReady && (
-          <div className="quest-action-slot">
-            <button className="quest-claim-pill-btn" onClick={() => onClaim(quest.id)}>
-              <Sparkles size={11} color="#ffffff" />
-              <span>보상 받기</span>
-            </button>
+            {isReady && (
+              <div className="quest-action-slot">
+                <button className="quest-claim-pill-btn" onClick={() => onClaim(quest.id)}>
+                  <Sparkles size={11} color="#ffffff" />
+                  <span>보상</span>
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="quest-info-body">
+            <span className="quest-title-text">메인 퀘스트 모두 완료</span>
           </div>
+        )}
+
+        {onOpenMissions && (
+          <button
+            className={`quest-mission-entry-btn ${claimableMissionsCount > 0 ? 'has-claimable' : ''}`}
+            onClick={onOpenMissions}
+            title="일일·주간 미션"
+          >
+            <CalendarCheck size={12} />
+            <span>미션</span>
+            {claimableMissionsCount > 0 && <span className="mission-count-dot">{claimableMissionsCount}</span>}
+          </button>
         )}
       </div>
 
       {/* 🖥️ PC / Compact Desktop View (width >= 700px) */}
       <div className="quest-pc-view">
-        {isCollapsed ? (
+        {isCollapsed || !quest ? (
           /* Collapsed Minimized Button */
-          <button
-            className="quest-collapsed-toggle-btn"
-            onClick={() => onToggleCollapse?.(false)}
-            title="퀘스트 트래커 펼치기"
-          >
-            <div className="collapsed-icon-wrap">
-              <Scroll size={14} color="#f59e0b" />
-              {isReady && <span className="collapsed-notif-dot" />}
-            </div>
-            <span className="collapsed-txt">QUEST</span>
-            <ChevronLeft size={13} color="#94a3b8" />
-          </button>
+          <div className="quest-pc-collapsed-row">
+            {quest && (
+              <button
+                className="quest-collapsed-toggle-btn"
+                onClick={() => onToggleCollapse?.(false)}
+                title="퀘스트 트래커 펼치기"
+              >
+                <div className="collapsed-icon-wrap">
+                  <Scroll size={14} color="#f59e0b" />
+                  {isReady && <span className="collapsed-notif-dot" />}
+                </div>
+                <span className="collapsed-txt">QUEST</span>
+                <ChevronLeft size={13} color="#94a3b8" />
+              </button>
+            )}
+            {onOpenMissions && (
+              <button
+                className={`quest-mission-entry-btn ${claimableMissionsCount > 0 ? 'has-claimable' : ''}`}
+                onClick={onOpenMissions}
+              >
+                <CalendarCheck size={12} />
+                <span>미션</span>
+                {claimableMissionsCount > 0 && <span className="mission-count-dot">{claimableMissionsCount}</span>}
+              </button>
+            )}
+          </div>
         ) : (
           /* Expanded Dark Glass Tracker Card */
           <div className="quest-pc-card-inner">
@@ -109,12 +144,24 @@ export const QuestWidget: React.FC<QuestWidgetProps> = ({
                 <span className="quest-reward-chip">🪙 +{quest.rewardGold.toLocaleString()}</span>
                 <span className="quest-reward-chip gem-chip">💎 +{quest.rewardGems}</span>
               </div>
-              {isReady && (
-                <button className="quest-pc-claim-btn" onClick={() => onClaim(quest.id)}>
-                  <CheckCircle2 size={12} />
-                  <span>보상 수령</span>
-                </button>
-              )}
+              <div className="quest-pc-footer-actions">
+                {isReady && (
+                  <button className="quest-pc-claim-btn" onClick={() => onClaim(quest.id)}>
+                    <CheckCircle2 size={12} />
+                    <span>수령</span>
+                  </button>
+                )}
+                {onOpenMissions && (
+                  <button
+                    className={`quest-mission-entry-btn pc-mission-btn ${claimableMissionsCount > 0 ? 'has-claimable' : ''}`}
+                    onClick={onOpenMissions}
+                  >
+                    <CalendarCheck size={11} />
+                    <span>미션</span>
+                    {claimableMissionsCount > 0 && <span className="mission-count-dot">{claimableMissionsCount}</span>}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -470,6 +517,54 @@ export const QuestWidget: React.FC<QuestWidgetProps> = ({
             box-shadow: 0 2px 8px rgba(16, 185, 129, 0.5);
             animation: claimBounce 1.5s infinite;
           }
+        }
+
+        .quest-pc-collapsed-row {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .quest-pc-footer-actions {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+        }
+        .quest-mission-entry-btn {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 4px 8px;
+          border-radius: 9999px;
+          border: 1px solid rgba(129, 140, 248, 0.55);
+          background: linear-gradient(135deg, rgba(67, 56, 202, 0.85), rgba(49, 46, 129, 0.9));
+          color: #e0e7ff;
+          font-size: 10px;
+          font-weight: 800;
+          cursor: pointer;
+          flex-shrink: 0;
+          transition: transform 0.12s ease, box-shadow 0.15s ease;
+        }
+        .quest-mission-entry-btn.pc-mission-btn {
+          padding: 3px 7px;
+          font-size: 9.5px;
+        }
+        .quest-mission-entry-btn.has-claimable {
+          border-color: rgba(251, 191, 36, 0.85);
+          box-shadow: 0 0 10px rgba(245, 158, 11, 0.45);
+        }
+        .mission-count-dot {
+          min-width: 14px;
+          height: 14px;
+          padding: 0 3px;
+          border-radius: 9999px;
+          background: #ef4444;
+          color: #ffffff;
+          font-size: 9px;
+          font-weight: 900;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
         }
       `}</style>
     </div>

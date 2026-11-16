@@ -352,6 +352,47 @@ export interface GameSaveData {
   dungeons?: DungeonSaveState;
   equipmentPityCount?: number;
   totalEquipmentSummons?: number;
+  missions?: MissionsSaveState;
+}
+
+export type MissionFrequency = 'daily' | 'weekly';
+
+export type MissionEventType =
+  | 'monster_killed'
+  | 'stat_upgraded'
+  | 'equipment_summoned'
+  | 'dungeon_cleared'
+  | 'stage_cleared';
+
+export interface MissionProgressItem {
+  id: string;
+  frequency: MissionFrequency;
+  eventType: MissionEventType;
+  title: string;
+  description: string;
+  targetCount: number;
+  currentCount: number;
+  rewardGold: number;
+  rewardGems: number;
+  rewardStones: number;
+  claimed: boolean;
+  shortcutTab?: ActiveTab;
+}
+
+export interface MissionsSaveState {
+  lastDailyResetKst: string;  // YYYY-MM-DD (UTC+9)
+  lastWeeklyResetKst: string; // Monday YYYY-MM-DD (UTC+9)
+  daily: MissionProgressItem[];
+  weekly: MissionProgressItem[];
+}
+
+export type BossPatternType = 'moonlight_shockwave' | 'shadow_drop';
+
+export interface BossPatternVfxEvent {
+  id: string;
+  pattern: BossPatternType;
+  phase: 'telegraph' | 'impact';
+  bossPhase: 1 | 2;
 }
 
 

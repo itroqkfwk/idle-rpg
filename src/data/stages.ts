@@ -8,9 +8,18 @@ export type EnvironmentTheme =
   | 'autumn_trail'
   | 'autumn_valley'
   | 'autumn_shrine'
+  | 'marsh_entrance'
+  | 'marsh_fog'
+  | 'marsh_altar'
   | 'boss_crimson';
 
-export type AmbientParticleType = 'leaves' | 'fireflies' | 'water_orbs' | 'maple_leaves' | 'boss_embers';
+export type AmbientParticleType =
+  | 'leaves'
+  | 'fireflies'
+  | 'water_orbs'
+  | 'maple_leaves'
+  | 'marsh_mist'
+  | 'boss_embers';
 
 export interface StageEnvironment {
   mapId: string;
@@ -207,14 +216,74 @@ export const STAGE_ENVIRONMENTS: StageEnvironment[] = [
     fogGradient: 'radial-gradient(ellipse at 50% 40%, rgba(220, 38, 38, 0.3) 0%, transparent 80%)',
     vignetteColor: 'rgba(127, 29, 29, 0.4)',
   },
+
+  // ==========================================
+  // CHAPTER 4: 달빛 안개 습지 (Moonlit Marsh)
+  // ==========================================
+  {
+    mapId: 'marsh_entrance',
+    chapter: 4,
+    stageMin: 1,
+    stageMax: 3,
+    areaName: '초승달 습지 입구',
+    subTitle: '은빛 달빛 아래 옅은 보랏빛 물안개가 피어오르는 길',
+    bgImage: './assets/lake_bg.jpg',
+    theme: 'marsh_entrance',
+    ambientParticleType: 'marsh_mist',
+    filterStyle: 'brightness(0.68) contrast(1.16) saturate(0.88) hue-rotate(25deg)',
+    fogGradient: 'radial-gradient(ellipse at 50% 25%, rgba(129, 140, 248, 0.24) 0%, rgba(49, 46, 129, 0.14) 55%, transparent 82%)',
+    vignetteColor: 'rgba(15, 23, 42, 0.36)',
+  },
+  {
+    mapId: 'marsh_fog',
+    chapter: 4,
+    stageMin: 4,
+    stageMax: 6,
+    areaName: '깊은 물안개 늪',
+    subTitle: '달빛 포자와 반딧불이 맴도는 신비로운 심야 습지',
+    bgImage: './assets/lake_bg.jpg',
+    theme: 'marsh_fog',
+    ambientParticleType: 'marsh_mist',
+    filterStyle: 'brightness(0.60) contrast(1.22) saturate(0.95) hue-rotate(38deg)',
+    fogGradient: 'radial-gradient(ellipse at 50% 30%, rgba(56, 189, 248, 0.22) 0%, rgba(88, 28, 135, 0.2) 55%, transparent 85%)',
+    vignetteColor: 'rgba(17, 24, 39, 0.44)',
+  },
+  {
+    mapId: 'marsh_altar',
+    chapter: 4,
+    stageMin: 7,
+    stageMax: 9,
+    areaName: '잠긴 달빛 제단',
+    subTitle: '고대 룬과 그림자 늑대의 울음소리가 깃든 습지 유적',
+    bgImage: './assets/lake_bg.jpg',
+    theme: 'marsh_altar',
+    ambientParticleType: 'marsh_mist',
+    filterStyle: 'brightness(0.54) contrast(1.26) saturate(1.05) hue-rotate(50deg)',
+    fogGradient: 'radial-gradient(ellipse at 50% 35%, rgba(168, 85, 247, 0.26) 0%, rgba(15, 23, 42, 0.22) 60%, transparent 88%)',
+    vignetteColor: 'rgba(15, 10, 35, 0.5)',
+  },
+  {
+    mapId: 'marsh_boss',
+    chapter: 4,
+    stageMin: 10,
+    stageMax: 10,
+    areaName: '달그림자 성소',
+    subTitle: '달그림자 수호자가 깨어나는 결전의 밤',
+    bgImage: './assets/lake_bg.jpg',
+    theme: 'boss_crimson',
+    ambientParticleType: 'marsh_mist',
+    filterStyle: 'brightness(0.48) contrast(1.34) saturate(1.15) hue-rotate(62deg)',
+    fogGradient: 'radial-gradient(ellipse at 50% 38%, rgba(139, 92, 246, 0.34) 0%, rgba(30, 27, 75, 0.28) 55%, transparent 88%)',
+    vignetteColor: 'rgba(10, 8, 28, 0.58)',
+  },
 ];
 
 /**
  * Returns the exact StageEnvironment configuration for a given chapter, stage and boss state.
- * Cycles smoothly through chapters if player progresses past chapter 3.
+ * Clamped cleanly within Chapters 1~4.
  */
 export function getStageEnvironment(chapter: number, stage: number, isBossFight: boolean): StageEnvironment {
-  const normChapter = ((chapter - 1) % 3) + 1;
+  const normChapter = Math.min(Math.max(1, chapter), 4);
   const normStage = Math.max(1, Math.min(10, stage));
 
   if (normStage === 10 && isBossFight) {

@@ -4,6 +4,7 @@ import { INITIAL_PETS } from '../data/pets';
 import { INITIAL_QUESTS } from '../data/quests';
 import { INITIAL_SKILLS, STARTER_EQUIPPED_SKILLS, getSkillPiecesRequired } from '../data/skills';
 import { createDefaultDungeonState, checkAndResetDailyDungeonTickets } from '../data/dungeons';
+import { createDefaultMissionsState, checkAndResetMissions } from '../data/missions';
 
 const SAVE_KEY = 'COZY_IDLE_RPG_SAVE_V1';
 const SAVE_KEY_LOWER = 'cozy_idle_rpg_save_v1';
@@ -117,6 +118,7 @@ export function getDefaultSaveData(): GameSaveData {
     dungeons: createDefaultDungeonState(),
     equipmentPityCount: 0,
     totalEquipmentSummons: 0,
+    missions: createDefaultMissionsState(),
   };
 }
 
@@ -213,25 +215,36 @@ export function loadGameData(): { data: GameSaveData; offlineSeconds: number } {
       ...DEFAULT_PRESTIGE_UPGRADES,
       ...(parsed.prestigeUpgrades || {}),
     };
-    mergedData.hasPrestigeUnlocked = parsed.hasPrestigeUnlocked ?? (mergedData.prestigeCount > 0);
+    mergedData.hasPrestigeUnlocked =
+      parsed.hasPrestigeUnlocked ??
+      ((mergedData.prestigeCount > 0) ||
+        (mergedData.stage?.highestChapter ?? 1) >= 4 ||
+        ((mergedData.stage?.highestChapter ?? 1) === 3 && (mergedData.stage?.highestStage ?? 1) >= 10));
     mergedData.enhancementStones = Math.max(0, parsed.enhancementStones ?? 0);
     mergedData.dungeons = checkAndResetDailyDungeonTickets(parsed.dungeons);
     mergedData.equipmentPityCount = Math.max(0, parsed.equipmentPityCount ?? 0);
     mergedData.totalEquipmentSummons = Math.max(0, parsed.totalEquipmentSummons ?? 0);
+    mergedData.missions = checkAndResetMissions(parsed.missions);
 
-    // 3-chapter upper bound consistency migration
+    // 4-chapter upper bound consistency migration
     if (mergedData.stage) {
-      if (mergedData.stage.chapter > 3) {
-        mergedData.stage.chapter = 3;
+      if (mergedData.stage.chapter > 4) {
+        mergedData.stage.chapter = 4;
         mergedData.stage.stage = 10;
         mergedData.stage.isBossStage = true;
         mergedData.stage.inBossFight = false;
       }
-      if (mergedData.stage.highestChapter > 3) {
-        mergedData.stage.highestChapter = 3;
+      if (mergedData.stage.highestChapter > 4) {
+        mergedData.stage.highestChapter = 4;
         mergedData.stage.highestStage = 10;
-      } else if (mergedData.stage.highestChapter === 3) {
+      } else if (mergedData.stage.highestChapter === 4) {
         mergedData.stage.highestStage = Math.min(10, Math.max(1, mergedData.stage.highestStage || 1));
+      }
+      if (
+        mergedData.stage.highestChapter >= 4 ||
+        (mergedData.stage.highestChapter === 3 && mergedData.stage.highestStage >= 10)
+      ) {
+        mergedData.hasPrestigeUnlocked = true;
       }
     }
     if (!mergedData.activePetId || !mergedData.pets?.some((p) => p.id === mergedData.activePetId)) {

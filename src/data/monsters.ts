@@ -181,14 +181,87 @@ export const CHAPTERS_DATA: ChapterTheme[] = [
       isBoss: true,
       element: 'fire'
     }
+  },
+  {
+    chapter: 4,
+    name: '달빛 안개 습지 (Moonlit Marsh)',
+    subTitle: '은빛 초승달과 보랏빛 안개가 피어오르는 고요한 밤의 습지',
+    bgGradient: 'linear-gradient(180deg, #1e1b4b 0%, #312e81 55%, #0f172a 100%)',
+    accentColor: '#818cf8',
+    monsters: [
+      {
+        id: 'c4_m1',
+        name: '달빛 버섯 슬라임',
+        icon: 'M4-1',
+        maxHp: 2400,
+        atk: 130,
+        def: 46,
+        expReward: 480,
+        goldReward: 880,
+        isBoss: false,
+        element: 'grass'
+      },
+      {
+        id: 'c4_m2',
+        name: '안개 정령',
+        icon: 'M4-2',
+        maxHp: 3200,
+        atk: 165,
+        def: 58,
+        expReward: 620,
+        goldReward: 1120,
+        isBoss: false,
+        element: 'water'
+      },
+      {
+        id: 'c4_m3',
+        name: '그림자 늪지 늑대',
+        icon: 'M4-3',
+        maxHp: 4200,
+        atk: 210,
+        def: 72,
+        expReward: 810,
+        goldReward: 1450,
+        isBoss: false,
+        element: 'dark'
+      },
+      {
+        id: 'c4_m4',
+        name: '달빛 수호 골렘',
+        icon: 'M4-4',
+        maxHp: 5600,
+        atk: 255,
+        def: 92,
+        expReward: 1050,
+        goldReward: 1860,
+        isBoss: false,
+        element: 'dark'
+      }
+    ],
+    boss: {
+      id: 'c4_boss',
+      name: '달그림자 수호자 [BOSS]',
+      icon: 'B4',
+      maxHp: 24000,
+      atk: 340,
+      def: 130,
+      expReward: 6800,
+      goldReward: 15000,
+      isBoss: true,
+      element: 'dark'
+    }
   }
 ];
 
-export function getMonsterForStage(chapter: number, stage: number): Monster {
-  const chData = CHAPTERS_DATA[(chapter - 1) % CHAPTERS_DATA.length];
-  const scale = 1 + (chapter - 1) * 2.2 + (stage - 1) * 0.18;
+export const MAX_CHAPTER = CHAPTERS_DATA.length;
 
-  if (stage === 10) {
+export function getMonsterForStage(chapter: number, stage: number): Monster {
+  const safeChapter = Math.min(Math.max(1, chapter), CHAPTERS_DATA.length);
+  const safeStage = Math.min(Math.max(1, stage), 10);
+  const chData = CHAPTERS_DATA[safeChapter - 1];
+  const scale = 1 + (safeChapter - 1) * 2.2 + (safeStage - 1) * 0.18;
+
+  if (safeStage === 10) {
     const bossTemplate = chData.boss;
     const hp = Math.floor(bossTemplate.maxHp * scale);
     return {

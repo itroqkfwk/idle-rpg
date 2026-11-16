@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { SkillEffectType, CharacterClassId, EquipmentRarity } from '../types/game';
+import { SkillEffectType, CharacterClassId, EquipmentRarity, BossPatternVfxEvent } from '../types/game';
 import { AmbientParticleType } from '../data/stages';
 
 interface BattleFxCanvasProps {
@@ -22,6 +22,7 @@ interface BattleFxCanvasProps {
   prestigeVfxEvent?: { id: string } | null;
   dungeonVfxEvent?: { id: string; type: 'gold_burst' | 'wave_clear' | 'ruins_clear' } | null;
   summonVfxEvent?: { id: string; rarity: EquipmentRarity; count: number } | null;
+  bossPatternVfxEvent?: BossPatternVfxEvent | null;
 }
 
 /**
@@ -685,6 +686,7 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
   prestigeVfxEvent = null,
   dungeonVfxEvent = null,
   summonVfxEvent = null,
+  bossPatternVfxEvent = null,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animFrameRef = useRef<number | null>(null);
@@ -703,6 +705,19 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
   const lastPrestigeEventIdRef = useRef<string | null>(null);
   const lastDungeonEventIdRef = useRef<string | null>(null);
   const lastSummonEventIdRef = useRef<string | null>(null);
+  const lastBossPatternEventIdRef = useRef<string | null>(null);
+  const bossPatternAnimRef = useRef<{
+    id: string;
+    pattern: 'moonlight_shockwave' | 'shadow_drop';
+    phase: 'telegraph' | 'impact';
+    startTime: number;
+    duration: number;
+    heroX: number;
+    heroY: number;
+    monsterX: number;
+    monsterY: number;
+    groundY: number;
+  } | null>(null);
   const summonVfxRef = useRef<{
     id: string;
     rarity: EquipmentRarity;
@@ -1957,6 +1972,70 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
     );
   }, [summonVfxEvent]);
 
+  // ==========================================
+  // Trigger Chapter 4 Boss Pattern Canvas 2D VFX (Zero Text Emojis)
+  // ==========================================
+  useEffect(() => {
+    if (!bossPatternVfxEvent) return;
+    if (lastBossPatternEventIdRef.current === bossPatternVfxEvent.id) return;
+    lastBossPatternEventIdRef.current = bossPatternVfxEvent.id;
+
+    const { heroX, heroY, monsterX, monsterY, groundY } = getAnchors();
+    bossPatternAnimRef.current = {
+      id: bossPatternVfxEvent.id,
+      pattern: bossPatternVfxEvent.pattern,
+      phase: bossPatternVfxEvent.phase,
+      startTime: performance.now(),
+      duration: bossPatternVfxEvent.phase === 'telegraph' ? 900 : 650,
+      heroX,
+      heroY,
+      monsterX,
+      monsterY,
+      groundY,
+    };
+
+    if (bossPatternVfxEvent.phase === 'impact') {
+      if (bossPatternVfxEvent.pattern === 'moonlight_shockwave') {
+        spawnShockwave(monsterX, monsterY, 150, 480, '#818cf8', 0.6, 5.5);
+        spawnShockwave(heroX, heroY, 95, 390, '#38bdf8', 0.75, 4);
+        spawnDirectionalSparks(heroX, heroY, 18, '#a5b4fc', Math.PI, 2.2, 8.0, groundY);
+      } else {
+        // shadow_drop impact slam at hero position
+        spawnShockwave(heroX, groundY, 130, 460, '#a855f7', 0.45, 7);
+        spawnShockwave(heroX, heroY, 105, 410, '#c084fc', 0.8, 5);
+        spawnDirectionalSparks(heroX, groundY - 12, 24, '#e879f9', -Math.PI * 0.5, 2.8, 9.5, groundY);
+        const shadowCracks: { x: number; y: number }[][] = [];
+        for (let c = 0; c < 4; c++) {
+          const ang = (c / 4) * Math.PI * 2 + 0.35;
+          shadowCracks.push([
+            { x: heroX, y: groundY },
+            { x: heroX + Math.cos(ang) * 26, y: groundY + Math.sin(ang) * 9 },
+            { x: heroX + Math.cos(ang + 0.25) * 48, y: groundY + Math.sin(ang + 0.25) * 14 },
+          ]);
+        }
+        fissuresRef.current.push({
+          id: `fis_sd_${Date.now()}`,
+          originX: heroX,
+          originY: groundY,
+          cracks: shadowCracks,
+          color: '#7c3aed',
+          life: 0,
+          maxLife: 0.75,
+        });
+      }
+    } else {
+      spawnShockwave(
+        bossPatternVfxEvent.pattern === 'shadow_drop' ? heroX : monsterX,
+        bossPatternVfxEvent.pattern === 'shadow_drop' ? groundY : monsterY,
+        75,
+        240,
+        bossPatternVfxEvent.pattern === 'shadow_drop' ? '#c084fc' : '#7dd3fc',
+        0.45,
+        3
+      );
+    }
+  }, [bossPatternVfxEvent]);
+
 
   // ==========================================
   // Main Canvas Render Loop (60 FPS)
@@ -1988,15 +2067,16 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Initialize ambient particles
+    // Initialize ambient particles (capped lower on narrow mobile viewports)
     ambientParticlesRef.current = [];
-    const ambientCount = 20;
+    const isMobileViewport = (canvas.width || window.innerWidth) < 640;
+    const ambientCount = isMobileViewport ? 14 : 20;
     for (let i = 0; i < ambientCount; i++) {
       ambientParticlesRef.current.push({
         x: Math.random() * (canvas.width || 800),
         y: Math.random() * (canvas.height || 600),
-        vx: (Math.random() - 0.5) * 0.6 + 0.35,
-        vy: Math.random() * 0.45 + 0.25,
+        vx: ambientType === 'marsh_mist' ? (Math.random() - 0.5) * 0.35 + 0.15 : (Math.random() - 0.5) * 0.6 + 0.35,
+        vy: ambientType === 'marsh_mist' ? -(Math.random() * 0.25 + 0.1) : Math.random() * 0.45 + 0.25,
         life: Math.random() * 5,
         maxLife: 8,
         size: Math.random() * 4 + 2,
@@ -2007,8 +2087,12 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
             ? '#38bdf8'
             : ambientType === 'boss_embers'
             ? '#f97316'
+            : ambientType === 'marsh_mist'
+            ? i % 2 === 0
+              ? '#a5b4fc'
+              : '#67e8f9'
             : '#4ade80',
-        alpha: Math.random() * 0.6 + 0.25,
+        alpha: ambientType === 'marsh_mist' ? Math.random() * 0.45 + 0.2 : Math.random() * 0.6 + 0.25,
         rotation: Math.random() * Math.PI * 2,
         vRot: (Math.random() - 0.5) * 0.04,
       });
@@ -2045,7 +2129,9 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
         p.rotation += p.vRot;
 
         if (p.x > canvas.width + 20) p.x = -20;
+        if (p.x < -20) p.x = canvas.width + 20;
         if (p.y > canvas.height + 20) p.y = -20;
+        if (p.y < -20) p.y = canvas.height + 20;
 
         ctx.save();
         ctx.globalAlpha = p.alpha;
@@ -2066,11 +2152,11 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
           ctx.lineTo(-p.size * 0.8, -p.size * 0.3);
           ctx.closePath();
           ctx.fill();
-        } else if (ambientType === 'water_orbs') {
-          ctx.shadowColor = '#38bdf8';
-          ctx.shadowBlur = 6;
+        } else if (ambientType === 'water_orbs' || ambientType === 'marsh_mist') {
+          ctx.shadowColor = ambientType === 'marsh_mist' ? p.color : '#38bdf8';
+          ctx.shadowBlur = ambientType === 'marsh_mist' ? 9 : 6;
           ctx.beginPath();
-          ctx.arc(0, 0, p.size, 0, Math.PI * 2);
+          ctx.arc(0, 0, ambientType === 'marsh_mist' ? p.size * 0.9 : p.size, 0, Math.PI * 2);
           ctx.fill();
         } else {
           // Green Forest Willow Leaf
@@ -2487,6 +2573,77 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
         ctx.lineWidth = Math.max(1, lb.width * 0.35);
         ctx.stroke();
         ctx.restore();
+      }
+
+      // ----------------------------------------------------
+      // 6.5. Chapter 4 Boss Pattern Telegraph & Impact Geometry
+      // ----------------------------------------------------
+      if (bossPatternAnimRef.current) {
+        const bp = bossPatternAnimRef.current;
+        const elapsed = performance.now() - bp.startTime;
+        if (elapsed >= bp.duration) {
+          bossPatternAnimRef.current = null;
+        } else {
+          const prog = elapsed / bp.duration;
+          ctx.save();
+          if (bp.pattern === 'moonlight_shockwave') {
+            if (bp.phase === 'telegraph') {
+              const alpha = 0.35 + Math.sin(prog * Math.PI * 4) * 0.25;
+              const r = 34 + prog * 28;
+              ctx.strokeStyle = `rgba(125, 211, 252, ${alpha})`;
+              ctx.lineWidth = 2.6;
+              ctx.beginPath();
+              ctx.arc(bp.monsterX, bp.monsterY, r, Math.PI * 0.35, Math.PI * 1.65);
+              ctx.stroke();
+            } else {
+              const curX = bp.monsterX + (bp.heroX - bp.monsterX) * Math.min(1, prog * 1.25);
+              const curY = bp.monsterY + (bp.heroY - bp.monsterY) * Math.min(1, prog * 1.25);
+              const fade = 1 - prog;
+              ctx.strokeStyle = `rgba(165, 180, 252, ${fade})`;
+              ctx.shadowColor = '#818cf8';
+              ctx.shadowBlur = 18;
+              ctx.lineWidth = 8 * fade + 2;
+              ctx.beginPath();
+              ctx.arc(curX, curY, 44, Math.PI * 0.55, Math.PI * 1.45);
+              ctx.stroke();
+
+              ctx.strokeStyle = `rgba(224, 242, 254, ${fade})`;
+              ctx.lineWidth = 3 * fade + 1;
+              ctx.beginPath();
+              ctx.moveTo(bp.monsterX, bp.monsterY);
+              ctx.lineTo(curX, curY);
+              ctx.stroke();
+            }
+          } else {
+            // shadow_drop
+            if (bp.phase === 'telegraph') {
+              const alpha = 0.4 + Math.sin(prog * Math.PI * 4) * 0.25;
+              const r = 46 * (1 - prog * 0.35);
+              ctx.strokeStyle = `rgba(192, 132, 252, ${alpha})`;
+              ctx.fillStyle = `rgba(88, 28, 135, ${alpha * 0.45})`;
+              ctx.lineWidth = 2.5;
+              ctx.beginPath();
+              ctx.ellipse(bp.heroX, bp.groundY, r, r * 0.32, 0, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.stroke();
+            } else {
+              const dropY = bp.heroY - 220 * (1 - Math.min(1, prog * 1.7)) + (bp.groundY - bp.heroY) * 0.4;
+              const fade = 1 - prog;
+              const grad = ctx.createLinearGradient(bp.heroX, dropY - 120, bp.heroX, bp.groundY + 12);
+              grad.addColorStop(0, 'rgba(168, 85, 247, 0)');
+              grad.addColorStop(0.5, `rgba(192, 132, 252, ${0.8 * fade})`);
+              grad.addColorStop(1, `rgba(232, 121, 249, ${0.95 * fade})`);
+              ctx.fillStyle = grad;
+              ctx.fillRect(bp.heroX - 24, Math.max(0, dropY - 120), 48, bp.groundY - Math.max(0, dropY - 120) + 10);
+
+              ctx.fillStyle = `rgba(168, 85, 247, ${fade})`;
+              ctx.beginPath();
+              ctx.arc(bp.heroX, Math.min(bp.groundY, dropY), 18 * fade + 6, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+          ctx.restore();
+        }
       }
 
       // ----------------------------------------------------

@@ -14,6 +14,8 @@ import {
   PromotionId,
   MonsterStatusEffect,
   ActiveDungeonRun,
+  BossPatternType,
+  BossPatternVfxEvent,
 } from '../types/game';
 
 import { RARITY_CONFIGS } from '../data/equipment';
@@ -99,6 +101,9 @@ interface BattleSceneProps {
   isPlayerDefeated?: boolean;
   isMoving?: boolean;
   prestigeCount?: number;
+  bossPhase?: 1 | 2;
+  bossPatternWarning?: BossPatternType | null;
+  bossPatternVfxEvent?: BossPatternVfxEvent | null;
 }
 
 export const BattleScene: React.FC<BattleSceneProps> = ({
@@ -155,6 +160,9 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
   isPlayerDefeated = false,
   isMoving = false,
   prestigeCount = 0,
+  bossPhase = 1,
+  bossPatternWarning = null,
+  bossPatternVfxEvent = null,
 }) => {
 
   const isBossFight = activeDungeonRun
@@ -189,8 +197,17 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
 
         {/* 🍃 Ambient Leaves / Orbs / Embers rendered via GPU Canvas in BattleFxCanvas */}
 
+        {/* 🌙 Chapter 4 Moonlit Marsh Sky Crescent & Mist Atmosphere */}
+        {stageEnv.ambientParticleType === 'marsh_mist' && (
+          <div className="marsh-atmosphere-layer" aria-hidden="true">
+            <div className="marsh-crescent-moon" />
+            <div className="marsh-mist-band mist-band-1" />
+            <div className="marsh-mist-band mist-band-2" />
+          </div>
+        )}
+
         {/* ✨ Ambient Fireflies & Glowing Motes */}
-        {(stageEnv.ambientParticleType === 'fireflies' || stageEnv.ambientParticleType === 'water_orbs') && (
+        {(stageEnv.ambientParticleType === 'fireflies' || stageEnv.ambientParticleType === 'water_orbs' || stageEnv.ambientParticleType === 'marsh_mist') && (
           <div className="ambient-fireflies">
             <div className="firefly firefly-1" />
             <div className="firefly firefly-2" />
@@ -224,6 +241,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         prestigeVfxEvent={prestigeVfxEvent}
         dungeonVfxEvent={dungeonVfxEvent}
         summonVfxEvent={summonVfxEvent}
+        bossPatternVfxEvent={bossPatternVfxEvent}
       />
 
 
@@ -428,7 +446,13 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           <div className="arena-center-banner">
             <div className={`boss-alert-badge ${!activeDungeonRun && stage.bossTimeLeft <= 10 ? 'boss-alert-urgent' : ''}`}>
               <Skull size={15} color="#ef4444" />
-              <span>{activeDungeonRun ? 'ANCIENT RUINS BOSS' : 'BOSS RAID'}</span>
+              <span>
+                {activeDungeonRun
+                  ? 'ANCIENT RUINS BOSS'
+                  : monster.id === 'c4_boss' && bossPhase === 2
+                  ? 'PHASE 2 · BOSS RAID'
+                  : 'BOSS RAID'}
+              </span>
               {!activeDungeonRun && (
                 <span className={`boss-inline-timer ${stage.bossTimeLeft <= 10 ? 'timer-hurry' : ''}`}>
                   ⏱️ {stage.bossTimeLeft}s
@@ -436,6 +460,13 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
               )}
               <Flame size={15} color="#f97316" />
             </div>
+            {bossPatternWarning && !activeDungeonRun && (
+              <div className={`boss-pattern-warning-pill ${bossPatternWarning === 'shadow_drop' ? 'warn-shadow' : 'warn-moon'}`}>
+                {bossPatternWarning === 'shadow_drop'
+                  ? '2페이즈 특수 패턴 · 그림자 낙하 경고!'
+                  : '보스 패턴 · 달빛 충격파 시전 중!'}
+              </div>
+            )}
           </div>
         )}
 
@@ -457,6 +488,8 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
             isFinisherHit={isFinisherHit}
             hitComboStep={hitComboStep}
             isCriticalHit={isCriticalHit}
+            bossPhase={bossPhase}
+            bossPatternWarning={bossPatternWarning}
           />
         </div>
       </div>
@@ -598,6 +631,70 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         .firefly-2 { top: 48%; left: 78%; animation-delay: 1.8s; }
         .firefly-3 { top: 58%; left: 42%; animation-delay: 3s; }
         .firefly-4 { top: 25%; left: 65%; animation-delay: 2.2s; }
+
+        /* 🌙 Chapter 4 Moonlit Marsh Background Atmosphere */
+        .marsh-atmosphere-layer {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          z-index: 2;
+          overflow: hidden;
+        }
+        .marsh-crescent-moon {
+          position: absolute;
+          top: 14%;
+          right: 18%;
+          width: 46px;
+          height: 46px;
+          border-radius: 50%;
+          box-shadow: -11px 6px 0 3px rgba(224, 231, 255, 0.78), -14px 8px 26px rgba(129, 140, 248, 0.55);
+          transform: rotate(-18deg);
+          opacity: 0.86;
+        }
+        .marsh-mist-band {
+          position: absolute;
+          left: -15%;
+          right: -15%;
+          height: 90px;
+          border-radius: 50%;
+          filter: blur(18px);
+          animation: marshMistDrift 9s ease-in-out infinite alternate;
+        }
+        .mist-band-1 {
+          bottom: 18%;
+          background: radial-gradient(ellipse at center, rgba(129, 140, 248, 0.24) 0%, transparent 72%);
+        }
+        .mist-band-2 {
+          bottom: 8%;
+          background: radial-gradient(ellipse at center, rgba(168, 85, 247, 0.22) 0%, transparent 75%);
+          animation-delay: -4.5s;
+        }
+        @keyframes marshMistDrift {
+          0% { transform: translateX(-4%); opacity: 0.65; }
+          100% { transform: translateX(4%); opacity: 0.95; }
+        }
+        .boss-pattern-warning-pill {
+          margin-top: 6px;
+          padding: 4px 12px;
+          border-radius: 9999px;
+          font-size: 11px;
+          font-weight: 900;
+          color: #ffffff;
+          letter-spacing: 0.3px;
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
+          border: 1.5px solid rgba(255, 255, 255, 0.35);
+          animation: bossWarnPulse 0.45s ease-in-out infinite alternate;
+        }
+        .boss-pattern-warning-pill.warn-moon {
+          background: linear-gradient(135deg, rgba(59, 130, 246, 0.92), rgba(99, 102, 241, 0.92));
+        }
+        .boss-pattern-warning-pill.warn-shadow {
+          background: linear-gradient(135deg, rgba(147, 51, 234, 0.95), rgba(190, 24, 93, 0.92));
+        }
+        @keyframes bossWarnPulse {
+          0% { transform: scale(0.97); }
+          100% { transform: scale(1.03); }
+        }
 
         @keyframes fireflyFloat {
           0%, 100% { transform: translate(0, 0); opacity: 0.3; }
@@ -898,10 +995,14 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         /* Center Boss Alert */
         .arena-center-banner {
           position: absolute;
-          top: 10px;
+          top: -48px;
           left: 50%;
           transform: translateX(-50%);
           z-index: 10;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          white-space: nowrap;
         }
 
         .boss-alert-badge {

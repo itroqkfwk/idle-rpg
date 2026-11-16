@@ -22,6 +22,8 @@ import {
   DungeonEndReason,
   ActiveDungeonRun,
   SummonResultItem,
+  BossPatternType,
+  BossPatternVfxEvent,
 } from './types/game';
 import {
   loadGameData,
@@ -31,7 +33,13 @@ import {
   getPrestigeUpgradeCost,
   DEFAULT_PRESTIGE_UPGRADES,
 } from './utils/storage';
-import { getMonsterForStage } from './data/monsters';
+import { getMonsterForStage, MAX_CHAPTER } from './data/monsters';
+import {
+  checkAndResetMissions,
+  applyMissionEvent,
+  claimMissionReward,
+  getClaimableMissionsCount,
+} from './data/missions';
 import {
   DUNGEONS_DATA,
   checkAndResetDailyDungeonTickets,
@@ -84,6 +92,7 @@ import { DeveloperTestModal } from './components/DeveloperTestModal';
 import { ClassSelectScreen } from './components/ClassSelectScreen';
 import { PrestigeModal } from './components/PrestigeModal';
 import { DungeonResultModal } from './components/DungeonResultModal';
+import { MissionModal } from './components/MissionModal';
 
 import { HeroPage } from './pages/HeroPage';
 import { EquipmentPage } from './pages/EquipmentPage';
@@ -112,6 +121,28 @@ export const App: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showDevModal, setShowDevModal] = useState(false);
   const [showPrestigeModal, setShowPrestigeModal] = useState(false);
+  const [showMissionModal, setShowMissionModal] = useState(false);
+  const [c4BossPhase, setC4BossPhase] = useState<1 | 2>(1);
+  const c4BossPhaseRef = useRef<1 | 2>(1);
+  const [bossPatternWarning, setBossPatternWarning] = useState<BossPatternType | null>(null);
+  const [bossPatternVfxEvent, setBossPatternVfxEvent] = useState<BossPatternVfxEvent | null>(null);
+  const bossPatternTimerRef = useRef<number>(Date.now());
+  const bossPatternPendingRef = useRef<{ pattern: BossPatternType; timeoutId: ReturnType<typeof setTimeout> } | null>(null);
+  const defeatRespawnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resetBossPatternState = useCallback(() => {
+    if (defeatRespawnTimerRef.current) {
+      clearTimeout(defeatRespawnTimerRef.current);
+      defeatRespawnTimerRef.current = null;
+    }
+    if (bossPatternPendingRef.current) {
+      clearTimeout(bossPatternPendingRef.current.timeoutId);
+      bossPatternPendingRef.current = null;
+    }
+    setBossPatternWarning(null);
+    c4BossPhaseRef.current = 1;
+    setC4BossPhase(1);
+    bossPatternTimerRef.current = Date.now() - 2000;
+  }, []);
   const [prestigeVfxEvent, setPrestigeVfxEvent] = useState<{ id: string } | null>(null);
   const [screenShake, setScreenShake] = useState<'none' | 'normal' | 'crit' | 'boss'>('none');
   const [isHitStop, setIsHitStop] = useState(false);
@@ -142,6 +173,8 @@ export const App: React.FC = () => {
   const equipmentPityCount = saveData.equipmentPityCount ?? 0;
   const totalEquipmentSummons = saveData.totalEquipmentSummons ?? 0;
   const dungeons = useMemo(() => checkAndResetDailyDungeonTickets(saveData.dungeons), [saveData.dungeons]);
+  const missions = useMemo(() => checkAndResetMissions(saveData.missions), [saveData.missions]);
+  const claimableMissionsCount = useMemo(() => getClaimableMissionsCount(missions).total, [missions]);
 
   // --- Dedicated Dungeon Mode State & Refs ---
   const [activeDungeonRun, setActiveDungeonRun] = useState<ActiveDungeonRun | null>(null);
@@ -577,10 +610,16 @@ export const App: React.FC = () => {
         },
       };
 
+      const nextMissions =
+        effectiveReason === 'victory'
+          ? applyMissionEvent(prev.missions, 'dungeon_cleared', 1)
+          : checkAndResetMissions(prev.missions);
+
       const updated: GameSaveData = {
         ...prev,
         enhancementStones: (prev.enhancementStones ?? 0) + settledStones,
         dungeons: updatedDungeons,
+        missions: nextMissions,
         stats: {
           ...prev.stats,
           gold: prev.stats.gold + settledGold,
@@ -766,6 +805,10 @@ export const App: React.FC = () => {
         };
         activeDungeonRef.current = nextRun;
         setActiveDungeonRun(nextRun);
+        setSaveData((prev) => ({
+          ...prev,
+          missions: applyMissionEvent(prev.missions, 'monster_killed', 1),
+        }));
 
         sound.playGold();
         setDungeonVfxEvent({ id: `dg_gold_${Date.now()}`, type: 'gold_burst' });
@@ -793,6 +836,10 @@ export const App: React.FC = () => {
         const waveExp = Math.floor(defeatedMon.expReward * (1 + prestigeExpMult));
         const nextKills = run.kills + 1;
         setDungeonVfxEvent({ id: `dg_wave_${Date.now()}`, type: 'wave_clear' });
+        setSaveData((prev) => ({
+          ...prev,
+          missions: applyMissionEvent(prev.missions, 'monster_killed', 1),
+        }));
 
         if (nextKills >= run.maxWave) {
           const diffCfg = getDungeonDifficultyConfig('training_forest', run.difficulty);
@@ -843,6 +890,10 @@ export const App: React.FC = () => {
       const earnedExp = Math.floor(diffCfg.baseExpReward * (1 + prestigeExpMult));
       const earnedStones = diffCfg.stoneReward;
       setDungeonVfxEvent({ id: `dg_ruins_${Date.now()}`, type: 'ruins_clear' });
+      setSaveData((prev) => ({
+        ...prev,
+        missions: applyMissionEvent(prev.missions, 'monster_killed', 1),
+      }));
 
       const finalRun: ActiveDungeonRun = {
         ...run,
@@ -860,6 +911,7 @@ export const App: React.FC = () => {
     }
 
     isMonsterDefeatedRef.current = true;
+    resetBossPatternState();
     sound.playMonsterDefeat();
     setIsMonsterDefeated(true);
 
@@ -886,18 +938,18 @@ export const App: React.FC = () => {
       }, 1600);
     }
 
-    // Determine next stage progression (3-Chapter Upper Bound Consistency)
+    // Determine next stage progression (4-Chapter Upper Bound Consistency)
     let nextChapter = stage.chapter;
     let nextStageNum = stage.stage;
     if (stage.stage === 10 && stage.inBossFight) {
-      if (stage.chapter < 3) {
+      if (stage.chapter < MAX_CHAPTER) {
         nextChapter = stage.chapter + 1;
         nextStageNum = 1;
         setStageNotice(`🎉 챕터 ${nextChapter} 돌파!`);
       } else {
-        nextChapter = 3;
+        nextChapter = MAX_CHAPTER;
         nextStageNum = 10;
-        setStageNotice(`🎉 최종 챕터 3-10 보스 토벌 완료!`);
+        setStageNotice(`🎉 최종 챕터 4-10 달그림자 수호자 토벌 완료!`);
       }
       setTimeout(() => setStageNotice(null), 1600);
     } else if (stage.stage < 10) {
@@ -908,7 +960,11 @@ export const App: React.FC = () => {
       }
     }
 
-    setTimeout(() => {
+    if (defeatRespawnTimerRef.current) {
+      clearTimeout(defeatRespawnTimerRef.current);
+    }
+    defeatRespawnTimerRef.current = setTimeout(() => {
+      defeatRespawnTimerRef.current = null;
       setSaveData((prev) => {
         let newExp = prev.stats.exp + earnedExp;
         let newLevel = prev.stats.level;
@@ -930,25 +986,29 @@ export const App: React.FC = () => {
         }
 
         let newStage = { ...prev.stage };
-        let clearedFinalChapter3Boss = false;
+        let clearedChapter3OrHigherBoss = false;
+        let stageDidAdvance = false;
         if (newStage.stage === 10 && newStage.inBossFight) {
           sound.playFanfare();
           confetti({ particleCount: 90, spread: 85, origin: { y: 0.5 } });
           progressQuest('defeat_boss', 1);
 
-          if (newStage.chapter < 3) {
+          if (newStage.chapter >= 3) {
+            clearedChapter3OrHigherBoss = true;
+          }
+          if (newStage.chapter < MAX_CHAPTER) {
             newStage.chapter += 1;
             newStage.stage = 1;
             newStage.killCount = 0;
             newStage.inBossFight = false;
+            stageDidAdvance = true;
           } else {
-            newStage.chapter = 3;
+            newStage.chapter = MAX_CHAPTER;
             newStage.stage = 10;
             newStage.killCount = 0;
             newStage.inBossFight = false;
-            newStage.highestChapter = 3;
+            newStage.highestChapter = MAX_CHAPTER;
             newStage.highestStage = 10;
-            clearedFinalChapter3Boss = true;
           }
         } else if (newStage.stage < 10) {
           newStage.killCount += 1;
@@ -957,13 +1017,14 @@ export const App: React.FC = () => {
           if (newStage.killCount >= newStage.killsRequired) {
             newStage.stage += 1;
             newStage.killCount = 0;
+            stageDidAdvance = true;
             progressQuest('reach_stage', newStage.stage);
           }
         }
 
-        // Track highest chapter & stage (capped cleanly at 3-10)
+        // Track highest chapter & stage (capped cleanly at 4-10)
         if (newStage.chapter > newStage.highestChapter) {
-          newStage.highestChapter = Math.min(3, newStage.chapter);
+          newStage.highestChapter = Math.min(MAX_CHAPTER, newStage.chapter);
           newStage.highestStage = Math.min(10, newStage.stage);
         } else if (newStage.chapter === newStage.highestChapter && newStage.stage > newStage.highestStage) {
           newStage.highestStage = Math.min(10, newStage.stage);
@@ -972,8 +1033,14 @@ export const App: React.FC = () => {
         const hasUnlockedPrestigeNow =
           prev.hasPrestigeUnlocked ||
           (prev.prestigeCount ?? 0) > 0 ||
-          clearedFinalChapter3Boss ||
+          clearedChapter3OrHigherBoss ||
+          newStage.highestChapter >= 4 ||
           (newStage.highestChapter === 3 && newStage.highestStage >= 10);
+
+        let nextMissions = applyMissionEvent(prev.missions, 'monster_killed', 1);
+        if (stageDidAdvance) {
+          nextMissions = applyMissionEvent(nextMissions, 'stage_cleared', 1);
+        }
 
         if (!prev.hasPrestigeUnlocked && hasUnlockedPrestigeNow) {
           setTimeout(() => {
@@ -997,12 +1064,13 @@ export const App: React.FC = () => {
           ? Math.min(100, Math.round(((prev.awakeningGauge ?? 0) + 10) * 10) / 10)
           : 0;
 
-        return {
+        const updatedSave: GameSaveData = {
           ...prev,
           hasPrestigeUnlocked: hasUnlockedPrestigeNow,
           awakeningGauge: nextAwakening,
           equipmentCatalog: currentCatalog,
           equipped: currentEquipped,
+          missions: nextMissions,
           stats: {
             ...prev.stats,
             gold: prev.stats.gold + earnedGold - goldSpentOnAuto,
@@ -1014,6 +1082,10 @@ export const App: React.FC = () => {
           inventory: prev.inventory,
           stage: newStage,
         };
+        if (stageDidAdvance || clearedChapter3OrHigherBoss) {
+          saveGameData(updatedSave);
+        }
+        return updatedSave;
       });
 
       const monStage = (nextStageNum === 10 && !stage.inBossFight) ? 9 : nextStageNum;
@@ -1068,6 +1140,18 @@ export const App: React.FC = () => {
   const currentMonsterRef = useRef(currentMonster);
   useEffect(() => {
     currentMonsterRef.current = currentMonster;
+    if (
+      currentMonster.id === 'c4_boss' &&
+      currentMonster.currentHp > 0 &&
+      currentMonster.currentHp <= currentMonster.maxHp * 0.5 &&
+      c4BossPhaseRef.current === 1
+    ) {
+      c4BossPhaseRef.current = 2;
+      setC4BossPhase(2);
+      bossPatternTimerRef.current = Date.now() - 2600;
+      setStageNotice('🌑 달그림자 수호자 2페이즈 돌입! [그림자 낙하] 발동 개시!');
+      setTimeout(() => setStageNotice(null), 2200);
+    }
   }, [currentMonster]);
 
   const combatCalcRef = useRef(combatCalculations);
@@ -1188,7 +1272,79 @@ export const App: React.FC = () => {
       setIsMonsterDefeated(false);
       isMonsterDefeatedRef.current = false;
     };
-  }, []);
+
+    (window as any).__v29TestHelpers = {
+      jumpToStage: (chapter: number, stageNum: number, inBossFight: boolean = false) => {
+        resetBossPatternState();
+        const safeCh = Math.min(MAX_CHAPTER, Math.max(1, chapter));
+        const safeSt = Math.min(10, Math.max(1, stageNum));
+        const nextMon = getMonsterForStage(safeCh, safeSt === 10 && !inBossFight ? 9 : safeSt);
+        setSaveData((prev) => {
+          const nextHighestCh = Math.max(prev.stage.highestChapter || 1, safeCh);
+          const nextHighestSt =
+            safeCh > (prev.stage.highestChapter || 1)
+              ? safeSt
+              : safeCh === (prev.stage.highestChapter || 1)
+              ? Math.max(prev.stage.highestStage || 1, safeSt)
+              : prev.stage.highestStage || 1;
+          const updated: GameSaveData = {
+            ...prev,
+            hasSelectedClass: true,
+            stage: {
+              ...prev.stage,
+              chapter: safeCh,
+              stage: safeSt,
+              killCount: 0,
+              isBossStage: safeSt === 10,
+              inBossFight,
+              bossTimeLeft: 30,
+              highestChapter: Math.min(MAX_CHAPTER, nextHighestCh),
+              highestStage: Math.min(10, nextHighestSt),
+            },
+          };
+          saveDataRef.current = updated;
+          saveGameData(updated);
+          return updated;
+        });
+        currentMonsterRef.current = nextMon;
+        setCurrentMonster(nextMon);
+        setIsMonsterDefeated(false);
+        isMonsterDefeatedRef.current = false;
+      },
+      setMonsterHpRatio: (ratio: number, boostMaxHp?: number) => {
+        setCurrentMonster((prev) => {
+          const nextMax = boostMaxHp ? boostMaxHp : prev.maxHp;
+          const nextHp = Math.max(1, Math.floor(nextMax * Math.max(0.01, Math.min(1, ratio))));
+          const next = { ...prev, maxHp: nextMax, currentHp: nextHp };
+          currentMonsterRef.current = next;
+          return next;
+        });
+      },
+      getMissionState: () => saveDataRef.current.missions,
+      applyMissionResetAt: (nowMs: number) => {
+        setSaveData((prev) => {
+          const nextMissions = checkAndResetMissions(prev.missions, nowMs);
+          const updated = { ...prev, missions: nextMissions };
+          saveDataRef.current = updated;
+          saveGameData(updated);
+          return updated;
+        });
+      },
+      getBossPhaseState: () => ({
+        phase: c4BossPhaseRef.current,
+        monsterId: currentMonsterRef.current?.id,
+        warning: bossPatternPendingRef.current?.pattern ?? null,
+      }),
+      grantTestGems: (gemsToAdd: number) => {
+        setSaveData((prev) => {
+          const updated = { ...prev, stats: { ...prev.stats, gems: prev.stats.gems + gemsToAdd } };
+          saveDataRef.current = updated;
+          saveGameData(updated);
+          return updated;
+        });
+      },
+    };
+  }, [resetBossPatternState]);
 
   // --- 1. Ref-Stabilized 3-Combo Basic Attack Engine (50ms High-Precision Scheduler) ---
   useEffect(() => {
@@ -1737,10 +1893,97 @@ export const App: React.FC = () => {
       const now = Date.now();
       const isCCed = monsterStatusesRef.current.some((s) => s.type === 'freeze' || s.type === 'stun');
 
-      // Freeze / Stun CC stops Monster attack countdown!
+      // Freeze / Stun CC stops Monster attack & pauses pattern countdown!
       if (isCCed) {
         lastMonsterAttackTimeRef.current = now;
+        bossPatternTimerRef.current += 100;
         return;
+      }
+
+      // Chapter 4 Boss Special Pattern Scheduler (Phase 1: moonlight_shockwave, Phase 2: unlocks shadow_drop)
+      const curMonSnapshot = currentMonsterRef.current;
+      if (
+        curMonSnapshot.id === 'c4_boss' &&
+        !activeDungeonRef.current &&
+        !bossPatternPendingRef.current &&
+        now - bossPatternTimerRef.current >= 4000
+      ) {
+        bossPatternTimerRef.current = now;
+        const chosenPattern: BossPatternType =
+          c4BossPhaseRef.current === 2 && Math.random() < 0.65 ? 'shadow_drop' : 'moonlight_shockwave';
+        setBossPatternWarning(chosenPattern);
+        setBossPatternVfxEvent({
+          id: `bp_tel_${now}`,
+          pattern: chosenPattern,
+          phase: 'telegraph',
+          bossPhase: c4BossPhaseRef.current,
+        });
+
+        const timeoutId = setTimeout(() => {
+          bossPatternPendingRef.current = null;
+          setBossPatternWarning(null);
+          if (
+            isMonsterDefeatedRef.current ||
+            activeDungeonRef.current ||
+            currentMonsterRef.current.id !== 'c4_boss' ||
+            currentMonsterRef.current.currentHp <= 0 ||
+            monsterStatusesRef.current.some((s) => s.type === 'freeze' || s.type === 'stun')
+          ) {
+            return;
+          }
+
+          const bossMon = currentMonsterRef.current;
+          const calc = combatCalcRef.current;
+          const mult = chosenPattern === 'shadow_drop' ? 1.85 : 1.35;
+          const patternDmg = Math.floor(Math.max(1, bossMon.atk * mult - calc.totalDef * 0.35));
+
+          setIsMonsterAttacking(true);
+          setBossPatternVfxEvent({
+            id: `bp_imp_${Date.now()}`,
+            pattern: chosenPattern,
+            phase: 'impact',
+            bossPhase: c4BossPhaseRef.current,
+          });
+          setScreenShake('boss');
+          setTimeout(() => setScreenShake('none'), 260);
+          setIsPlayerHit(true);
+          addDamageNumberRef.current(
+            patternDmg,
+            chosenPattern === 'shadow_drop',
+            true,
+            true,
+            chosenPattern === 'shadow_drop' ? '그림자 낙하' : '달빛 충격파'
+          );
+
+          setSaveData((prev) => {
+            const nextHp = Math.max(0, prev.stats.currentHp - patternDmg);
+            if (nextHp <= 0) {
+              sound.playMonsterDefeat();
+              resetBossPatternState();
+              setIsPlayerDefeated(true);
+              setTimeout(() => setIsPlayerDefeated(false), 450);
+              const retreatMon = getMonsterForStage(prev.stage.chapter, 9);
+              currentMonsterRef.current = retreatMon;
+              setCurrentMonster(retreatMon);
+              setStageNotice('💀 보스 특수 패턴에 쓰러졌습니다. 일반 스테이지로 복귀합니다.');
+              setTimeout(() => setStageNotice(null), 2000);
+              return {
+                ...prev,
+                stats: { ...prev.stats, currentHp: calc.totalMaxHp },
+                stage: { ...prev.stage, inBossFight: false, bossTimeLeft: prev.stage.bossMaxTime },
+              };
+            }
+            return {
+              ...prev,
+              stats: { ...prev.stats, currentHp: nextHp },
+            };
+          });
+
+          setTimeout(() => setIsMonsterAttacking(false), 180);
+          setTimeout(() => setIsPlayerHit(false), 240);
+        }, 850);
+
+        bossPatternPendingRef.current = { pattern: chosenPattern, timeoutId };
       }
 
       if (now - lastMonsterAttackTimeRef.current < 2400) return;
@@ -1778,6 +2021,7 @@ export const App: React.FC = () => {
               };
             }
             if (prev.stage.inBossFight) {
+              resetBossPatternState();
               const retreatMon = getMonsterForStage(prev.stage.chapter, 9);
               currentMonsterRef.current = retreatMon;
               setCurrentMonster(retreatMon);
@@ -1815,6 +2059,7 @@ export const App: React.FC = () => {
         if (isMonsterDefeatedRef.current) return prev;
         const newTime = prev.stage.bossTimeLeft - 1;
         if (newTime <= 0) {
+          resetBossPatternState();
           const retreatMon = getMonsterForStage(prev.stage.chapter, 9);
           currentMonsterRef.current = retreatMon;
           setCurrentMonster(retreatMon);
@@ -1883,8 +2128,9 @@ export const App: React.FC = () => {
 
       progressQuest('upgrade_atk', count);
 
-      return {
+      const updatedStatSave: GameSaveData = {
         ...prev,
+        missions: applyMissionEvent(prev.missions, 'stat_upgraded', count),
         stats: {
           ...prev.stats,
           gold: prev.stats.gold - cost,
@@ -1893,6 +2139,8 @@ export const App: React.FC = () => {
           defLevel: stat === 'def' ? prev.stats.defLevel + count : prev.stats.defLevel,
         },
       };
+      saveGameData(updatedStatSave);
+      return updatedStatSave;
     });
   };
 
@@ -1970,6 +2218,7 @@ export const App: React.FC = () => {
         totalStardustEarned: newTotalStardust,
         hasPrestigeUnlocked: true,
         awakeningGauge: 0,
+        missions: checkAndResetMissions(prev.missions),
       };
       saveGameData(updated);
       return updated;
@@ -2535,6 +2784,7 @@ export const App: React.FC = () => {
       ...workingData,
       equipmentPityCount: currentPity,
       totalEquipmentSummons: currentTotalSummons,
+      missions: applyMissionEvent(workingData.missions, 'equipment_summoned', count),
     };
 
     // Atomic save before visual ritual starts so page reload never loses currency or items
@@ -2931,8 +3181,47 @@ export const App: React.FC = () => {
     });
   };
 
+  const handleClaimMission = useCallback((missionId: string) => {
+    setSaveData((prev) => {
+      const outcome = claimMissionReward(prev.missions, missionId);
+      if (!outcome.claimedMission) {
+        if (outcome.nextState !== prev.missions) {
+          const synced = { ...prev, missions: outcome.nextState };
+          saveGameData(synced);
+          return synced;
+        }
+        return prev;
+      }
+
+      const m = outcome.claimedMission;
+      sound.playFanfare();
+      confetti({ particleCount: 45, spread: 60, origin: { y: 0.55 } });
+      setStageNotice(
+        `🎉 미션 완료! +${m.rewardGold.toLocaleString()} G / +${m.rewardGems} 보석${
+          m.rewardStones > 0 ? ` / +${m.rewardStones} 강화석` : ''
+        }`
+      );
+      setTimeout(() => setStageNotice(null), 2000);
+
+      const updated: GameSaveData = {
+        ...prev,
+        missions: outcome.nextState,
+        enhancementStones: (prev.enhancementStones ?? 0) + m.rewardStones,
+        stats: {
+          ...prev.stats,
+          gold: prev.stats.gold + m.rewardGold,
+          gems: prev.stats.gems + m.rewardGems,
+        },
+      };
+      saveDataRef.current = updated;
+      saveGameData(updated);
+      return updated;
+    });
+  }, []);
+
   // --- Handlers: Boss Fight Controls ---
   const handleChallengeBoss = () => {
+    resetBossPatternState();
     sound.playFanfare();
     setSaveData((prev) => ({
       ...prev,
@@ -2941,15 +3230,38 @@ export const App: React.FC = () => {
         ? Math.min(100, Math.round(((prev.awakeningGauge ?? 0) + 20) * 10) / 10)
         : (prev.awakeningGauge ?? 0),
     }));
-    setCurrentMonster(getMonsterForStage(stage.chapter, 10));
+    const bossMon = getMonsterForStage(stage.chapter, 10);
+    currentMonsterRef.current = bossMon;
+    setCurrentMonster(bossMon);
+    setMonsterStatuses([]);
+    monsterStatusesRef.current = [];
+    isMonsterDefeatedRef.current = false;
+    setIsMonsterDefeated(false);
+    isBasicAttackingRef.current = false;
+    setIsPlayerAttacking(false);
+    lastMonsterAttackTimeRef.current = Date.now();
   };
 
   const handleRetreatToNormal = () => {
-    setSaveData((prev) => ({
-      ...prev,
-      stage: { ...prev.stage, inBossFight: false },
-    }));
-    setCurrentMonster(getMonsterForStage(stage.chapter, 9));
+    resetBossPatternState();
+    setSaveData((prev) => {
+      const updated = {
+        ...prev,
+        stage: { ...prev.stage, inBossFight: false },
+      };
+      saveGameData(updated);
+      return updated;
+    });
+    const normalMon = getMonsterForStage(stage.chapter, 9);
+    currentMonsterRef.current = normalMon;
+    setCurrentMonster(normalMon);
+    setMonsterStatuses([]);
+    monsterStatusesRef.current = [];
+    isMonsterDefeatedRef.current = false;
+    setIsMonsterDefeated(false);
+    isBasicAttackingRef.current = false;
+    setIsPlayerAttacking(false);
+    lastMonsterAttackTimeRef.current = Date.now();
   };
 
   // --- Handlers: Class & Promotion ---
@@ -3303,6 +3615,9 @@ export const App: React.FC = () => {
           dungeonVfxEvent={dungeonVfxEvent}
           summonVfxEvent={summonVfxEvent}
           prestigeCount={prestigeCount}
+          bossPhase={c4BossPhase}
+          bossPatternWarning={bossPatternWarning}
+          bossPatternVfxEvent={bossPatternVfxEvent}
         />
 
         {/* Quest Parchment Ribbon (Displayed only in main Adventure tab when not in Dungeon) */}
@@ -3318,6 +3633,8 @@ export const App: React.FC = () => {
                 return next;
               })
             }
+            onOpenMissions={() => setShowMissionModal(true)}
+            claimableMissionsCount={claimableMissionsCount}
           />
         )}
 
@@ -3543,6 +3860,14 @@ export const App: React.FC = () => {
           onClose={() => setDungeonResult(null)}
         />
       )}
+
+      <MissionModal
+        isOpen={showMissionModal}
+        onClose={() => setShowMissionModal(false)}
+        missions={missions}
+        onClaimMission={handleClaimMission}
+        onNavigateTab={(tab) => setActiveTab(tab)}
+      />
     </div>
   );
 };
