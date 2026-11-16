@@ -143,6 +143,22 @@ export const App: React.FC = () => {
     setC4BossPhase(1);
     bossPatternTimerRef.current = Date.now() - 2000;
   }, []);
+
+  /** Cleanly resets boss state, active monster debuffs, and spawns the chapter's stage-9 normal mob on defeat/timeout. */
+  const retreatBossToNormal = useCallback(
+    (chapter: number, notice: string) => {
+      resetBossPatternState();
+      monsterStatusesRef.current = [];
+      setMonsterStatuses([]);
+      isMonsterDefeatedRef.current = false;
+      setIsMonsterDefeated(false);
+      const retreatMon = getMonsterForStage(chapter, 9);
+      currentMonsterRef.current = retreatMon;
+      setCurrentMonster(retreatMon);
+      setStageNotice(notice);
+    },
+    [resetBossPatternState]
+  );
   const [prestigeVfxEvent, setPrestigeVfxEvent] = useState<{ id: string } | null>(null);
   const [screenShake, setScreenShake] = useState<'none' | 'normal' | 'crit' | 'boss'>('none');
   const [isHitStop, setIsHitStop] = useState(false);
@@ -1088,7 +1104,9 @@ export const App: React.FC = () => {
         return updatedSave;
       });
 
-      const monStage = (nextStageNum === 10 && !stage.inBossFight) ? 9 : nextStageNum;
+      // When landing on stage 10 without entering an explicit boss fight (including post-4-10 victory cap),
+      // always spawn the stage-9 farming monster rather than an un-timed boss sprite.
+      const monStage = nextStageNum === 10 ? 9 : nextStageNum;
       const nextMon = getMonsterForStage(nextChapter, monStage);
       currentMonsterRef.current = nextMon;
       setCurrentMonster(nextMon);
@@ -1873,13 +1891,14 @@ export const App: React.FC = () => {
       const cutoff = now - 4000;
       recentDamageLogRef.current = recentDamageLogRef.current.filter((entry) => entry.time >= cutoff);
       const entries = recentDamageLogRef.current;
-      if (entries.length === 0) {
-        setCurrentDps(0);
-      } else {
-        const sumDmg = entries.reduce((acc, item) => acc + item.amount, 0);
-        const timeSpanSec = Math.max(1, Math.min(4, (now - entries[0].time) / 1000));
-        setCurrentDps(Math.round(sumDmg / timeSpanSec));
-      }
+      const nextDps =
+        entries.length === 0
+          ? 0
+          : Math.round(
+              entries.reduce((acc, item) => acc + item.amount, 0) /
+                Math.max(1, Math.min(4, (now - entries[0].time) / 1000))
+            );
+      setCurrentDps((prevDps) => (prevDps === nextDps ? prevDps : nextDps));
     }, 100);
 
     return () => clearInterval(dotTimer);
@@ -1959,19 +1978,20 @@ export const App: React.FC = () => {
             const nextHp = Math.max(0, prev.stats.currentHp - patternDmg);
             if (nextHp <= 0) {
               sound.playMonsterDefeat();
-              resetBossPatternState();
               setIsPlayerDefeated(true);
               setTimeout(() => setIsPlayerDefeated(false), 450);
-              const retreatMon = getMonsterForStage(prev.stage.chapter, 9);
-              currentMonsterRef.current = retreatMon;
-              setCurrentMonster(retreatMon);
-              setStageNotice('💀 보스 특수 패턴에 쓰러졌습니다. 일반 스테이지로 복귀합니다.');
+              retreatBossToNormal(
+                prev.stage.chapter,
+                '💀 보스 특수 패턴에 쓰러졌습니다. 일반 스테이지로 복귀합니다.'
+              );
               setTimeout(() => setStageNotice(null), 2000);
-              return {
+              const defeatedRetreatSave: GameSaveData = {
                 ...prev,
                 stats: { ...prev.stats, currentHp: calc.totalMaxHp },
                 stage: { ...prev.stage, inBossFight: false, bossTimeLeft: prev.stage.bossMaxTime },
               };
+              saveGameData(defeatedRetreatSave);
+              return defeatedRetreatSave;
             }
             return {
               ...prev,
@@ -2021,12 +2041,18 @@ export const App: React.FC = () => {
               };
             }
             if (prev.stage.inBossFight) {
-              resetBossPatternState();
-              const retreatMon = getMonsterForStage(prev.stage.chapter, 9);
-              currentMonsterRef.current = retreatMon;
-              setCurrentMonster(retreatMon);
-              setStageNotice('💀 보스에게 패배했습니다. 일반 스테이지로 복귀합니다.');
+              retreatBossToNormal(
+                prev.stage.chapter,
+                '💀 보스에게 패배했습니다. 일반 스테이지로 복귀합니다.'
+              );
               setTimeout(() => setStageNotice(null), 2000);
+              const bossDefeatSave: GameSaveData = {
+                ...prev,
+                stats: { ...prev.stats, currentHp: calc.totalMaxHp },
+                stage: { ...prev.stage, inBossFight: false, bossTimeLeft: prev.stage.bossMaxTime },
+              };
+              saveGameData(bossDefeatSave);
+              return bossDefeatSave;
             }
             return {
               ...prev,
@@ -2059,13 +2085,12 @@ export const App: React.FC = () => {
         if (isMonsterDefeatedRef.current) return prev;
         const newTime = prev.stage.bossTimeLeft - 1;
         if (newTime <= 0) {
-          resetBossPatternState();
-          const retreatMon = getMonsterForStage(prev.stage.chapter, 9);
-          currentMonsterRef.current = retreatMon;
-          setCurrentMonster(retreatMon);
-          setStageNotice('⏰ 보스 제한시간 초과! 일반 스테이지로 복귀합니다.');
+          retreatBossToNormal(
+            prev.stage.chapter,
+            '⏰ 보스 제한시간 초과! 일반 스테이지로 복귀합니다.'
+          );
           setTimeout(() => setStageNotice(null), 2000);
-          return {
+          const timedOutSave: GameSaveData = {
             ...prev,
             stage: {
               ...prev.stage,
@@ -2073,6 +2098,8 @@ export const App: React.FC = () => {
               bossTimeLeft: prev.stage.bossMaxTime,
             },
           };
+          saveGameData(timedOutSave);
+          return timedOutSave;
         }
         return {
           ...prev,

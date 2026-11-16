@@ -821,7 +821,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         /* Live DPS & 3-Hit Combo HUD Pill */
         .battle-live-dps-hud {
           position: absolute;
-          top: 60px;
+          top: 102px;
           left: 10px;
           z-index: 12;
           display: flex;
@@ -1325,21 +1325,33 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         /* 🌟 Stage Notice Banner */
         .battle-stage-notice-banner {
           position: absolute;
-          top: 32px;
+          top: 104px;
           left: 50%;
           transform: translateX(-50%);
+          max-width: calc(100% - 24px);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
           background: linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%);
           border: 1.5px solid rgba(245, 158, 11, 0.6);
           color: #fef08a;
-          padding: 6px 16px;
+          padding: 6px 14px;
           border-radius: 20px;
-          font-size: 13px;
+          font-size: 12px;
           font-weight: 800;
           text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
           box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), 0 0 12px rgba(245, 158, 11, 0.3);
           z-index: 30;
           pointer-events: none;
           animation: stageNoticeAnim 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @media (min-width: 700px) {
+          .battle-stage-notice-banner {
+            top: 84px;
+            font-size: 13px;
+            padding: 6px 16px;
+          }
         }
 
         @keyframes stageNoticeAnim {

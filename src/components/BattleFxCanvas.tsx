@@ -2048,9 +2048,11 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
 
     const resizeCanvas = () => {
       const rect = canvas.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
-        canvas.width = rect.width;
-        canvas.height = rect.height;
+      const targetW = Math.round(rect.width);
+      const targetH = Math.round(rect.height);
+      if (targetW > 0 && targetH > 0 && (canvas.width !== targetW || canvas.height !== targetH)) {
+        canvas.width = targetW;
+        canvas.height = targetH;
       }
     };
     resizeCanvas();
@@ -2153,10 +2155,15 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
           ctx.closePath();
           ctx.fill();
         } else if (ambientType === 'water_orbs' || ambientType === 'marsh_mist') {
-          ctx.shadowColor = ambientType === 'marsh_mist' ? p.color : '#38bdf8';
-          ctx.shadowBlur = ambientType === 'marsh_mist' ? 9 : 6;
+          const r = ambientType === 'marsh_mist' ? p.size * 0.9 : p.size;
+          // Soft outer halo without expensive per-particle shadowBlur
+          ctx.globalAlpha = p.alpha * 0.28;
           ctx.beginPath();
-          ctx.arc(0, 0, ambientType === 'marsh_mist' ? p.size * 0.9 : p.size, 0, Math.PI * 2);
+          ctx.arc(0, 0, r * 1.9, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = p.alpha;
+          ctx.beginPath();
+          ctx.arc(0, 0, r, 0, Math.PI * 2);
           ctx.fill();
         } else {
           // Green Forest Willow Leaf
@@ -2282,11 +2289,20 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
         const alpha = 1 - fis.life / fis.maxLife;
         ctx.save();
         ctx.strokeStyle = fis.color;
-        ctx.shadowColor = fis.color;
-        ctx.shadowBlur = 12;
+        ctx.lineWidth = 6.5 * alpha;
+        ctx.globalAlpha = alpha * 0.28;
+
+        for (const crack of fis.cracks) {
+          ctx.beginPath();
+          ctx.moveTo(crack[0].x, crack[0].y);
+          for (let c = 1; c < crack.length; c++) {
+            ctx.lineTo(crack[c].x, crack[c].y);
+          }
+          ctx.stroke();
+        }
+
         ctx.lineWidth = 3.5 * alpha;
         ctx.globalAlpha = alpha;
-
         for (const crack of fis.cracks) {
           ctx.beginPath();
           ctx.moveTo(crack[0].x, crack[0].y);
@@ -2463,11 +2479,24 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
         ctx.translate(slash.x, slash.y);
         ctx.rotate(slash.rotation);
 
-        // Outer Neon Glow Pass
+        // Outer Soft Halo Pass (Additive Lighter without shadowBlur cost)
+        ctx.globalAlpha = alpha * 0.28;
+        ctx.fillStyle = slash.glowColor;
+        drawTaperedCrescentPath(
+          ctx,
+          0,
+          0,
+          slash.radius,
+          slash.startAngle,
+          slash.endAngle,
+          slash.maxThickness * 1.65,
+          prog
+        );
+        ctx.fill();
+
+        // Outer Neon Blade Pass
         ctx.globalAlpha = alpha;
         ctx.fillStyle = slash.color;
-        ctx.shadowColor = slash.glowColor;
-        ctx.shadowBlur = 18;
         drawTaperedCrescentPath(
           ctx,
           0,
@@ -2482,7 +2511,6 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
 
         // Inner Pure White Laser Core Pass
         ctx.fillStyle = '#ffffff';
-        ctx.shadowBlur = 6;
         drawTaperedCrescentPath(
           ctx,
           0,
@@ -2517,14 +2545,20 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
         ctx.save();
         ctx.globalAlpha = alpha;
         ctx.strokeStyle = sw.color;
-        ctx.shadowColor = sw.color;
-        ctx.shadowBlur = 14;
-        ctx.lineWidth = sw.thickness * (1 - prog * 0.7);
-
         const safeRx = Math.max(0.5, sw.currentRadius);
         const safeRy = Math.max(0.5, sw.currentRadius * sw.aspectY);
+        const baseLw = sw.thickness * (1 - prog * 0.7);
         ctx.beginPath();
         ctx.ellipse(sw.x, sw.y, safeRx, safeRy, 0, 0, Math.PI * 2);
+
+        // Soft outer aura ring
+        ctx.globalAlpha = alpha * 0.28;
+        ctx.lineWidth = baseLw * 2.1;
+        ctx.stroke();
+
+        // Crisp main ring
+        ctx.globalAlpha = alpha;
+        ctx.lineWidth = baseLw;
         ctx.stroke();
 
         // Inner white ring for high energy
@@ -2551,10 +2585,6 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
 
         // Outer Aura Pass
         ctx.strokeStyle = lb.color;
-        ctx.shadowColor = lb.color;
-        ctx.shadowBlur = 16;
-        ctx.lineWidth = lb.width;
-
         ctx.beginPath();
         for (const seg of lb.segments) {
           ctx.moveTo(seg.x1, seg.y1);
@@ -2566,6 +2596,11 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
             ctx.lineTo(seg.x2, seg.y2);
           }
         }
+        ctx.globalAlpha = alpha * 0.32;
+        ctx.lineWidth = lb.width * 2.2;
+        ctx.stroke();
+        ctx.globalAlpha = alpha;
+        ctx.lineWidth = lb.width;
         ctx.stroke();
 
         // Inner Pure White Core
@@ -2599,9 +2634,13 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
               const curX = bp.monsterX + (bp.heroX - bp.monsterX) * Math.min(1, prog * 1.25);
               const curY = bp.monsterY + (bp.heroY - bp.monsterY) * Math.min(1, prog * 1.25);
               const fade = 1 - prog;
+              ctx.strokeStyle = `rgba(129, 140, 248, ${fade * 0.32})`;
+              ctx.lineWidth = 14 * fade + 4;
+              ctx.beginPath();
+              ctx.arc(curX, curY, 44, Math.PI * 0.55, Math.PI * 1.45);
+              ctx.stroke();
+
               ctx.strokeStyle = `rgba(165, 180, 252, ${fade})`;
-              ctx.shadowColor = '#818cf8';
-              ctx.shadowBlur = 18;
               ctx.lineWidth = 8 * fade + 2;
               ctx.beginPath();
               ctx.arc(curX, curY, 44, Math.PI * 0.55, Math.PI * 1.45);
@@ -2688,8 +2727,6 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
 
         // Draw Projectile Head
         ctx.save();
-        ctx.shadowColor = proj.color;
-        ctx.shadowBlur = 16;
         ctx.fillStyle = proj.color;
 
         if (proj.type === 'sword_wave') {
@@ -2737,8 +2774,11 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
         } else if (proj.type === 'arcane_nova') {
           // Swirling Arcane Nova Sphere (Mage 3-Combo Finisher)
           ctx.translate(curX, curY);
-          ctx.shadowColor = '#c084fc';
-          ctx.shadowBlur = 24;
+          // Outer soft glow halo
+          ctx.fillStyle = 'rgba(192, 132, 252, 0.28)';
+          ctx.beginPath();
+          ctx.arc(0, 0, proj.size * 1.55, 0, Math.PI * 2);
+          ctx.fill();
 
           // Outer rotating arcane ring
           ctx.strokeStyle = '#38bdf8';
@@ -2770,8 +2810,10 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
         } else if (proj.type === 'fireball') {
           // Swirling Magma Core Fireball
           ctx.translate(curX, curY);
-          ctx.shadowColor = '#ea580c';
-          ctx.shadowBlur = 24;
+          ctx.fillStyle = 'rgba(234, 88, 12, 0.28)';
+          ctx.beginPath();
+          ctx.arc(0, 0, proj.size * 1.55, 0, Math.PI * 2);
+          ctx.fill();
 
           // Outer swirling flame petals
           ctx.fillStyle = '#f97316';
@@ -2884,14 +2926,20 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
         const tailY = spk.y - (spk.vy / (speed || 1)) * stretchLen;
 
         ctx.save();
-        ctx.globalAlpha = alpha;
         ctx.strokeStyle = spk.color;
-        ctx.shadowColor = spk.color;
-        ctx.shadowBlur = 6;
-        ctx.lineWidth = spk.width * alpha;
         ctx.lineCap = 'round';
 
-        // Stretched Line
+        // Soft additive glow aura (lighter composite already active; avoids per-spark shadowBlur overhead)
+        ctx.globalAlpha = alpha * 0.32;
+        ctx.lineWidth = spk.width * alpha * 2.2;
+        ctx.beginPath();
+        ctx.moveTo(tailX, tailY);
+        ctx.lineTo(spk.x, spk.y);
+        ctx.stroke();
+
+        // Crisp Stretched Line
+        ctx.globalAlpha = alpha;
+        ctx.lineWidth = spk.width * alpha;
         ctx.beginPath();
         ctx.moveTo(tailX, tailY);
         ctx.lineTo(spk.x, spk.y);
@@ -2934,12 +2982,17 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
         const ry = coin.radius;
 
         ctx.save();
-        ctx.globalAlpha = alpha;
         ctx.translate(coin.x, coin.y);
-        ctx.shadowColor = '#f59e0b';
-        ctx.shadowBlur = 10;
+
+        // Soft golden halo without per-coin shadowBlur
+        ctx.globalAlpha = alpha * 0.26;
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, rx * 1.45, ry * 1.45, 0, 0, Math.PI * 2);
+        ctx.fill();
 
         // Outer gold rim
+        ctx.globalAlpha = alpha;
         ctx.fillStyle = '#fbbf24';
         ctx.strokeStyle = '#fef08a';
         ctx.lineWidth = 1.4;
