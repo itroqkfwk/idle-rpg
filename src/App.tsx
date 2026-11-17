@@ -3406,13 +3406,16 @@ export const App: React.FC = () => {
         return s;
       });
 
-      return {
+      const updated: GameSaveData = {
         ...prev,
         classId: newClassId,
         promotion: newPromo,
         equippedSkillIds: newEquipped,
         skills: updatedSkills,
       };
+      saveDataRef.current = updated;
+      saveGameData(updated);
+      return updated;
     });
 
     setSkillCooldowns({});
@@ -3649,6 +3652,7 @@ export const App: React.FC = () => {
         activeDungeonRun={activeDungeonRun}
         onOpenSettings={() => setShowSettings(true)}
         onOpenProfile={() => setActiveTab('hero')}
+        onNavigateTab={(tab) => setActiveTab(tab)}
       />
 
       {/* 2. Main Screen Area (Live 5-Layer BattleScene always rendered at top) */}
@@ -3711,6 +3715,7 @@ export const App: React.FC = () => {
           bossPhase={c4BossPhase}
           bossPatternWarning={bossPatternWarning}
           bossPatternVfxEvent={bossPatternVfxEvent}
+          onOpenSkillConfig={() => setActiveTab('hero')}
         />
 
         {/* Quest Parchment Ribbon (Displayed only in main Adventure tab when not in Dungeon) */}
@@ -3783,6 +3788,7 @@ export const App: React.FC = () => {
             onOpenPrestigeModal={() => setShowPrestigeModal(true)}
             onUpgradePrestige={handleUpgradePrestige}
             enhancementStones={enhancementStones}
+            monsterCodexAtk={monsterCodexBonuses.flatAtk}
             onNavigateTab={(tab) => setActiveTab(tab)}
             onClose={() => setActiveTab('adventure')}
           />

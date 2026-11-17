@@ -33,6 +33,8 @@ import {
   Info,
 } from 'lucide-react';
 import { sound } from '../utils/audio';
+import { GameModalPortal } from '../components/GameModalPortal';
+import { EquipmentEmblem } from '../components/RpgIcons';
 
 interface EquipmentPageProps {
   equipmentCatalog: Equipment[];
@@ -271,7 +273,7 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
         {/* Equipped Paper Doll 4 Slots Row */}
         <div className="paperdoll-container">
           <div className="paperdoll-grid">
-            {slots.map(({ slot, label, placeholderIcon }) => {
+            {slots.map(({ slot, label }) => {
               const item =
                 equipmentCatalog.find((e) => (e.slot || e.type) === slot && e.equipped && e.owned) ||
                 equipped[slot];
@@ -292,7 +294,14 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
                   onClick={() => item && handleItemClick(item)}
                 >
                   <span className="paperdoll-slot-label">{label}</span>
-                  <div className="paperdoll-slot-icon">{item ? item.icon : placeholderIcon}</div>
+                  <div className="paperdoll-slot-icon">
+                    <EquipmentEmblem
+                      slot={slot}
+                      rarity={item ? item.rarity : 'common'}
+                      size={30}
+                      silhouette={!item}
+                    />
+                  </div>
                   {item ? (
                     <span className="paperdoll-slot-lvl" style={{ color: rarity?.color }}>
                       Lv.{item.level}
@@ -696,7 +705,14 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
 
                 {/* Silhouette for unowned vs normal icon for owned */}
                 <div className="inv-tile-icon-wrap">
-                  <span className={`inv-tile-icon ${!item.owned ? 'icon-silhouette' : ''}`}>{item.icon}</span>
+                  <span className={`inv-tile-icon ${!item.owned ? 'icon-silhouette' : ''}`}>
+                    <EquipmentEmblem
+                      slot={(item.slot || item.type || 'weapon') as EquipmentSlot}
+                      rarity={item.rarity}
+                      size={38}
+                      silhouette={!item.owned}
+                    />
+                  </span>
                   {!item.owned && <div className="lock-overlay-icon">미보유</div>}
                 </div>
 
@@ -762,9 +778,13 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
         </div>
       </div>
 
-      {/* Item Detail / Upgrade / Synthesis Modal */}
-      {selectedItem && (
-        <div className="modal-backdrop" onClick={() => setSelectedItemId(null)}>
+      {/* Item Detail / Upgrade / Synthesis Modal (Portal) */}
+      <GameModalPortal
+        isOpen={Boolean(selectedItem)}
+        onClose={() => setSelectedItemId(null)}
+        ariaLabel="장비 상세 및 강화"
+      >
+        {selectedItem && (
           <div
             className="modal-content item-detail-modal-beveled"
             data-testid="equipment-detail-modal"
@@ -806,7 +826,14 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
             </div>
 
             <div className="detail-icon-stage">
-              <span className={!selectedItem.owned ? 'icon-silhouette' : ''}>{selectedItem.icon}</span>
+              <span className={!selectedItem.owned ? 'icon-silhouette' : ''}>
+                <EquipmentEmblem
+                  slot={(selectedItem.slot || selectedItem.type || 'weapon') as EquipmentSlot}
+                  rarity={selectedItem.rarity}
+                  size={56}
+                  silhouette={!selectedItem.owned}
+                />
+              </span>
             </div>
 
             {/* Pieces status */}
@@ -1071,8 +1098,8 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
               </div>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </GameModalPortal>
 
       <style>{`
         .quick-pity-dual-row {

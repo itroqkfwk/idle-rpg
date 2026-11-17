@@ -1,5 +1,6 @@
 import React from 'react';
 import { Skill, PromotionId } from '../types/game';
+import { SkillEmblem } from './RpgIcons';
 
 interface SkillStatusHUDProps {
   skills: Skill[];
@@ -11,6 +12,7 @@ interface SkillStatusHUDProps {
   isAwakeningCasting?: boolean;
   promotion?: PromotionId;
   awakeningSkill?: Skill | null;
+  onOpenSkillConfig?: () => void;
 }
 
 const RARITY_LABEL: Record<string, string> = {
@@ -31,6 +33,7 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
   isAwakeningCasting = false,
   promotion = 'none',
   awakeningSkill = null,
+  onOpenSkillConfig,
 }) => {
   const slots = [0, 1, 2, 3].map((idx) => {
     const skillId = equippedSkillIds[idx];
@@ -65,7 +68,13 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
         {slots.map((item) => {
           if (!item.skill) {
             return (
-              <div key={item.slotNum} className="rpg-skill-slot slot-empty">
+              <div
+                key={item.slotNum}
+                className="rpg-skill-slot slot-empty"
+                style={{ cursor: onOpenSkillConfig ? 'pointer' : undefined }}
+                onClick={onOpenSkillConfig}
+                title="클릭하여 스킬 편성 열기"
+              >
                 <span className="slot-empty-num">{item.slotNum}</span>
                 <span className="slot-empty-sub">EMPTY</span>
               </div>
@@ -78,10 +87,13 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
           return (
             <div
               key={skill.id}
+              data-testid={`hud-skill-slot-${item.slotNum}`}
               className={`rpg-skill-slot rarity-${skill.rarity} ${
                 isReady ? 'is-ready-pulse' : 'is-cooling'
               } ${isCasting ? 'is-casting-flash' : ''}`}
-              title={`${skill.name} (Lv.${skill.level}) - 쿨타임 ${skill.cooldown}초 · 자동 발동`}
+              style={{ cursor: onOpenSkillConfig ? 'pointer' : undefined }}
+              onClick={onOpenSkillConfig}
+              title={`${skill.name} (Lv.${skill.level}) - 쿨타임 ${skill.cooldown}초 · 클릭 시 스킬 편성`}
             >
               {/* Radial Cooldown Conic Overlay */}
               {!isReady && (
@@ -99,9 +111,9 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
                 <span className="slot-level-text">Lv.{skill.level}</span>
               </div>
 
-              {/* Center: Skill Icon */}
+              {/* Center: Custom SVG Skill Emblem */}
               <div className="slot-icon-container">
-                <span className="skill-icon-glyph">{skill.icon}</span>
+                <SkillEmblem effectType={skill.effectType} size={25} />
                 {!isReady ? (
                   <span className="cooldown-seconds-tag">{cd.toFixed(1)}s</span>
                 ) : (
@@ -146,9 +158,12 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
 
             {/* Center: Awakening Icon */}
             <div className="slot-icon-container">
-              <span className="skill-icon-glyph awakening-glyph">
-                {awakeningSkill?.icon || (promotion === 'archmage' ? '✨🌌' : '👑⚡')}
-              </span>
+              <SkillEmblem
+                effectType={
+                  awakeningSkill?.effectType || (promotion === 'archmage' ? 'astral_cataclysm' : 'heavenly_blade')
+                }
+                size={25}
+              />
               {!isAwakeningReady ? (
                 <span className="awakening-gauge-tag">{awakeningPercent}%</span>
               ) : (
@@ -185,6 +200,7 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
 
         .skill-hud-container {
           position: relative;
+          pointer-events: auto;
           display: flex;
           align-items: center;
           gap: 6px;
@@ -254,6 +270,25 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
           box-sizing: border-box;
           flex-shrink: 0;
           transition: transform 0.12s ease, border-color 0.15s ease;
+        }
+
+        .rpg-skill-slot:hover {
+          transform: translateY(-2px);
+        }
+
+        .rpg-skill-slot:active {
+          transform: scale(0.95);
+        }
+
+        @media (max-width: 380px) {
+          .skill-hud-container {
+            gap: 4px;
+            padding: 4px 6px;
+          }
+          .rpg-skill-slot {
+            width: 53px;
+            height: 55px;
+          }
         }
 
         .slot-empty {

@@ -3,6 +3,7 @@ import { GameSaveData, Skill, Equipment, PromotionId } from '../types/game';
 import { getEquipmentPiecesRequired } from '../data/equipment';
 import { getSkillPiecesRequired } from '../data/skills';
 import { saveGameData } from '../utils/storage';
+import { GameModalPortal } from './GameModalPortal';
 
 
 export const DEV_CHEAT_CODE = 'TEST-ALL-UNLOCK';
@@ -49,24 +50,10 @@ export const DeveloperTestModal: React.FC<DeveloperTestModalProps> = ({
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9999,
-        backgroundColor: 'rgba(0, 0, 0, 0.85)',
-        backdropFilter: 'blur(8px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px',
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
+    <GameModalPortal isOpen={isOpen} onClose={onClose} zIndex={9999} ariaLabel="개발자 테스트 모드">
       <div
         className="dev-modal-card"
+        onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%',
           maxWidth: '680px',
@@ -739,7 +726,7 @@ export const DeveloperTestModal: React.FC<DeveloperTestModalProps> = ({
           <div>모든 치트 조작은 실시간으로 저장됩니다.</div>
         </div>
       </div>
-    </div>
+    </GameModalPortal>
   );
 };
 

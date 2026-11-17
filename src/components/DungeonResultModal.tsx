@@ -2,6 +2,7 @@ import React from 'react';
 import { ActiveDungeonRun } from '../types/game';
 import { DUNGEONS_DATA, DAILY_DUNGEON_TICKETS } from '../data/dungeons';
 import { Trophy, Clock, Skull, Flag, Sparkles, RotateCcw, ArrowLeft } from 'lucide-react';
+import { GameModalPortal } from './GameModalPortal';
 
 interface DungeonResultModalProps {
   result: ActiveDungeonRun | null;
@@ -63,8 +64,18 @@ export const DungeonResultModal: React.FC<DungeonResultModalProps> = ({
   const meta = getHeaderMeta();
 
   return (
-    <div className="dungeon-result-overlay" data-testid="dungeon-result-modal">
-      <div className="dungeon-result-card" style={{ borderColor: `${meta.color}66`, background: meta.bgGradient }}>
+    <GameModalPortal
+      isOpen={Boolean(result)}
+      onClose={onClose}
+      overlayClassName="dungeon-result-overlay"
+      dataTestId="dungeon-result-modal"
+      ariaLabel="던전 결과"
+    >
+      <div
+        className="dungeon-result-card"
+        style={{ borderColor: `${meta.color}66`, background: meta.bgGradient }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="result-header-block">
           <div className="result-icon-circle" style={{ borderColor: meta.color }}>
             {meta.icon}
@@ -333,6 +344,6 @@ export const DungeonResultModal: React.FC<DungeonResultModalProps> = ({
           color: #e2e8f0;
         }
       `}</style>
-    </div>
+    </GameModalPortal>
   );
 };

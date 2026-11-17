@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { GameSettings } from '../types/game';
-import { Volume2, VolumeX, Music, Trash2, X, Settings, Shield, Sparkles, KeyRound } from 'lucide-react';
+import { Volume2, VolumeX, Music, Trash2, X, Settings, Shield, Sparkles, KeyRound, Swords, Wand2, Zap } from 'lucide-react';
 import { DEV_CHEAT_CODE } from './DeveloperTestModal';
+import { GameModalPortal } from './GameModalPortal';
 
 interface SettingsModalProps {
   settings: GameSettings;
@@ -40,8 +41,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-content settings-modal-content">
+    <GameModalPortal isOpen={true} onClose={onClose} ariaLabel="게임 설정">
+      <div className="modal-content settings-modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="settings-header">
           <div className="settings-title-row">
             <Settings size={18} color="#f59e0b" />
@@ -92,7 +93,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* Damage Numbers Toggle */}
           <div className="settings-option-item">
             <div className="option-info">
-              <span style={{ fontSize: '1.1rem' }}>💥</span>
+              <Zap size={18} color="#f59e0b" />
               <div className="option-texts">
                 <span className="option-name">데미지 텍스트</span>
                 <span className="option-desc">전투 시 플로팅 데미지 표시</span>
@@ -145,7 +146,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* Auto Equip Gear Toggle */}
           <div className="settings-option-item">
             <div className="option-info">
-              <span style={{ fontSize: '1.1rem' }}>🗡️</span>
+              <Swords size={18} color="#fbbf24" />
               <div className="option-texts">
                 <span className="option-name">장비 스마트 자동 장착</span>
                 <span className="option-desc">전투력 상승 시 상위 장비 자동 착용</span>
@@ -162,7 +163,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* Auto Equip Skills Toggle */}
           <div className="settings-option-item">
             <div className="option-info">
-              <span style={{ fontSize: '1.1rem' }}>🔮</span>
+              <Wand2 size={18} color="#a855f7" />
               <div className="option-texts">
                 <span className="option-name">스킬 스마트 자동 편성</span>
                 <span className="option-desc">직업 DPS 최적화 스킬 자동 세팅</span>
@@ -211,8 +212,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         <div className="settings-footer">
-          <span>기사단 모험기 v2.1.0</span>
-          <span>Commercial 2D Mobile Idle RPG · Growth & Collection Engine</span>
+          <span>CozyPaws Idle RPG v3.1</span>
+          <span>Cozy Fantasy 2D Idle RPG · Visual & UX Remaster</span>
         </div>
       </div>
 
@@ -428,7 +429,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           padding-top: 4px;
         }
       `}</style>
-    </div>
+    </GameModalPortal>
   );
 };
 

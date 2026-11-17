@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Pet } from '../types/game';
 import { getPetBuffText } from '../data/pets';
-import { Check, Lock, ArrowUpRight, X, Sparkles } from 'lucide-react';
+import { Check, Lock, ArrowUpRight, X, Sparkles, Swords } from 'lucide-react';
 import { sound } from '../utils/audio';
 
 interface PetPageProps {
@@ -48,14 +48,26 @@ export const PetPage: React.FC<PetPageProps> = ({
     }
   };
 
-  const activePet = pets.find((p) => p.id === activePetId) || pets[0];
+  const [inspectedPetId, setInspectedPetId] = useState<string>(activePetId || pets[0]?.id || 'pet_fox');
+  const activePet = pets.find((p) => p.id === inspectedPetId) || pets.find((p) => p.id === activePetId) || pets[0];
 
-  const getPetSprite = (p: Pet) => {
-    if (p.id.includes('fox') || p.name.includes('여우')) return './assets/pet_fox.png';
-    if (p.id.includes('slime') || p.name.includes('슬라임')) return './assets/monster_slime.png';
-    if (p.id.includes('fairy') || p.name.includes('요정')) return './assets/monster_spirit.png';
-    return './assets/pet_fox.png';
+  const getPetTheme = (p: Pet) => {
+    if (p.id === 'pet_fairy' || p.name.includes('요정')) {
+      return { sprite: './assets/ch5_butterfly.png', color: '#38bdf8', coopLabel: '빛가루 마력탄 협동 사격 (골드 보너스)' };
+    }
+    if (p.id === 'pet_slime' || p.name.includes('슬라임')) {
+      return { sprite: './assets/ch5_slime.png', color: '#10b981', coopLabel: '탄성 점프 바디슬램 협동 타격 (공격력 증폭)' };
+    }
+    if (p.id === 'pet_cat' || p.name.includes('냥이')) {
+      return { sprite: './assets/ch5_fox.png', color: '#c084fc', coopLabel: '달빛 질풍 할퀴기 협동 연타 (공격속도 가속)' };
+    }
+    if (p.id === 'pet_dragon' || p.name.includes('드래곤')) {
+      return { sprite: './assets/ch4_spirit.png', color: '#f87171', coopLabel: '루비 브레스 화염구 협동 포격 (치명타 피해 증폭)' };
+    }
+    return { sprite: './assets/pet_fox.png', color: '#f59e0b', coopLabel: '화염 여우불 협동 급습 (치명타 확률 상승)' };
   };
+
+  const getPetSprite = (p: Pet) => getPetTheme(p).sprite;
 
   return (
     <div className="half-sheet-drawer">
@@ -75,34 +87,61 @@ export const PetPage: React.FC<PetPageProps> = ({
       </div>
 
       <div className="drawer-content">
-        {/* Active Pet Showcase Pedestal */}
-        {activePet && (
-          <div className="pet-showcase-pedestal">
-            <div className="pedestal-glow-ring" />
-            <div className="pedestal-sprite-container">
-              <img
-                src={getPetSprite(activePet)}
-                alt={activePet.name}
-                className="pedestal-pet-img"
-              />
-            </div>
-            <div className="pedestal-meta-info">
-              <div className="pedestal-title-row">
-                <span className="pedestal-pet-name">{activePet.name}</span>
-                {activePet.owned && <span className="pedestal-lvl-tag">Lv.{activePet.level}</span>}
+        {/* Active / Inspected Pet Showcase Pedestal */}
+        {activePet && (() => {
+          const theme = getPetTheme(activePet);
+          const nextPet: Pet = { ...activePet, level: activePet.level + 1 };
+          const isCurrentlyEquipped = activePetId === activePet.id;
+          return (
+            <div
+              className="pet-showcase-pedestal"
+              data-testid="pet-showcase-pedestal"
+              style={{
+                borderColor: `${theme.color}66`,
+                background: `radial-gradient(circle at 50% 45%, ${theme.color}24 0%, rgba(15, 23, 42, 0.9) 78%)`,
+              }}
+            >
+              <div className="pedestal-glow-ring" style={{ borderColor: `${theme.color}88` }} />
+              <div className="pedestal-sprite-container">
+                <img
+                  src={theme.sprite}
+                  alt={activePet.name}
+                  className={`pedestal-pet-img ${!activePet.owned ? 'icon-silhouette' : ''}`}
+                />
               </div>
-              <div className="pedestal-buff-badge">
-                <Sparkles size={13} color="#f59e0b" />
-                <span>{getPetBuffText(activePet)}</span>
+              <div className="pedestal-meta-info">
+                <div className="pedestal-title-row">
+                  <span className="pedestal-pet-name" style={{ color: theme.color }}>{activePet.name}</span>
+                  <span className="pedestal-lvl-tag">
+                    {activePet.owned ? `Lv.${activePet.level}` : '미해금'}
+                  </span>
+                  {isCurrentlyEquipped && (
+                    <span className="pedestal-lvl-tag" style={{ background: 'rgba(16,185,129,0.25)', color: '#6ee7b7', borderColor: '#10b981' }}>
+                      전투 동행 중
+                    </span>
+                  )}
+                </div>
+                <div className="pedestal-buff-badge">
+                  <Sparkles size={13} color={theme.color} />
+                  <span>
+                    {getPetBuffText(activePet)} → <strong style={{ color: '#4ade80' }}>Lv.{activePet.level + 1}: {getPetBuffText(nextPet)}</strong>
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#cbd5e1', marginTop: '2px' }}>
+                  <Swords size={11} color={theme.color} />
+                  <span>{theme.coopLabel}</span>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Pet Roster List */}
         <div className="pet-roster-list">
           {pets.map((pet) => {
             const isActive = activePetId === pet.id;
+            const isInspected = activePet?.id === pet.id;
+            const theme = getPetTheme(pet);
             const upgradeCost = getPetUpgradeCost(pet);
             const canAffordUpgrade = gold >= upgradeCost;
             const canAffordUnlock = gems >= pet.costGems;
@@ -110,14 +149,23 @@ export const PetPage: React.FC<PetPageProps> = ({
             return (
               <div
                 key={pet.id}
+                data-testid={`pet-card-${pet.id}`}
                 className={`parchment-panel pet-roster-card ${isActive ? 'pet-card-active' : ''} ${
                   !pet.owned ? 'pet-card-locked' : ''
                 }`}
+                style={{
+                  borderColor: isActive ? '#10b981' : isInspected ? theme.color : undefined,
+                  cursor: 'pointer',
+                }}
+                onClick={() => {
+                  sound.playTap();
+                  setInspectedPetId(pet.id);
+                }}
               >
                 <div className="pet-card-top-row">
                   {/* Avatar Frame */}
-                  <div className="pet-avatar-frame">
-                    <img src={getPetSprite(pet)} alt={pet.name} className="pet-thumb-img" />
+                  <div className="pet-avatar-frame" style={{ borderColor: `${theme.color}66` }}>
+                    <img src={theme.sprite} alt={pet.name} className="pet-thumb-img" />
                     {!pet.owned && (
                       <div className="pet-lock-badge">
                         <Lock size={12} color="#fff" />
@@ -133,18 +181,22 @@ export const PetPage: React.FC<PetPageProps> = ({
 
                   <div className="pet-info-col">
                     <div className="pet-title-line">
-                      <span className="pet-title-name">{pet.name}</span>
-                      {pet.owned && <span className="pet-badge-level">Lv.{pet.level}</span>}
+                      <span className="pet-title-name" style={{ color: pet.owned ? '#f8fafc' : '#cbd5e1' }}>{pet.name}</span>
+                      {pet.owned ? (
+                        <span className="pet-badge-level">Lv.{pet.level}</span>
+                      ) : (
+                        <span className="pet-badge-level" style={{ color: '#94a3b8' }}>미보유</span>
+                      )}
                     </div>
-                    <div className="pet-buff-callout">
-                      ⚡ {getPetBuffText(pet)}
+                    <div className="pet-buff-callout" style={{ color: theme.color }}>
+                      {getPetBuffText(pet)} · {theme.coopLabel.split(' ')[0]} 협동 공격
                     </div>
                     <div className="pet-lore-text">{pet.description}</div>
                   </div>
                 </div>
 
                 {/* Actions */}
-                <div className="pet-action-bottom">
+                <div className="pet-action-bottom" onClick={(e) => e.stopPropagation()}>
                   {pet.owned ? (
                     <div className="pet-dual-action-row">
                       <button

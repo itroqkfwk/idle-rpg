@@ -104,6 +104,7 @@ interface BattleSceneProps {
   bossPhase?: 1 | 2;
   bossPatternWarning?: BossPatternType | null;
   bossPatternVfxEvent?: BossPatternVfxEvent | null;
+  onOpenSkillConfig?: () => void;
 }
 
 export const BattleScene: React.FC<BattleSceneProps> = ({
@@ -163,6 +164,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
   bossPhase = 1,
   bossPatternWarning = null,
   bossPatternVfxEvent = null,
+  onOpenSkillConfig,
 }) => {
 
   const isBossFight = activeDungeonRun
@@ -515,6 +517,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         isAwakeningCasting={isAwakeningCasting}
         promotion={promotion}
         awakeningSkill={awakeningSkill}
+        onOpenSkillConfig={onOpenSkillConfig}
       />
 
       {/* Floating Bottom Status / Boss Trigger Overlay */}
@@ -1289,26 +1292,26 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         /* ⚔️ Dropped Item Loot Alert */
         .battle-loot-alert-banner {
           position: absolute;
-          top: 104px;
+          top: 156px;
           left: 50%;
           transform: translateX(-50%);
           max-width: calc(100% - 24px);
           white-space: nowrap;
-          background: rgba(15, 23, 42, 0.92);
+          background: rgba(15, 23, 42, 0.94);
           border: 1.5px solid #f59e0b;
           border-radius: 9999px;
-          padding: 6px 14px;
+          padding: 5px 13px;
           display: flex;
           align-items: center;
           gap: 6px;
-          font-size: 12px;
+          font-size: 11.5px;
           z-index: 30;
           pointer-events: none;
           animation: lootPopIn 1.6s ease-out forwards;
         }
         @media (min-width: 700px) {
           .battle-loot-alert-banner {
-            top: 84px;
+            top: 72px;
           }
         }
 
@@ -1343,21 +1346,30 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         /* 🌟 Stage Notice Banner */
         .battle-stage-notice-banner {
           position: absolute;
-          top: 104px;
+          top: 156px;
           left: 50%;
           transform: translateX(-50%);
           max-width: calc(100% - 24px);
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
-          background: linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%);
-          border: 1.5px solid rgba(245, 158, 11, 0.6);
+          background: linear-gradient(135deg, rgba(30, 41, 59, 0.96) 0%, rgba(15, 23, 42, 0.96) 100%);
+          border: 1.5px solid rgba(245, 158, 11, 0.65);
           color: #fef08a;
           padding: 6px 14px;
           border-radius: 20px;
-          font-size: 12px;
+          font-size: 11.5px;
           font-weight: 800;
           text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+          z-index: 31;
+          pointer-events: none;
+          animation: lootPopIn 1.8s ease-out forwards;
+        }
+        @media (min-width: 700px) {
+          .battle-stage-notice-banner {
+            top: 72px;
+          }
+        }
           box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), 0 0 12px rgba(245, 158, 11, 0.3);
           z-index: 30;
           pointer-events: none;

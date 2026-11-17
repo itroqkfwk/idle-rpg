@@ -16,6 +16,8 @@ import { drawEquipmentSummonRitual } from './BattleFxCanvas';
 import confetti from 'canvas-confetti';
 import { Sparkles, Check, FastForward, RotateCcw, ArrowUpDown, Combine } from 'lucide-react';
 import { sound } from '../utils/audio';
+import { GameModalPortal } from './GameModalPortal';
+import { EquipmentEmblem } from './RpgIcons';
 
 interface GachaModalProps {
   item?: Equipment | null;
@@ -206,11 +208,15 @@ export const GachaModal: React.FC<GachaModalProps> = ({
   const mythicPityProgress = totalSummons % EQUIPMENT_MYTHIC_PITY_LIMIT;
 
   return (
-    <div
-      className="modal-backdrop gacha-modal-backdrop"
-      onClick={() => {
-        if (phase === 'revealed') onClose();
+    <GameModalPortal
+      isOpen={effectiveResults.length > 0}
+      onClose={() => {
+        if (phase === 'animating') handleSkipAnimation();
+        else onClose();
       }}
+      closeOnBackdrop={phase === 'revealed'}
+      overlayClassName="modal-backdrop gacha-modal-backdrop"
+      ariaLabel="장비 소환 결과"
     >
       <div
         className={`modal-content gacha-modal-content ${isMultiPull ? 'gacha-modal-multi' : ''}`}
@@ -314,7 +320,13 @@ export const GachaModal: React.FC<GachaModalProps> = ({
                   )}
                 </div>
 
-                <div className="gacha-item-icon">{activeItem.icon}</div>
+                <div className="gacha-item-icon">
+                  <EquipmentEmblem
+                    slot={(activeItem.slot || activeItem.type || 'weapon') as any}
+                    rarity={activeItem.rarity}
+                    size={54}
+                  />
+                </div>
                 <div className="gacha-item-name" style={{ color: activeRarity.color }}>
                   {activeItem.name}
                 </div>
@@ -409,7 +421,13 @@ export const GachaModal: React.FC<GachaModalProps> = ({
                             <span className="mini-badge badge-dup">+{res.piecesGained}조각</span>
                           )}
                         </div>
-                        <div className="mini-icon">{res.item.icon}</div>
+                        <div className="mini-icon">
+                          <EquipmentEmblem
+                            slot={(res.item.slot || res.item.type || 'weapon') as any}
+                            rarity={res.item.rarity}
+                            size={30}
+                          />
+                        </div>
                         <div className="mini-name" style={{ color: rConf.color }}>
                           {res.item.name}
                         </div>
@@ -426,7 +444,13 @@ export const GachaModal: React.FC<GachaModalProps> = ({
                 {activeItem && (
                   <div className="gacha-selected-inspector">
                     <div className="inspector-left">
-                      <span className="inspector-icon">{activeItem.icon}</span>
+                      <span className="inspector-icon">
+                        <EquipmentEmblem
+                          slot={(activeItem.slot || activeItem.type || 'weapon') as any}
+                          rarity={activeItem.rarity}
+                          size={28}
+                        />
+                      </span>
                       <div className="inspector-text">
                         <strong style={{ color: activeRarity.color }}>
                           [{activeRarity.label}] {activeItem.name} (Lv.{activeItem.level})
@@ -950,6 +974,6 @@ export const GachaModal: React.FC<GachaModalProps> = ({
           font-size: 11.5px;
         }
       `}</style>
-    </div>
+    </GameModalPortal>
   );
 };

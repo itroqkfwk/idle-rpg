@@ -746,6 +746,25 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
     groundY: number;
   } | null>(null);
 
+  // 6-Stage Bespoke Skill Sequence Renderer (Cast -> Anticipation -> Release -> Travel -> Impact -> Recovery)
+  const skillSequencesRef = useRef<
+    Array<{
+      id: string;
+      type: SkillEffectType;
+      startTime: number;
+      duration: number;
+      heroX: number;
+      heroY: number;
+      staffTipX: number;
+      staffTipY: number;
+      bladeOriginX: number;
+      bladeOriginY: number;
+      monsterX: number;
+      monsterY: number;
+      groundY: number;
+    }>
+  >([]);
+
   const lastTimeRef = useRef<number>(performance.now());
   const activeVfxIdRef = useRef<string | null>(null);
   const lastBasicEventIdRef = useRef<string | null>(null);
@@ -883,8 +902,27 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
     if (activeVfxIdRef.current === activeSkillVfx.id) return;
     activeVfxIdRef.current = activeSkillVfx.id;
 
-    const { heroX, heroY, monsterX, monsterY, groundY } = getAnchors();
+    const { heroX, heroY, staffTipX, staffTipY, bladeOriginX, bladeOriginY, monsterX, monsterY, groundY } = getAnchors();
     const type = activeSkillVfx.type;
+
+    skillSequencesRef.current.push({
+      id: activeSkillVfx.id,
+      type,
+      startTime: performance.now(),
+      duration: 620,
+      heroX,
+      heroY,
+      staffTipX,
+      staffTipY,
+      bladeOriginX,
+      bladeOriginY,
+      monsterX,
+      monsterY,
+      groundY,
+    });
+    if (skillSequencesRef.current.length > 6) {
+      skillSequencesRef.current.shift();
+    }
 
     // =======================================
     // ⚔️ WARRIOR SKILLS
@@ -948,16 +986,16 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
         spawnDirectionalSparks(monsterX, monsterY, 18, '#fbbf24', Math.PI * 0.75, 1.0, 8.5, groundY);
       }, 75);
     } else if (type === 'sword_wave' || type === 'wind_blade') {
-      // 3. Sword Wave: Ground-skimming sonic jade crescent projectile
+      // 3. Sword Wave: Ground-skimming sonic jade crescent projectile launched from blade origin
       projectilesRef.current.push({
         id: `sw_${Date.now()}`,
         type: 'sword_wave',
-        startX: heroX,
-        startY: heroY,
+        startX: bladeOriginX,
+        startY: bladeOriginY,
         targetX: monsterX,
         targetY: monsterY,
-        currentX: heroX,
-        currentY: heroY,
+        currentX: bladeOriginX,
+        currentY: bladeOriginY,
         progress: 0,
         speed: 0.065,
         color: '#10b981',
@@ -1216,21 +1254,21 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
     }
 
     // =======================================
-    // 🔮 MAGE SKILLS
+    // 🔮 MAGE SKILLS (Launched accurately from staffTipX, staffTipY)
     // =======================================
     else if (type === 'magic_missile') {
-      // 1. Magic Missile: 3 double-helix homing comets
+      // 1. Magic Missile: 3 double-helix homing comets from staff tip
       for (let i = 0; i < 3; i++) {
         setTimeout(() => {
           projectilesRef.current.push({
             id: `mm_${Date.now()}_${i}`,
             type: 'magic_missile',
-            startX: heroX,
-            startY: heroY + (i - 1) * 16,
+            startX: staffTipX,
+            startY: staffTipY + (i - 1) * 14,
             targetX: monsterX,
             targetY: monsterY + (i - 1) * 18,
-            currentX: heroX,
-            currentY: heroY + (i - 1) * 16,
+            currentX: staffTipX,
+            currentY: staffTipY + (i - 1) * 14,
             progress: 0,
             speed: 0.055,
             color: '#38bdf8',
@@ -1242,16 +1280,16 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
         }, i * 65);
       }
     } else if (type === 'fireball') {
-      // 2. Fireball: Swirling magma core -> giant dome explosion
+      // 2. Fireball: Swirling magma core launched from staff tip -> giant dome explosion
       projectilesRef.current.push({
         id: `fb_${Date.now()}`,
         type: 'fireball',
-        startX: heroX,
-        startY: heroY,
+        startX: staffTipX,
+        startY: staffTipY,
         targetX: monsterX,
         targetY: monsterY,
-        currentX: heroX,
-        currentY: heroY,
+        currentX: staffTipX,
+        currentY: staffTipY,
         progress: 0,
         speed: 0.046,
         color: '#f97316',
@@ -1259,16 +1297,16 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
         trail: [],
       });
     } else if (type === 'ice_spear') {
-      // 3. Ice Spear: Rotating faceted crystalline lance -> frost nova shrapnel
+      // 3. Ice Spear: Rotating faceted crystalline lance from staff tip -> frost nova shrapnel
       projectilesRef.current.push({
         id: `is_${Date.now()}`,
         type: 'ice_spear',
-        startX: heroX,
-        startY: heroY,
+        startX: staffTipX,
+        startY: staffTipY,
         targetX: monsterX,
         targetY: monsterY,
-        currentX: heroX,
-        currentY: heroY,
+        currentX: staffTipX,
+        currentY: staffTipY,
         progress: 0,
         speed: 0.058,
         color: '#67e8f9',
@@ -1276,11 +1314,11 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
         trail: [],
       });
     } else if (type === 'chain_lightning') {
-      // 4. Chain Lightning: Branching plasma bolts from sky & staff to monster
+      // 4. Chain Lightning: Branching plasma bolts from staff tip & sky to monster
       for (let bolt = 0; bolt < 3; bolt++) {
         setTimeout(() => {
-          const startX = bolt === 0 ? heroX : monsterX + (Math.random() - 0.5) * 60;
-          const startY = bolt === 0 ? heroY : -20;
+          const startX = bolt === 0 ? staffTipX : monsterX + (Math.random() - 0.5) * 60;
+          const startY = bolt === 0 ? staffTipY : -20;
           const endX = monsterX + (Math.random() - 0.5) * 30;
           const endY = monsterY + (Math.random() - 0.5) * 30;
 
@@ -1336,20 +1374,20 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
         }, s * 70);
       }
     } else if (type === 'arcane_orb') {
-      // 6. Arcane Orb: Large slow-moving violet piercing orb
+      // 6. Arcane Orb: Large slow-moving violet piercing orb from staff tip
       projectilesRef.current.push({
         id: `ao_${Date.now()}`,
-        type: 'magic_missile',
-        startX: heroX,
-        startY: heroY,
+        type: 'arcane_nova',
+        startX: staffTipX,
+        startY: staffTipY,
         targetX: monsterX,
         targetY: monsterY,
-        currentX: heroX,
-        currentY: heroY,
+        currentX: staffTipX,
+        currentY: staffTipY,
         progress: 0,
         speed: 0.038,
         color: '#c084fc',
-        size: 26,
+        size: 24,
         trail: [],
       });
     } else if (type === 'thunder_strike') {
@@ -2448,10 +2486,16 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
               ctx.save();
               ctx.globalAlpha = fadeAlpha;
               ctx.translate(awk.targetX, curSwordY);
-              ctx.shadowColor = '#fbbf24';
-              ctx.shadowBlur = 28;
 
-              // Glowing golden blade body (Majestic 170px tall runic greatsword)
+              // Glowing golden blade body (Majestic 170px tall runic greatsword, zero shadowBlur)
+              ctx.fillStyle = 'rgba(245, 158, 11, 0.35)';
+              ctx.beginPath();
+              ctx.moveTo(0, 86);
+              ctx.lineTo(-28, -100);
+              ctx.lineTo(28, -100);
+              ctx.closePath();
+              ctx.fill();
+
               ctx.fillStyle = '#fef08a';
               ctx.beginPath();
               ctx.moveTo(0, 78); // sharp tip
@@ -2483,8 +2527,6 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
               ctx.save();
               ctx.globalAlpha = flashAlpha;
               ctx.strokeStyle = '#ffffff';
-              ctx.shadowColor = '#fbbf24';
-              ctx.shadowBlur = 24;
               ctx.lineWidth = 10 * flashAlpha;
 
               // Horizontal ray
@@ -2508,8 +2550,6 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
             ctx.save();
             ctx.globalAlpha = gateAlpha;
             ctx.strokeStyle = '#c084fc';
-            ctx.shadowColor = '#a855f7';
-            ctx.shadowBlur = 20;
             ctx.lineWidth = 3.5;
 
             // Cosmic Gate Ring
@@ -2531,6 +2571,290 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
           }
           ctx.restore();
         }
+      }
+
+      // ----------------------------------------------------
+      // 3.5. 6-Stage Bespoke Skill Animations (28 Skills Distinct Visuals, Zero shadowBlur)
+      // ----------------------------------------------------
+      for (let i = skillSequencesRef.current.length - 1; i >= 0; i--) {
+        const seq = skillSequencesRef.current[i];
+        const elapsed = performance.now() - seq.startTime;
+        if (elapsed >= seq.duration) {
+          skillSequencesRef.current.splice(i, 1);
+          continue;
+        }
+        const prog = Math.max(0, Math.min(1, elapsed / seq.duration));
+        const fade = prog < 0.15 ? prog / 0.15 : prog > 0.78 ? (1 - prog) / 0.22 : 1;
+
+        ctx.save();
+        // Stage 1-2: Cast Start & Anticipation Sigil at Weapon / Staff Tip (0.00 ~ 0.28 prog)
+        if (prog < 0.32) {
+          const castAlpha = (1 - prog / 0.32) * 0.85;
+          const isMageSkill =
+            seq.type === 'magic_missile' ||
+            seq.type === 'fireball' ||
+            seq.type === 'ice_spear' ||
+            seq.type === 'chain_lightning' ||
+            seq.type === 'blizzard' ||
+            seq.type === 'arcane_orb' ||
+            seq.type === 'thunder_strike' ||
+            seq.type === 'frost_nova' ||
+            seq.type === 'flame_pillar' ||
+            seq.type === 'gravity_well' ||
+            seq.type === 'mana_burst' ||
+            seq.type === 'arcane_familiar' ||
+            seq.type === 'astral_cataclysm' ||
+            seq.type === 'absolute_zero' ||
+            seq.type === 'meteor';
+          const ox = isMageSkill ? seq.staffTipX : seq.bladeOriginX;
+          const oy = isMageSkill ? seq.staffTipY : seq.bladeOriginY;
+          const sigilR = 16 + prog * 45;
+          ctx.strokeStyle = isMageSkill ? `rgba(192, 132, 252, ${castAlpha})` : `rgba(251, 191, 36, ${castAlpha})`;
+          ctx.lineWidth = 2.2;
+          ctx.beginPath();
+          ctx.arc(ox, oy, sigilR, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        // Skill-Specific Signature Geometry (Stages 3-6: Release -> Travel -> Impact -> Recovery)
+        if (seq.type === 'shield_bash') {
+          const t = Math.min(1, prog * 1.6);
+          const sx = seq.bladeOriginX + (seq.monsterX - seq.bladeOriginX) * t;
+          const sy = seq.bladeOriginY + (seq.monsterY - seq.bladeOriginY) * t;
+          ctx.save();
+          ctx.translate(sx, sy);
+          ctx.globalAlpha = fade;
+          ctx.fillStyle = 'rgba(245, 158, 11, 0.35)';
+          ctx.strokeStyle = '#fef08a';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(0, -32);
+          ctx.lineTo(26, -16);
+          ctx.lineTo(26, 14);
+          ctx.lineTo(0, 34);
+          ctx.lineTo(-26, 14);
+          ctx.lineTo(-26, -16);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        } else if (seq.type === 'iron_fortress') {
+          ctx.save();
+          ctx.translate(seq.heroX, seq.heroY);
+          ctx.globalAlpha = fade * 0.85;
+          ctx.strokeStyle = '#fbbf24';
+          ctx.fillStyle = 'rgba(245, 158, 11, 0.16)';
+          ctx.lineWidth = 3;
+          const r = 64 + Math.sin(prog * Math.PI) * 8;
+          ctx.beginPath();
+          for (let k = 0; k < 6; k++) {
+            const th = (k / 6) * Math.PI * 2 + prog * 1.4;
+            const px = Math.cos(th) * r;
+            const py = Math.sin(th) * r * 0.88;
+            if (k === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        } else if (seq.type === 'blood_thirst') {
+          // Siphon blood orbs curving from monster back to hero
+          for (let b = 0; b < 5; b++) {
+            const bp = Math.max(0, Math.min(1, (prog - b * 0.08) * 1.45));
+            if (bp <= 0 || bp >= 1) continue;
+            const bx = seq.monsterX + (seq.heroX - seq.monsterX) * bp;
+            const by = seq.monsterY + (seq.heroY - seq.monsterY) * bp - Math.sin(bp * Math.PI) * (36 + b * 8);
+            ctx.fillStyle = `rgba(239, 68, 68, ${fade * 0.9})`;
+            ctx.beginPath();
+            ctx.arc(bx, by, 5.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fecaca';
+            ctx.beginPath();
+            ctx.arc(bx, by, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        } else if (seq.type === 'execution') {
+          // Descending crimson guillotine blade
+          const drop = Math.min(1, prog * 2.1);
+          const gy = seq.monsterY - 150 * (1 - drop * drop);
+          ctx.save();
+          ctx.translate(seq.monsterX, gy);
+          ctx.globalAlpha = fade;
+          ctx.fillStyle = 'rgba(220, 38, 38, 0.85)';
+          ctx.strokeStyle = '#fecaca';
+          ctx.lineWidth = 2.2;
+          ctx.beginPath();
+          ctx.moveTo(-26, -70);
+          ctx.lineTo(26, -70);
+          ctx.lineTo(32, 10);
+          ctx.lineTo(0, 62);
+          ctx.lineTo(-32, 10);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        } else if (seq.type === 'phantom_blade') {
+          // 5 Spectral violet swords plunging in a fan above monster
+          for (let s = 0; s < 5; s++) {
+            const sp = Math.max(0, Math.min(1, (prog - s * 0.09) * 1.7));
+            if (sp <= 0) continue;
+            const angleOffset = (s - 2) * 0.26;
+            const startX = seq.monsterX + Math.sin(angleOffset) * 85;
+            const startY = seq.monsterY - 110 - Math.cos(angleOffset) * 20;
+            const curX = startX + (seq.monsterX - startX) * sp;
+            const curY = startY + (seq.monsterY - startY) * sp;
+            const ang = Math.atan2(seq.monsterY - startY, seq.monsterX - startX);
+            ctx.save();
+            ctx.translate(curX, curY);
+            ctx.rotate(ang);
+            ctx.globalAlpha = (1 - sp * 0.5) * fade;
+            ctx.fillStyle = s % 2 === 0 ? '#c084fc' : '#38bdf8';
+            ctx.beginPath();
+            ctx.moveTo(24, 0);
+            ctx.lineTo(-18, -6);
+            ctx.lineTo(-12, 0);
+            ctx.lineTo(-18, 6);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+          }
+        } else if (seq.type === 'whirlwind') {
+          // 3-tier spinning cyclone funnel around monster
+          for (let ring = 0; ring < 4; ring++) {
+            const ry = seq.groundY - ring * 26 - prog * 18;
+            const rx = 28 + ring * 16 + Math.sin(prog * Math.PI * 3 + ring) * 6;
+            ctx.strokeStyle = ring % 2 === 0 ? `rgba(52, 211, 153, ${fade * 0.8})` : `rgba(251, 191, 36, ${fade * 0.85})`;
+            ctx.lineWidth = 3.2;
+            ctx.beginPath();
+            ctx.ellipse(seq.monsterX, ry, rx, rx * 0.32, 0, prog * 8 + ring, prog * 8 + ring + Math.PI * 1.45);
+            ctx.stroke();
+          }
+        } else if (seq.type === 'flame_sword' || seq.type === 'power_slash') {
+          // Swirling fire-dragon ring & rising flame tongues
+          ctx.strokeStyle = `rgba(249, 115, 22, ${fade * 0.85})`;
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.arc(seq.monsterX, seq.monsterY, 42 + prog * 34, -Math.PI * 0.7 + prog * 4, Math.PI * 0.5 + prog * 4);
+          ctx.stroke();
+        } else if (seq.type === 'blizzard') {
+          // Diagonal ice-needle hailstorm & ground frost sigil
+          ctx.strokeStyle = `rgba(103, 232, 249, ${fade * 0.85})`;
+          ctx.lineWidth = 2.4;
+          for (let n = 0; n < 10; n++) {
+            const np = ((prog * 2.2 + n * 0.13) % 1);
+            const nx = seq.monsterX - 55 + n * 12 + np * 28;
+            const ny = seq.monsterY - 120 + np * 135;
+            ctx.beginPath();
+            ctx.moveTo(nx - 6, ny - 14);
+            ctx.lineTo(nx + 6, ny + 14);
+            ctx.stroke();
+          }
+        } else if (seq.type === 'frost_nova' || seq.type === 'absolute_zero') {
+          // Expanding 8-point crystalline frost star
+          const maxR = seq.type === 'absolute_zero' ? 115 : 76;
+          const r = maxR * Math.sin(Math.min(1, prog * 1.4) * (Math.PI / 2));
+          ctx.save();
+          ctx.translate(seq.monsterX, seq.monsterY);
+          ctx.rotate(prog * 0.6);
+          ctx.globalAlpha = fade;
+          ctx.strokeStyle = '#e0f2fe';
+          ctx.fillStyle = 'rgba(56, 189, 248, 0.28)';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          for (let p = 0; p < 16; p++) {
+            const rad = p % 2 === 0 ? r : r * 0.38;
+            const th = (p / 16) * Math.PI * 2;
+            const px = Math.cos(th) * rad;
+            const py = Math.sin(th) * rad;
+            if (p === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        } else if (seq.type === 'flame_pillar') {
+          // Towering volcanic fire column erupting from groundY
+          const colH = 185 * Math.sin(Math.min(1, prog * 1.5) * (Math.PI / 2));
+          const colW = 36 * (1 - prog * 0.25);
+          const grad = ctx.createLinearGradient(seq.monsterX, seq.groundY, seq.monsterX, seq.groundY - colH);
+          grad.addColorStop(0, `rgba(254, 240, 138, ${fade * 0.95})`);
+          grad.addColorStop(0.55, `rgba(249, 115, 22, ${fade * 0.85})`);
+          grad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.rect(seq.monsterX - colW, seq.groundY - colH, colW * 2, colH);
+          ctx.fill();
+        } else if (seq.type === 'gravity_well') {
+          // Dark-matter event horizon + inward spiral accretion arms
+          const r = 68 * (1 - prog * 0.45);
+          ctx.save();
+          ctx.translate(seq.monsterX, seq.monsterY);
+          ctx.globalAlpha = fade;
+          for (let arm = 0; arm < 3; arm++) {
+            ctx.strokeStyle = arm % 2 === 0 ? '#a855f7' : '#38bdf8';
+            ctx.lineWidth = 2.6;
+            ctx.beginPath();
+            const baseAng = (arm / 3) * Math.PI * 2 - prog * 9;
+            ctx.arc(0, 0, Math.max(8, r), baseAng, baseAng + Math.PI * 0.9);
+            ctx.stroke();
+          }
+          ctx.fillStyle = '#090d16';
+          ctx.strokeStyle = '#e879f9';
+          ctx.lineWidth = 2.4;
+          ctx.beginPath();
+          ctx.arc(0, 0, 18 * Math.sin(prog * Math.PI), 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        } else if (seq.type === 'mana_burst') {
+          // High-energy prismatic arcane beam from staffTip to monster + focusing lens rings
+          const beamAlpha = fade;
+          ctx.save();
+          ctx.globalAlpha = beamAlpha * 0.38;
+          ctx.strokeStyle = '#c084fc';
+          ctx.lineWidth = 28 * beamAlpha;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(seq.staffTipX, seq.staffTipY);
+          ctx.lineTo(seq.monsterX, seq.monsterY);
+          ctx.stroke();
+
+          ctx.globalAlpha = beamAlpha;
+          ctx.strokeStyle = '#38bdf8';
+          ctx.lineWidth = 12 * beamAlpha;
+          ctx.beginPath();
+          ctx.moveTo(seq.staffTipX, seq.staffTipY);
+          ctx.lineTo(seq.monsterX, seq.monsterY);
+          ctx.stroke();
+
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 5 * beamAlpha;
+          ctx.beginPath();
+          ctx.moveTo(seq.staffTipX, seq.staffTipY);
+          ctx.lineTo(seq.monsterX, seq.monsterY);
+          ctx.stroke();
+          ctx.restore();
+        } else if (seq.type === 'arcane_familiar') {
+          // Orbiting winged starlight wisp above hero
+          const fx = seq.heroX + 14 + Math.cos(prog * Math.PI * 4) * 14;
+          const fy = seq.heroY - 56 + Math.sin(prog * Math.PI * 4) * 8;
+          ctx.save();
+          ctx.translate(fx, fy);
+          ctx.globalAlpha = fade;
+          ctx.fillStyle = '#f0abfc';
+          ctx.beginPath();
+          ctx.ellipse(-10, 0, 9, 5, -0.4, 0, Math.PI * 2);
+          ctx.ellipse(10, 0, 9, 5, 0.4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(0, 0, 6, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+        ctx.restore();
       }
 
       // ----------------------------------------------------

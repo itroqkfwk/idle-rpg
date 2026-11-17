@@ -1,5 +1,6 @@
 import React from 'react';
 import { Sparkles, Moon } from 'lucide-react';
+import { GameModalPortal } from './GameModalPortal';
 
 interface OfflineModalProps {
   seconds: number;
@@ -26,8 +27,8 @@ export const OfflineModal: React.FC<OfflineModalProps> = ({
   };
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-content offline-modal-content">
+    <GameModalPortal isOpen={true} onClose={onClaim} ariaLabel="방치 보상 획득">
+      <div className="modal-content offline-modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="offline-header-icon">
           <Moon size={32} color="#f59e0b" />
         </div>
@@ -125,6 +126,6 @@ export const OfflineModal: React.FC<OfflineModalProps> = ({
           margin-top: 6px;
         }
       `}</style>
-    </div>
+    </GameModalPortal>
   );
 };

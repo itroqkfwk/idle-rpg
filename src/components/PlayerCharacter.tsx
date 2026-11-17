@@ -109,25 +109,44 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
   } else if (heroAnimState === 'SkillCast') {
     if (isMage) {
       const isNovaSkill =
-        castingSkillType === 'meteor' ||
         castingSkillType === 'frost_nova' ||
         castingSkillType === 'mana_burst' ||
         castingSkillType === 'gravity_well' ||
-        castingSkillType === 'blizzard';
-      actionClass = isNovaSkill ? 'hero-act-mage-cast hero-act-mage-cast-nova' : 'hero-act-mage-cast';
+        castingSkillType === 'absolute_zero';
+      const isSkySkill =
+        castingSkillType === 'chain_lightning' ||
+        castingSkillType === 'thunder_strike' ||
+        castingSkillType === 'blizzard' ||
+        castingSkillType === 'flame_pillar' ||
+        castingSkillType === 'meteor' ||
+        castingSkillType === 'astral_cataclysm';
+      actionClass = isNovaSkill
+        ? 'hero-act-mage-cast hero-act-mage-cast-nova'
+        : isSkySkill
+        ? 'hero-act-mage-cast hero-act-mage-cast-sky'
+        : 'hero-act-mage-cast';
     } else {
       const isSlamSkill =
         castingSkillType === 'ground_breaker' ||
         castingSkillType === 'execution' ||
-        castingSkillType === 'ragnarok_cleave';
+        castingSkillType === 'ragnarok_cleave' ||
+        castingSkillType === 'heavenly_blade';
       const isSpinSkill =
         castingSkillType === 'whirlwind' ||
         castingSkillType === 'blade_storm' ||
         castingSkillType === 'phantom_blade';
+      const isFortressSkill =
+        castingSkillType === 'iron_fortress' ||
+        castingSkillType === 'blood_thirst';
+      const isBashSkill = castingSkillType === 'shield_bash';
       actionClass = isSlamSkill
         ? 'hero-act-warrior-cast hero-act-warrior-cast-slam'
         : isSpinSkill
         ? 'hero-act-warrior-cast hero-act-warrior-cast-spin'
+        : isFortressSkill
+        ? 'hero-act-warrior-cast hero-act-warrior-cast-fortress'
+        : isBashSkill
+        ? 'hero-act-warrior-cast hero-act-warrior-cast-bash'
         : 'hero-act-warrior-cast';
     }
   } else if (heroAnimState === 'Attack1' || heroAnimState === 'Attack2' || heroAnimState === 'Attack3') {
@@ -184,11 +203,14 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
       {/* 💥 Overhead Player Damage Numbers */}
       <div className="player-damage-anchor-layer">
         {damages &&
-          damages.map((dmg) => (
+          damages.slice(-4).map((dmg, idx) => (
             <div
               key={dmg.id}
               className="player-dmg-pop"
-              style={{ transform: `translateX(${dmg.offsetX ?? 0}px)` }}
+              style={{
+                left: `calc(50% + ${dmg.offsetX ?? ((idx % 3) - 1) * 20}px)`,
+                top: `${-idx * 16}px`,
+              }}
             >
               -{dmg.value.toLocaleString()}
             </div>
@@ -290,6 +312,19 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           className="hero-2d-sprite"
           draggable={false}
         />
+
+        {/* Warrior Weapon Swing Blade Arc Glint */}
+        {!isMage && (isAttacking || isCasting) && (
+          <div
+            className={`warrior-blade-swing-arc swing-step-${isCasting ? 3 : basicComboStep}`}
+            aria-hidden="true"
+          />
+        )}
+
+        {/* Mage Staff Tip Rotating Arcane Sigil on Attack/Cast */}
+        {isMage && (isAttacking || isCasting) && (
+          <div className="mage-staff-cast-sigil" aria-hidden="true" />
+        )}
 
         {/* Mage Basic Staff Glow / Flare on Attack */}
         {isMage && isAttacking && (
@@ -1042,6 +1077,28 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           animation: warriorSpinCastAnim 0.48s cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
         }
 
+        .hero-act-warrior-cast-fortress {
+          animation: warriorFortressCastAnim 0.48s cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
+        }
+
+        .hero-act-warrior-cast-bash {
+          animation: warriorBashCastAnim 0.44s cubic-bezier(0.18, 0.9, 0.22, 1) forwards;
+        }
+
+        @keyframes warriorFortressCastAnim {
+          0% { transform: translate(0, 0) scale(1); }
+          25% { transform: translate(0, 5px) scale(1.08, 0.91); }
+          52% { transform: translate(4px, -10px) scale(1.12, 1.08); filter: brightness(1.42); }
+          100% { transform: translate(0, 0) scale(1); filter: brightness(1); }
+        }
+
+        @keyframes warriorBashCastAnim {
+          0% { transform: translateX(0) scale(1); }
+          22% { transform: translateX(-16px) translateY(3px) rotate(-6deg) scale(1.06, 0.94); }
+          48% { transform: translateX(74px) translateY(0px) rotate(8deg) scale(1.14, 0.92); filter: brightness(1.38); }
+          100% { transform: translateX(0) rotate(0deg) scale(1); filter: brightness(1); }
+        }
+
         @keyframes warriorCastAnim {
           0% { transform: translateX(0) scale(1); }
           20% { transform: translateX(-14px) translateY(4px) rotate(-8deg) scale(0.93, 1.07); }
@@ -1053,7 +1110,7 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
         @keyframes warriorSpinCastAnim {
           0% { transform: translate(0, 0) scale(1); }
           20% { transform: translate(-10px, 3px) rotate(-12deg) scale(1.06, 0.94); }
-          45% { transform: translate(56px, -12px) scaleX(-1) rotate(-10deg) scale(1.12); filter: brightness(1.4) drop-shadow(0 0 16px #fbbf24); }
+          45% { transform: translate(56px, -12px) scaleX(-1) rotate(-10deg) scale(1.12); filter: brightness(1.4); }
           72% { transform: translate(62px, -4px) scaleX(1) rotate(12deg) scale(1.08); }
           100% { transform: translate(0, 0) scaleX(1) rotate(0deg) scale(1); filter: brightness(1); }
         }
@@ -1065,6 +1122,70 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
 
         .hero-act-mage-cast-nova {
           animation: mageAttack3Anim 0.48s cubic-bezier(0.18, 0.9, 0.25, 1) forwards;
+        }
+
+        .hero-act-mage-cast-sky {
+          animation: mageSkyCastAnim 0.48s cubic-bezier(0.18, 0.9, 0.25, 1) forwards;
+        }
+
+        @keyframes mageSkyCastAnim {
+          0% { transform: translateY(-2px) scale(1); }
+          30% { transform: translateX(-4px) translateY(-28px) rotate(-6deg) scale(0.96, 1.1); filter: brightness(1.45); }
+          62% { transform: translateX(10px) translateY(-22px) rotate(4deg) scale(1.08, 0.98); filter: brightness(1.55); }
+          100% { transform: translateY(-2px) rotate(0deg) scale(1); filter: brightness(1); }
+        }
+
+        .warrior-blade-swing-arc {
+          position: absolute;
+          top: 16%;
+          right: -28px;
+          width: 96px;
+          height: 118px;
+          border-right: 5px solid rgba(254, 240, 138, 0.92);
+          border-top: 2px solid rgba(56, 189, 248, 0.65);
+          border-radius: 0 100% 100% 0 / 0 60% 60% 0;
+          pointer-events: none;
+          z-index: 6;
+          animation: bladeArcSweep var(--attack-duration, 0.3s) ease-out forwards;
+        }
+
+        .warrior-blade-swing-arc.swing-step-2 {
+          border-right-color: #fbbf24;
+          transform: scaleY(-1);
+        }
+
+        .warrior-blade-swing-arc.swing-step-3 {
+          width: 112px;
+          height: 132px;
+          border-right-width: 7px;
+          border-right-color: #f97316;
+          border-top-color: #fef08a;
+        }
+
+        @keyframes bladeArcSweep {
+          0% { opacity: 0; transform: rotate(-35deg) scale(0.65); }
+          45% { opacity: 1; transform: rotate(8deg) scale(1.08); }
+          100% { opacity: 0; transform: rotate(28deg) scale(1.22); }
+        }
+
+        .mage-staff-cast-sigil {
+          position: absolute;
+          top: 19%;
+          right: 6%;
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          border: 2px dashed rgba(192, 132, 252, 0.92);
+          box-shadow: 0 0 14px rgba(56, 189, 248, 0.75), inset 0 0 10px rgba(232, 121, 249, 0.65);
+          pointer-events: none;
+          z-index: 6;
+          animation: staffSigilSpin var(--attack-duration, 0.36s) ease-out forwards;
+        }
+
+        @keyframes staffSigilSpin {
+          0% { opacity: 0; transform: scale(0.35) rotate(0deg); }
+          45% { opacity: 1; transform: scale(1.25) rotate(90deg); }
+          100% { opacity: 0; transform: scale(1.55) rotate(180deg); }
         }
 
         @keyframes mageSkillCastAnim {

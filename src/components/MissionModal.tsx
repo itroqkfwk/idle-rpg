@@ -5,7 +5,8 @@ import {
   getMsUntilNextKstDailyReset,
   getMsUntilNextKstWeeklyReset,
 } from '../data/missions';
-import { CalendarCheck, CheckCircle2, Clock, Sparkles, X, ArrowRight } from 'lucide-react';
+import { CalendarCheck, CheckCircle2, Clock, Sparkles, X, ArrowRight, Coins, Gem, Hexagon } from 'lucide-react';
+import { GameModalPortal } from './GameModalPortal';
 
 interface MissionModalProps {
   isOpen: boolean;
@@ -55,13 +56,13 @@ export const MissionModal: React.FC<MissionModalProps> = ({
   const resetLabel = activeFreq === 'daily' ? '매일 00:00 KST 초기화' : '매주 월요일 00:00 KST 초기화';
 
   return (
-    <div
-      className="mission-modal-overlay"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <GameModalPortal
+      isOpen={isOpen}
+      onClose={onClose}
+      overlayClassName="mission-modal-overlay"
+      ariaLabel="일일 및 주간 미션"
     >
-      <div className="mission-modal-panel" role="dialog" aria-label="일일 및 주간 미션">
+      <div className="mission-modal-panel" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="mission-modal-header">
           <div className="mission-header-title-wrap">
@@ -131,9 +132,21 @@ export const MissionModal: React.FC<MissionModalProps> = ({
                   </div>
 
                   <div className="mission-rewards-row">
-                    {m.rewardGold > 0 && <span className="m-reward-chip gold">골드 +{m.rewardGold.toLocaleString()}</span>}
-                    {m.rewardGems > 0 && <span className="m-reward-chip gem">보석 +{m.rewardGems}</span>}
-                    {m.rewardStones > 0 && <span className="m-reward-chip stone">강화석 +{m.rewardStones}</span>}
+                    {m.rewardGold > 0 && (
+                      <span className="m-reward-chip gold">
+                        <Coins size={11} /> 골드 +{m.rewardGold.toLocaleString()}
+                      </span>
+                    )}
+                    {m.rewardGems > 0 && (
+                      <span className="m-reward-chip gem">
+                        <Gem size={11} /> 보석 +{m.rewardGems}
+                      </span>
+                    )}
+                    {m.rewardStones > 0 && (
+                      <span className="m-reward-chip stone">
+                        <Hexagon size={11} /> 강화석 +{m.rewardStones}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -374,6 +387,9 @@ export const MissionModal: React.FC<MissionModalProps> = ({
             gap: 5px;
           }
           .m-reward-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
             font-size: 10px;
             font-weight: 800;
             padding: 2px 7px;
@@ -444,6 +460,6 @@ export const MissionModal: React.FC<MissionModalProps> = ({
           }
         `}</style>
       </div>
-    </div>
+    </GameModalPortal>
   );
 };

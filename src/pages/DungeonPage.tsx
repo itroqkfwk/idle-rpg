@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { DungeonId, DungeonSaveState } from '../types/game';
 import { DUNGEONS_DATA, DAILY_DUNGEON_TICKETS, getDungeonDifficultyConfig } from '../data/dungeons';
 import { Compass, Clock, Lock, Swords, ShieldAlert, CheckCircle2, Sparkles, ArrowRight, X } from 'lucide-react';
+import { DungeonEmblem } from '../components/RpgIcons';
 
 interface DungeonPageProps {
   dungeons: DungeonSaveState;
@@ -123,31 +124,63 @@ export const DungeonPage: React.FC<DungeonPageProps> = ({
             rewardPreviewText = `보스 격파 시 장비 강화석 +${diffCfg.stoneReward}개 확정 (+${diffCfg.baseGoldReward.toLocaleString()} G)`;
           }
 
+          const bgMap: Record<DungeonId, { bg: string; bossThumb: string }> = {
+            gold_mine: { bg: './assets/autumn_bg.jpg', bossThumb: './assets/ch4_slime.png' },
+            training_forest: { bg: './assets/forest_bg.jpg', bossThumb: './assets/ch4_spirit.png' },
+            ancient_ruins: { bg: './assets/crystal_garden_bg.webp', bossThumb: './assets/boss_golem.png' },
+          };
+          const visual = bgMap[dungeonId];
+
           return (
             <div
               key={dungeonId}
               className="dungeon-item-card"
-              style={{ borderColor: `${cfg.accentColor}44` }}
+              style={{
+                borderColor: `${cfg.accentColor}55`,
+                backgroundImage: `linear-gradient(135deg, rgba(11, 17, 32, 0.93) 0%, rgba(15, 23, 42, 0.85) 60%, rgba(15, 23, 42, 0.72) 100%), url('${visual.bg}')`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}
               data-testid={`dungeon-card-${dungeonId}`}
             >
               {/* Card Top Header */}
               <div className="dungeon-card-head">
-                <div>
-                  <div className="dungeon-badge-row">
-                    <span className="dungeon-type-tag" style={{ background: cfg.accentColor }}>
-                      {cfg.badgeText}
-                    </span>
-                    <span className="dungeon-time-tag">
-                      <Clock size={11} /> 제한시간 {cfg.timeLimit}초
-                    </span>
-                    {progress.highestClearedDifficulty > 0 && (
-                      <span className="dungeon-cleared-tag">
-                        <CheckCircle2 size={11} /> 최고 {progress.highestClearedDifficulty}단계 클리어
-                      </span>
-                    )}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1, minWidth: 0 }}>
+                  <div style={{ position: 'relative', flexShrink: 0 }}>
+                    <DungeonEmblem dungeonId={dungeonId} size={46} />
+                    <img
+                      src={visual.bossThumb}
+                      alt={cfg.name}
+                      style={{
+                        position: 'absolute',
+                        right: '-4px',
+                        bottom: '-4px',
+                        width: '22px',
+                        height: '22px',
+                        objectFit: 'contain',
+                        borderRadius: '50%',
+                        background: 'rgba(15,23,42,0.9)',
+                        border: `1px solid ${cfg.accentColor}`,
+                      }}
+                    />
                   </div>
-                  <h3 className="dungeon-card-title">{cfg.name}</h3>
-                  <p className="dungeon-card-desc">{cfg.description}</p>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="dungeon-badge-row">
+                      <span className="dungeon-type-tag" style={{ background: cfg.accentColor }}>
+                        {cfg.badgeText}
+                      </span>
+                      <span className="dungeon-time-tag">
+                        <Clock size={11} /> 제한시간 {cfg.timeLimit}초
+                      </span>
+                      {progress.highestClearedDifficulty > 0 && (
+                        <span className="dungeon-cleared-tag">
+                          <CheckCircle2 size={11} /> 최고 {progress.highestClearedDifficulty}단계 ({progress.totalClears || 0}회 완주)
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="dungeon-card-title">{cfg.name}</h3>
+                    <p className="dungeon-card-desc">{cfg.description}</p>
+                  </div>
                 </div>
 
                 <div className="dungeon-ticket-box" data-testid={`tickets-${dungeonId}`}>

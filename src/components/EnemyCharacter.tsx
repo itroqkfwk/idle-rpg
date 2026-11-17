@@ -174,13 +174,22 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
     ? 'Attack'
     : 'Idle';
 
+  const getAttackClassByIdle = (idleCls: string) => {
+    if (isBoss) return 'enemy-act-attack boss-act-attack';
+    if (idleCls.includes('slime')) return 'enemy-act-attack slime-act-attack';
+    if (idleCls.includes('spirit') || idleCls.includes('bee')) return 'enemy-act-attack spirit-act-attack';
+    if (idleCls.includes('beast')) return 'enemy-act-attack beast-act-attack';
+    if (idleCls.includes('golem')) return 'enemy-act-attack golem-act-attack';
+    return 'enemy-act-attack';
+  };
+
   const getHitActionClass = () => {
     if (isDeadState) return 'enemy-act-defeat';
     if (activeHitStep === 3) return isBoss ? 'enemy-act-hit-3-boss' : 'enemy-act-hit-3';
     if (activeHitStep === 2) return isBoss ? 'enemy-act-hit-2-boss' : 'enemy-act-hit-2';
     if (activeHitStep === 1) return isBoss ? 'enemy-act-hit-1-boss' : 'enemy-act-hit-1';
     if (isFrozen || isStunned) return 'enemy-act-cc-frozen';
-    if (isAttacking) return 'enemy-act-attack';
+    if (isAttacking) return getAttackClassByIdle(monsterConfig.idleClass);
     return monsterConfig.idleClass;
   };
 
@@ -189,13 +198,16 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
       className={`enemy-character-box ${isBoss ? 'is-boss-combatant' : ''}`}
       data-enemy-state={enemyAnimState}
     >
-      {/* Overhead Damage Numbers strictly anchored to Monster Sprite */}
+      {/* Overhead Damage Numbers strictly anchored to Monster Sprite (non-overlapping x/y stagger) */}
       <div className="monster-damage-anchor-layer">
-        {damages && damages.map((dmg) => (
+        {damages && damages.slice(-5).map((dmg, idx) => (
           <div
             key={dmg.id}
             className={`monster-dmg-pop ${dmg.isSkill ? 'dmg-skill' : dmg.isCritical ? 'dmg-crit' : 'dmg-normal'}`}
-            style={{ transform: `translateX(${dmg.offsetX ?? 0}px)` }}
+            style={{
+              left: `calc(50% + ${dmg.offsetX ?? ((idx % 3) - 1) * 26}px)`,
+              top: `${-idx * 18}px`,
+            }}
           >
             {dmg.isSkill ? (
               <span className="skill-burst-label">{dmg.skillName ?? 'SKILL!'}</span>
@@ -248,7 +260,7 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
             </span>
           ) : isBoss ? (
             <span className="boss-lvl-badge">
-              <Skull size={10} /> {isCh4Boss && bossPhase === 2 ? 'BOSS · P2' : 'BOSS'}
+              <Skull size={10} /> {(isCh4Boss || isCh5Boss) && bossPhase === 2 ? 'BOSS · P2' : 'BOSS'}
             </span>
           ) : (
             <span className="enemy-lvl-badge">MONSTER</span>
@@ -1022,8 +1034,8 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
         }
 
         @keyframes spiritFloat {
-          0%, 100% { transform: translateY(-12px) rotate(-1deg); }
-          50% { transform: translateY(-20px) rotate(1deg); filter: drop-shadow(0 0 12px rgba(52, 211, 153, 0.7)); }
+          0%, 100% { transform: translateY(-10px) rotate(-1deg); }
+          50% { transform: translateY(-19px) rotate(1.2deg); }
         }
 
         .boss-act-idle {
@@ -1035,15 +1047,74 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           50% { transform: translateY(-5px) scale(1.02, 0.98); }
         }
 
-        /* Attack Lunge */
+        /* Archetype-Differentiated Monster Attack Motions (v3.1) */
         .enemy-act-attack {
-          animation: enemyLungeAnim 0.22s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+          animation: enemyLungeAnim 0.28s cubic-bezier(0.2, 0.85, 0.3, 1) forwards;
+        }
+
+        .slime-act-attack {
+          animation: slimeAttackHop 0.32s cubic-bezier(0.2, 0.85, 0.3, 1) forwards;
+        }
+
+        .spirit-act-attack {
+          animation: spiritAttackSurge 0.3s cubic-bezier(0.2, 0.85, 0.3, 1) forwards;
+        }
+
+        .beast-act-attack {
+          animation: beastAttackPounce 0.28s cubic-bezier(0.16, 0.9, 0.25, 1) forwards;
+        }
+
+        .golem-act-attack {
+          animation: golemAttackSlam 0.36s cubic-bezier(0.22, 0.8, 0.25, 1) forwards;
+        }
+
+        .boss-act-attack {
+          animation: bossAttackCrush 0.38s cubic-bezier(0.18, 0.88, 0.25, 1) forwards;
         }
 
         @keyframes enemyLungeAnim {
-          0% { transform: translateX(0); }
-          40% { transform: translateX(-34px) scale(1.06); }
-          100% { transform: translateX(0); }
+          0% { transform: translateX(0) scale(1); }
+          22% { transform: translateX(8px) scale(1.04, 0.95); }
+          52% { transform: translateX(-34px) scale(1.06, 0.98); }
+          100% { transform: translateX(0) scale(1); }
+        }
+
+        @keyframes slimeAttackHop {
+          0% { transform: translate(0, 0) scale(1, 1); }
+          24% { transform: translate(6px, 4px) scale(1.15, 0.84); }
+          54% { transform: translate(-38px, -18px) scale(0.92, 1.12); }
+          80% { transform: translate(-12px, 3px) scale(1.08, 0.92); }
+          100% { transform: translate(0, 0) scale(1, 1); }
+        }
+
+        @keyframes spiritAttackSurge {
+          0% { transform: translate(0, -10px) rotate(0deg) scale(1); }
+          26% { transform: translate(10px, -18px) rotate(6deg) scale(0.95, 1.06); }
+          56% { transform: translate(-34px, -14px) rotate(-8deg) scale(1.09, 0.95); }
+          100% { transform: translate(0, -10px) rotate(0deg) scale(1); }
+        }
+
+        @keyframes beastAttackPounce {
+          0% { transform: translate(0, 0) rotate(0deg) scale(1); }
+          22% { transform: translate(14px, 5px) rotate(6deg) scale(1.1, 0.88); }
+          50% { transform: translate(-52px, -10px) rotate(-9deg) scale(1.12, 0.94); }
+          78% { transform: translate(-16px, 2px) rotate(2deg) scale(0.98, 1.02); }
+          100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+        }
+
+        @keyframes golemAttackSlam {
+          0% { transform: translate(0, 0) rotate(0deg) scale(1); }
+          30% { transform: translate(10px, -8px) rotate(7deg) scale(1.04, 1.04); }
+          58% { transform: translate(-36px, 4px) rotate(-9deg) scale(1.12, 0.9); }
+          100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+        }
+
+        @keyframes bossAttackCrush {
+          0% { transform: translate(0, 0) rotate(0deg) scale(1); }
+          28% { transform: translate(12px, -8px) rotate(6deg) scale(1.06, 1.04); }
+          56% { transform: translate(-44px, 4px) rotate(-8deg) scale(1.14, 0.91); }
+          82% { transform: translate(-12px, 1px) rotate(-2deg) scale(1.03, 0.98); }
+          100% { transform: translate(0, 0) rotate(0deg) scale(1); }
         }
 
         /* Distinct 3-Stage Monster Hit Reactions (v2.7) */

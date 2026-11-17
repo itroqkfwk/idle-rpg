@@ -2,7 +2,9 @@ import React from 'react';
 import { Sparkles, RotateCcw, ShieldCheck, AlertCircle, X, Award, ChevronRight } from 'lucide-react';
 import { StageState, CharacterStats } from '../types/game';
 import { calculatePrestigeStardustReward } from '../utils/storage';
+import { MAX_CHAPTER } from '../data/monsters';
 import { sound } from '../utils/audio';
+import { GameModalPortal } from './GameModalPortal';
 
 interface PrestigeModalProps {
   isOpen: boolean;
@@ -23,7 +25,7 @@ export const PrestigeModal: React.FC<PrestigeModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const highestCh = Math.min(4, Math.max(stage.highestChapter || 1, stage.chapter));
+  const highestCh = Math.min(MAX_CHAPTER, Math.max(stage.highestChapter || 1, stage.chapter));
   const highestSt = Math.min(10, Math.max(stage.highestStage || 1, stage.stage));
   const expectedStardust = calculatePrestigeStardustReward(highestCh, highestSt, stats.level, prestigeCount);
 
@@ -39,16 +41,16 @@ export const PrestigeModal: React.FC<PrestigeModalProps> = ({
   };
 
   return (
-    <div
-      className="prestige-modal-overlay"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          sound.playTap();
-          onClose();
-        }
+    <GameModalPortal
+      isOpen={isOpen}
+      onClose={() => {
+        sound.playTap();
+        onClose();
       }}
+      overlayClassName="prestige-modal-overlay"
+      ariaLabel="환생 확인"
     >
-      <div className="prestige-modal-container">
+      <div className="prestige-modal-container" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="prestige-modal-header">
           <div className="prestige-header-title-row">
@@ -129,6 +131,7 @@ export const PrestigeModal: React.FC<PrestigeModalProps> = ({
                 <li><span className="dot dot-green" />다이아몬드 (유료 보석 재화)</li>
                 <li><span className="dot dot-green" />전직 자격 영구 보존 (Lv.30 달성 시 자동 복구)</li>
                 <li><span className="dot dot-green" />던전 난이도 해금 기록 및 보유 장비 강화석</li>
+                <li><span className="dot dot-green" />몬스터 도감 발견 기록 및 누적 처치 보너스</li>
               </ul>
             </div>
           </div>
@@ -502,6 +505,6 @@ export const PrestigeModal: React.FC<PrestigeModalProps> = ({
           transform: translateY(0);
         }
       `}</style>
-    </div>
+    </GameModalPortal>
   );
 };

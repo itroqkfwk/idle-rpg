@@ -1,5 +1,5 @@
 import React from 'react';
-import { CharacterStats, StageState, CharacterClassId, PromotionId, ActiveDungeonRun } from '../types/game';
+import { CharacterStats, StageState, CharacterClassId, PromotionId, ActiveDungeonRun, ActiveTab } from '../types/game';
 import { Settings } from 'lucide-react';
 import { CHAPTERS_DATA, getStageDisplayName } from '../data/monsters';
 import { DUNGEONS_DATA } from '../data/dungeons';
@@ -17,6 +17,7 @@ interface TopHUDProps {
   activeDungeonRun?: ActiveDungeonRun | null;
   onOpenSettings: () => void;
   onOpenProfile?: () => void;
+  onNavigateTab?: (tab: ActiveTab) => void;
 }
 
 export const TopHUD: React.FC<TopHUDProps> = ({
@@ -32,6 +33,7 @@ export const TopHUD: React.FC<TopHUDProps> = ({
   activeDungeonRun = null,
   onOpenSettings,
   onOpenProfile,
+  onNavigateTab,
 }) => {
   const safeChapterIdx = Math.min(CHAPTERS_DATA.length - 1, Math.max(0, stage.chapter - 1));
   const currentChapter = CHAPTERS_DATA[safeChapterIdx];
@@ -171,26 +173,46 @@ export const TopHUD: React.FC<TopHUDProps> = ({
       {/* 🪙 Right Zone: Currency Badges & Settings */}
       <div className="currencies-right-cluster">
         {/* Gold Capsule */}
-        <div className="currency-pill gold-pill" title={`보유 골드: ${stats.gold.toLocaleString()}`}>
+        <div
+          className="currency-pill gold-pill"
+          style={{ cursor: onNavigateTab ? 'pointer' : undefined }}
+          onClick={() => onNavigateTab?.('hero')}
+          title={`보유 골드: ${stats.gold.toLocaleString()} (클릭 시 영웅 스탯 강화)`}
+        >
           <span className="currency-icon">🪙</span>
           <span className="currency-val">{formatNumber(stats.gold)}</span>
         </div>
 
         {/* Gem Capsule */}
-        <div className="currency-pill gem-pill" title={`보유 보석: ${stats.gems.toLocaleString()}`}>
+        <div
+          className="currency-pill gem-pill"
+          style={{ cursor: onNavigateTab ? 'pointer' : undefined }}
+          onClick={() => onNavigateTab?.('shop')}
+          title={`보유 보석: ${stats.gems.toLocaleString()} (클릭 시 상점·소환 이동)`}
+        >
           <span className="currency-icon">💎</span>
           <span className="currency-val">{formatNumber(stats.gems)}</span>
         </div>
 
         {/* Enhancement Stone Capsule */}
-        <div className="currency-pill stone-pill" title={`보유 장비 강화석: ${enhancementStones.toLocaleString()}개 (고대 유적 보상)`}>
+        <div
+          className="currency-pill stone-pill"
+          style={{ cursor: onNavigateTab ? 'pointer' : undefined }}
+          onClick={() => onNavigateTab?.('equipment')}
+          title={`보유 장비 강화석: ${enhancementStones.toLocaleString()}개 (클릭 시 장비 돌파 이동)`}
+        >
           <span className="currency-icon">🔷</span>
           <span className="currency-val">{formatNumber(enhancementStones)}</span>
         </div>
 
         {/* Stardust Capsule */}
         {(prestigeCount > 0 || hasPrestigeUnlocked || stardust > 0) && (
-          <div className="currency-pill stardust-pill" title={`보유 별가루: ${stardust.toLocaleString()}개 (환생 영구 재화)`}>
+          <div
+            className="currency-pill stardust-pill"
+            style={{ cursor: onNavigateTab ? 'pointer' : undefined }}
+            onClick={() => onNavigateTab?.('hero')}
+            title={`보유 별가루: ${stardust.toLocaleString()}개 (클릭 시 환생 영구 강화)`}
+          >
             <span className="currency-icon">✨</span>
             <span className="currency-val">{formatNumber(stardust)}</span>
           </div>

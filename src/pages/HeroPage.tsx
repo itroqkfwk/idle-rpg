@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { CharacterStats, Equipment, Pet, Skill, CharacterClassId, PromotionId, StageState, PrestigeUpgrades, ActiveTab } from '../types/game';
-import { Sparkles, Shield, Zap, Heart, Swords, X, Wand2, Plus, Check, Crown, ArrowRight, Layers, ChevronsUp, Coins, Lock } from 'lucide-react';
+import { Sparkles, Shield, Zap, Heart, Swords, X, Wand2, Plus, Check, Crown, ArrowRight, Layers, ChevronsUp, Coins, Lock, RefreshCw, Info } from 'lucide-react';
 import { CLASS_CONFIGS, PROMOTION_REQUIREMENTS } from '../data/classes';
+import { RARITY_CONFIGS } from '../data/equipment';
 import { calculateSkillOwnedStats, calculateTotalSkillOwnedBonus, getSkillPiecesRequired } from '../data/skills';
 import { calculatePrestigeStardustReward, getPrestigeUpgradeCost, DEFAULT_PRESTIGE_UPGRADES } from '../utils/storage';
 import { sound } from '../utils/audio';
+import { GameModalPortal } from '../components/GameModalPortal';
+import { SkillEmblem, getSkillElementMeta } from '../components/RpgIcons';
 
 interface HeroPageProps {
   stats: CharacterStats;
@@ -38,6 +41,7 @@ interface HeroPageProps {
   onOpenPrestigeModal?: () => void;
   onUpgradePrestige?: (stat: keyof PrestigeUpgrades) => void;
   enhancementStones?: number;
+  monsterCodexAtk?: number;
   onNavigateTab?: (tab: ActiveTab) => void;
 }
 
@@ -61,11 +65,11 @@ export const HeroPage: React.FC<HeroPageProps> = ({
   skillOwnedBonus = { ownedAtk: 0, ownedHp: 0, ownedDef: 0, ownedCritDmg: 0 },
   classId = 'warrior',
   promotion = 'none',
-  awakeningUnlocked: _awakeningUnlocked = false,
+  awakeningUnlocked = false,
   promotionSeals = 1,
   stage = { chapter: 1, stage: 1, killCount: 0, killsRequired: 5, isBossStage: false, bossTimeLeft: 30, bossMaxTime: 30, inBossFight: false, highestChapter: 1, highestStage: 1 },
   onPromote,
-  onSwitchClass: _onSwitchClass,
+  onSwitchClass,
   prestigeCount = 0,
   stardust = 0,
   prestigeUpgrades = DEFAULT_PRESTIGE_UPGRADES,
@@ -73,12 +77,15 @@ export const HeroPage: React.FC<HeroPageProps> = ({
   onOpenPrestigeModal,
   onUpgradePrestige,
   enhancementStones = 0,
+  monsterCodexAtk = 0,
   onNavigateTab,
 }) => {
   const [subTab, setSubTab] = useState<'stats' | 'skills' | 'promotion' | 'prestige'>('stats');
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number>(0);
   const [multiplier, setMultiplier] = useState<1 | 10 | 'max'>(1);
   const [breakdownStat, setBreakdownStat] = useState<'atk' | 'hp' | 'def' | null>(null);
+  const [inspectSkillId, setInspectSkillId] = useState<string | null>(null);
+  const inspectSkill = inspectSkillId ? skills.find((s) => s.id === inspectSkillId) || null : null;
 
   const currentClassConfig = CLASS_CONFIGS[classId];
   const isMage = classId === 'mage';
@@ -297,7 +304,7 @@ export const HeroPage: React.FC<HeroPageProps> = ({
            ======================================================== */}
         {subTab === 'stats' && (
           <>
-            {/* Combat Power Showcase */}
+            {/* Combat Power & Hero Showcase */}
             <div className="combat-power-banner">
               <div className="hero-mini-avatar-box">
                 <img
@@ -307,13 +314,36 @@ export const HeroPage: React.FC<HeroPageProps> = ({
                 />
               </div>
               <div className="power-banner-center">
-                <span className="power-banner-label">종합 전투력</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                  <span className="power-banner-label">종합 전투력</span>
+                  <span className="power-banner-badge">
+                    <Sparkles size={12} color="#f59e0b" />
+                    <span>{isPromoted ? currentClassConfig.promotionSubTitle : currentClassConfig.subTitle}</span>
+                  </span>
+                </div>
                 <span className="power-banner-val">{combatPower.toLocaleString()}</span>
+                <div className="hero-exp-mini-bar" title={`경험치 ${stats.exp.toLocaleString()} / ${stats.maxExp.toLocaleString()}`}>
+                  <div
+                    className="hero-exp-mini-fill"
+                    style={{ width: `${Math.min(100, Math.round((stats.exp / Math.max(1, stats.maxExp)) * 100))}%` }}
+                  />
+                  <span className="hero-exp-mini-txt">
+                    Lv.{stats.level} EXP {Math.min(100, Math.round((stats.exp / Math.max(1, stats.maxExp)) * 100))}%
+                  </span>
+                </div>
               </div>
-              <div className="power-banner-badge">
-                <Sparkles size={16} color="#f59e0b" />
-                <span>{isPromoted ? currentClassConfig.promotionSubTitle : currentClassConfig.subTitle}</span>
-              </div>
+              {onSwitchClass && (
+                <button
+                  type="button"
+                  data-testid="hero-switch-class-btn"
+                  className="btn-game btn-game-wood hero-switch-class-pill"
+                  onClick={() => onSwitchClass(isMage ? 'warrior' : 'mage')}
+                  title="전사 / 마법사 직업 즉시 전환"
+                >
+                  <RefreshCw size={13} color="#fbbf24" />
+                  <span>{isMage ? '전사 전환' : '마법사 전환'}</span>
+                </button>
+              )}
             </div>
 
             {/* 🎯 Current Growth Goal & Owned Currencies Bar */}
@@ -765,6 +795,7 @@ export const HeroPage: React.FC<HeroPageProps> = ({
                     return (
                       <div
                         key={slotIdx}
+                        data-testid={`hero-skill-slot-${slotIdx}`}
                         className={`hero-skill-slot-card ${isSelected ? 'slot-card-selected' : ''}`}
                         onClick={() => {
                           sound.playTap();
@@ -774,9 +805,23 @@ export const HeroPage: React.FC<HeroPageProps> = ({
                         <div className="slot-index-pip">슬롯 {slotIdx + 1}</div>
                         {eqSkill ? (
                           <div className="slot-card-body">
-                            <span className="slot-skill-glyph">{eqSkill.icon}</span>
+                            <SkillEmblem effectType={eqSkill.effectType} size={32} />
                             <span className="slot-skill-name">{eqSkill.name}</span>
-                            <span className="slot-skill-lvl">Lv.{eqSkill.level}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <span className="slot-skill-lvl">Lv.{eqSkill.level}</span>
+                              <button
+                                type="button"
+                                className="slot-inspect-mini-btn"
+                                title="스킬 상세 정보"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  sound.playTap();
+                                  setInspectSkillId(eqSkill.id);
+                                }}
+                              >
+                                <Info size={10} />
+                              </button>
+                            </div>
                           </div>
                         ) : (
                           <div className="slot-empty-body">
@@ -793,24 +838,38 @@ export const HeroPage: React.FC<HeroPageProps> = ({
               {/* Owned Class Skills List */}
               <div className="skills-collection-header">
                 <span className="collection-title">
-                  {currentClassConfig.name} 스킬 보관함 ({classSkills.length})
+                  {currentClassConfig.name} 스킬 도감 & 보관함 ({classSkills.length + (awakeningSkill ? 1 : 0)})
                 </span>
-                <span className="collection-hint">비급서를 모아 레벨업하면 보유 효과도 상승!</span>
+                <span className="collection-hint">카드를 눌러 상세 모션·연출 및 장착 슬롯을 설정하세요</span>
               </div>
 
               <div className="skills-collection-list">
-                {classSkills.map((skill) => {
+                {[...classSkills, ...(awakeningSkill ? [awakeningSkill] : [])].map((skill) => {
                   const isEquippedInSlot = equippedSkillIds.indexOf(skill.id);
                   const isEquipped = isEquippedInSlot !== -1;
                   const reqPieces = skill.piecesRequired || getSkillPiecesRequired(skill);
                   const canLevelUp = skill.owned && skill.pieces >= reqPieces;
                   const ownedStats = calculateSkillOwnedStats(skill);
+                  const elemMeta = getSkillElementMeta(skill.effectType);
+                  const rConf = RARITY_CONFIGS[skill.rarity] || RARITY_CONFIGS.common;
+                  const totalMultPct = Math.round(skill.baseDamageMult * (skill.hits || 1) * 100);
 
                   return (
-                    <div key={skill.id} className="parchment-panel skill-card-row">
+                    <div
+                      key={skill.id}
+                      data-testid={`skill-card-${skill.id}`}
+                      className={`parchment-panel skill-card-row ${isEquipped ? 'skill-card-equipped' : ''}`}
+                      style={{
+                        borderColor: isEquipped ? '#fbbf24' : elemMeta.border,
+                      }}
+                      onClick={() => {
+                        sound.playTap();
+                        setInspectSkillId(skill.id);
+                      }}
+                    >
                       <div className="skill-card-main">
-                        <div className="skill-icon-frame">
-                          <span className="skill-frame-glyph">{skill.icon}</span>
+                        <div className="skill-icon-frame" style={{ borderColor: rConf.borderColor }}>
+                          <SkillEmblem effectType={skill.effectType} size={38} />
                           <span className="skill-lvl-badge">Lv.{skill.level}</span>
                           {canLevelUp && (
                             <div className="skill-up-badge">UP</div>
@@ -818,15 +877,30 @@ export const HeroPage: React.FC<HeroPageProps> = ({
                         </div>
                         <div className="skill-info-col">
                           <div className="skill-name-row">
-                            <span className="skill-name-txt">{skill.name}</span>
-                            <span className="skill-cooldown-badge">쿨타임 {skill.cooldown}초</span>
+                            <span className="skill-name-txt" style={{ color: rConf.color }}>{skill.name}</span>
+                            <span
+                              className="skill-elem-tag"
+                              style={{ color: elemMeta.color, background: elemMeta.bg, borderColor: elemMeta.border }}
+                            >
+                              {elemMeta.label}
+                            </span>
+                            <span className="skill-rarity-tag" style={{ color: rConf.color }}>
+                              {skill.isAwakening ? '각성기' : rConf.label}
+                            </span>
+                            <span className="skill-cooldown-badge">
+                              {skill.isAwakening ? '게이지 100% 발동' : `쿨타임 ${skill.cooldown}초`}
+                            </span>
                           </div>
                           <div className="skill-desc-txt">{skill.description}</div>
+                          <div className="skill-combat-spec-row">
+                            <span>타격: <strong>{skill.hits || 1}연타</strong> (총 <strong>{totalMultPct}%</strong> 피해)</span>
+                            <span className="skill-detail-open-hint">상세 보기 →</span>
+                          </div>
 
                           {/* Skill Owned Effect Preview */}
                           {skill.owned && (
                             <div className="skill-owned-effect-badge">
-                              <span style={{ color: '#fbbf24', fontWeight: 800 }}>👑 상시 보유 효과:</span>{' '}
+                              <span style={{ color: '#fbbf24', fontWeight: 800 }}>보유 효과:</span>{' '}
                               {ownedStats.ownedAtk > 0 && <span className="text-red">ATK +{ownedStats.ownedAtk} </span>}
                               {ownedStats.ownedHp > 0 && <span className="text-green">HP +{ownedStats.ownedHp} </span>}
                               {ownedStats.ownedDef > 0 && <span className="text-blue">DEF +{ownedStats.ownedDef} </span>}
@@ -857,9 +931,10 @@ export const HeroPage: React.FC<HeroPageProps> = ({
                         </div>
                       </div>
 
-                      <div className="skill-actions-row">
+                      <div className="skill-actions-row" onClick={(e) => e.stopPropagation()}>
                         {/* Level Up Button */}
                         <button
+                          type="button"
                           className="btn-game btn-game-gold skill-action-btn"
                           disabled={!canLevelUp}
                           onClick={() => {
@@ -873,9 +948,22 @@ export const HeroPage: React.FC<HeroPageProps> = ({
                           <span>레벨업</span>
                         </button>
 
-                        {/* Equip / Unequip Button */}
-                        {isEquipped ? (
+                        {/* Equip / Unequip Button (Regular skills only; Awakening is auto-equipped in slot 5) */}
+                        {skill.isAwakening ? (
                           <button
+                            type="button"
+                            className="btn-game btn-game-purple skill-action-btn"
+                            onClick={() => {
+                              sound.playTap();
+                              setInspectSkillId(skill.id);
+                            }}
+                          >
+                            <Crown size={12} />
+                            <span>{awakeningUnlocked ? '각성 슬롯 활성' : '전직 시 해금'}</span>
+                          </button>
+                        ) : isEquipped ? (
+                          <button
+                            type="button"
                             className="btn-game btn-game-wood skill-action-btn"
                             onClick={() => {
                               if (onEquipSkill) {
@@ -889,6 +977,7 @@ export const HeroPage: React.FC<HeroPageProps> = ({
                           </button>
                         ) : (
                           <button
+                            type="button"
                             className="btn-game btn-game-ruby skill-action-btn"
                             disabled={!skill.owned}
                             onClick={() => {
@@ -941,6 +1030,16 @@ export const HeroPage: React.FC<HeroPageProps> = ({
                   <span className="bonus-chip">체력 x{currentClassConfig.statBuffs.hpMult}</span>
                   <span className="bonus-chip">방어 x{currentClassConfig.statBuffs.defMult}</span>
                   <span className="bonus-chip">공격 x{currentClassConfig.statBuffs.atkMult}</span>
+                  {onSwitchClass && (
+                    <button
+                      type="button"
+                      className="bonus-chip class-switch-inline-btn"
+                      onClick={() => onSwitchClass(isMage ? 'warrior' : 'mage')}
+                    >
+                      <RefreshCw size={10} />
+                      <span>{isMage ? '전사 클래스로 변경' : '마법사 클래스로 변경'}</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -976,18 +1075,25 @@ export const HeroPage: React.FC<HeroPageProps> = ({
 
               {/* Awakening Skill Showcase */}
               {awakeningSkill && (
-                <div className="awakening-preview-box">
+                <div
+                  className="awakening-preview-box"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => {
+                    sound.playTap();
+                    setInspectSkillId(awakeningSkill.id);
+                  }}
+                >
                   <div className="awakening-preview-top">
-                    <span className="awakening-preview-icon">{awakeningSkill.icon}</span>
+                    <SkillEmblem effectType={awakeningSkill.effectType} size={38} />
                     <div className="awakening-preview-names">
                       <span className="awakening-preview-name">{awakeningSkill.name}</span>
-                      <span className="awakening-preview-type">전직 전용 궁극 각성기</span>
+                      <span className="awakening-preview-type">전직 전용 궁극 각성기 (클릭 시 상세 보기)</span>
                     </div>
                     <span className="awakening-preview-hits">{awakeningSkill.hits}연타 강타</span>
                   </div>
                   <div className="awakening-preview-desc">{awakeningSkill.description}</div>
                   <div className="awakening-rule-hint">
-                    ⚡ 전투 중 기본 공격 및 스킬 적중으로 각성 게이지 100% 충전 시 <strong>자동 발동</strong>
+                    전투 중 기본 공격 및 스킬 적중으로 각성 게이지 100% 충전 시 <strong>자동 발동</strong>
                   </div>
                 </div>
               )}
@@ -1218,9 +1324,14 @@ export const HeroPage: React.FC<HeroPageProps> = ({
         )}
       </div>
 
-      {/* Stat Breakdown Modal */}
-      {breakdownStat && (
-        <div className="modal-backdrop" onClick={() => setBreakdownStat(null)}>
+      {/* Stat Breakdown Modal (Portal) */}
+      <GameModalPortal
+        isOpen={Boolean(breakdownStat)}
+        onClose={() => setBreakdownStat(null)}
+        dataTestId="stat-breakdown-modal"
+        ariaLabel="능력치 기여도 분석"
+      >
+        {breakdownStat && (
           <div className="modal-content stat-breakdown-modal" onClick={(e) => e.stopPropagation()}>
             <div className="breakdown-header">
               <div className="breakdown-title-row">
@@ -1239,7 +1350,7 @@ export const HeroPage: React.FC<HeroPageProps> = ({
                     : '방어력 (DEF) 기여도 분석'}
                 </h3>
               </div>
-              <button className="breakdown-close-btn" onClick={() => setBreakdownStat(null)}>
+              <button className="breakdown-close-btn" onClick={() => setBreakdownStat(null)} aria-label="닫기">
                 ✕
               </button>
             </div>
@@ -1312,10 +1423,20 @@ export const HeroPage: React.FC<HeroPageProps> = ({
               </div>
               <div className="source-sub-desc">수집한 전사/마법사 스킬 레벨에 따른 영구 계정 패시브 합산</div>
 
+              {breakdownStat === 'atk' && (
+                <>
+                  <div className="source-row">
+                    <span className="source-name">5. 몬스터 도감 처치 보너스</span>
+                    <strong className="source-val text-purple">+{monsterCodexAtk.toLocaleString()}</strong>
+                  </div>
+                  <div className="source-sub-desc">몬스터 도감 누적 처치 마일스톤 영구 공격력 합산</div>
+                </>
+              )}
+
               <div className="breakdown-divider" />
 
               <div className="source-row">
-                <span className="source-name">5. 직업 기본 보정 배율</span>
+                <span className="source-name">직업 기본 보정 배율</span>
                 <strong className="source-val text-blue">
                   x{breakdownStat === 'atk'
                     ? currentClassConfig.statBuffs.atkMult
@@ -1327,7 +1448,7 @@ export const HeroPage: React.FC<HeroPageProps> = ({
 
               {activePet && (
                 <div className="source-row">
-                  <span className="source-name">6. 동행 펫 ({activePet.name}) 버프</span>
+                  <span className="source-name">동행 펫 ({activePet.name}) 버프</span>
                   <strong className="source-val text-blue">
                     +{breakdownStat === 'atk' && activePet.buffType === 'atk'
                       ? Math.round(activePet.baseBuffValue * (1 + (activePet.level - 1) * 0.2) * 100)
@@ -1336,10 +1457,9 @@ export const HeroPage: React.FC<HeroPageProps> = ({
                 </div>
               )}
 
-
               {isPromoted && (
                 <div className="source-row">
-                  <span className="source-name">7. 승급 보너스</span>
+                  <span className="source-name">승급 보너스 ({currentClassConfig.promotionName})</span>
                   <strong className="source-val text-yellow">
                     +{breakdownStat === 'atk' ? Math.round(currentClassConfig.promotionBuffs.skillDamageBonus * 100) : 0}%
                   </strong>
@@ -1354,7 +1474,7 @@ export const HeroPage: React.FC<HeroPageProps> = ({
                   : (prestigeUpgrades.defLevel || 0) > 0
               ) && (
                 <div className="source-row">
-                  <span className="source-name">8. 별빛 환생 영구 증폭</span>
+                  <span className="source-name">별빛 환생 영구 증폭</span>
                   <strong className="source-val text-yellow">
                     +{breakdownStat === 'atk'
                       ? (prestigeUpgrades.atkLevel || 0) * 10
@@ -1367,11 +1487,187 @@ export const HeroPage: React.FC<HeroPageProps> = ({
             </div>
 
             <div className="breakdown-footer-tip">
-              💡 모든 장비와 스킬을 수집하고 강화할수록 보유 효과가 영구 누적되어 캐릭터가 더욱 강해집니다!
+              모든 장비·스킬·몬스터 도감을 수집하고 강화할수록 보유 효과가 영구 누적되어 캐릭터가 더욱 강해집니다!
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </GameModalPortal>
+
+      {/* Skill Detail & Tactical Preview Modal (Portal) */}
+      <GameModalPortal
+        isOpen={Boolean(inspectSkill)}
+        onClose={() => setInspectSkillId(null)}
+        dataTestId="skill-detail-modal"
+        ariaLabel="스킬 상세 정보 및 편성"
+      >
+        {inspectSkill && (() => {
+          const elemMeta = getSkillElementMeta(inspectSkill.effectType);
+          const rConf = RARITY_CONFIGS[inspectSkill.rarity] || RARITY_CONFIGS.common;
+          const reqPieces = inspectSkill.piecesRequired || getSkillPiecesRequired(inspectSkill);
+          const canLevelUp = inspectSkill.owned && inspectSkill.pieces >= reqPieces;
+          const curMultPct = Math.round(inspectSkill.baseDamageMult * 100);
+          const nextMultPct = Math.round((inspectSkill.baseDamageMult + inspectSkill.damageMultPerLevel) * 100);
+          const hits = inspectSkill.hits || 1;
+          const curTotalPct = curMultPct * hits;
+          const nextTotalPct = nextMultPct * hits;
+          const ownedStats = calculateSkillOwnedStats(inspectSkill);
+          const equippedSlotIdx = equippedSkillIds.indexOf(inspectSkill.id);
+
+          return (
+            <div
+              className="modal-content skill-detail-modal-card"
+              style={{ borderColor: elemMeta.border }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="breakdown-header">
+                <div className="breakdown-title-row">
+                  <SkillEmblem effectType={inspectSkill.effectType} size={38} />
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+                      <span
+                        className="skill-elem-tag"
+                        style={{ color: elemMeta.color, background: elemMeta.bg, borderColor: elemMeta.border }}
+                      >
+                        {elemMeta.label} 속성
+                      </span>
+                      <span className="skill-rarity-tag" style={{ color: rConf.color }}>
+                        {inspectSkill.isAwakening ? '궁극 각성기' : `${rConf.label} 액티브`}
+                      </span>
+                      <span className="skill-lvl-badge" style={{ position: 'static' }}>Lv.{inspectSkill.level}</span>
+                    </div>
+                    <h3 className="breakdown-title" style={{ color: rConf.color, marginTop: '2px' }}>
+                      {inspectSkill.name}
+                    </h3>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="breakdown-close-btn"
+                  data-testid="skill-detail-close-btn"
+                  onClick={() => setInspectSkillId(null)}
+                  aria-label="닫기"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <p style={{ fontSize: '11.5px', color: '#e2e8f0', lineHeight: 1.45, marginBottom: '10px' }}>
+                {inspectSkill.description}
+              </p>
+
+              {/* Combat Motion & VFX Preview Box */}
+              <div
+                style={{
+                  background: 'rgba(2, 6, 23, 0.72)',
+                  border: `1px solid ${elemMeta.border}`,
+                  borderRadius: '12px',
+                  padding: '9px 11px',
+                  marginBottom: '10px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
+                }}
+              >
+                <div style={{ fontSize: '10px', fontWeight: 900, color: elemMeta.color }}>
+                  전투 시전 모션 · Canvas 2D 연출 구조
+                </div>
+                <div style={{ fontSize: '11px', fontWeight: 800, color: '#f8fafc' }}>
+                  {elemMeta.castMotionLabel}
+                </div>
+                <div style={{ fontSize: '10px', color: '#94a3b8', lineHeight: 1.35 }}>
+                  {elemMeta.vfxSummary}
+                </div>
+              </div>
+
+              {/* Current vs Next Level Comparison */}
+              <div className="breakdown-sources-list" style={{ marginBottom: '10px' }}>
+                <div className="source-row">
+                  <span className="source-name">공격 타수 / 쿨타임</span>
+                  <strong className="source-val text-white">
+                    {hits}연타 · {inspectSkill.isAwakening ? '각성 게이지 100%' : `${inspectSkill.cooldown}초`}
+                  </strong>
+                </div>
+                <div className="source-row">
+                  <span className="source-name">1타당 피해 배율 (Lv.{inspectSkill.level} → Lv.{inspectSkill.level + 1})</span>
+                  <strong className="source-val text-yellow">
+                    {curMultPct}% → <span className="text-green">{nextMultPct}%</span>
+                  </strong>
+                </div>
+                <div className="source-row">
+                  <span className="source-name">총합 피해 배율 ({hits}타 합산)</span>
+                  <strong className="source-val text-yellow">
+                    {curTotalPct}% → <span className="text-green">{nextTotalPct}%</span>
+                  </strong>
+                </div>
+                <div className="source-row">
+                  <span className="source-name">계정 상시 보유 효과</span>
+                  <strong className="source-val text-blue">
+                    ATK +{ownedStats.ownedAtk} / HP +{ownedStats.ownedHp}
+                    {ownedStats.ownedDef > 0 ? ` / DEF +${ownedStats.ownedDef}` : ''}
+                    {ownedStats.ownedCritDmg > 0 ? ` / 치명 +${ownedStats.ownedCritDmg}%` : ''}
+                  </strong>
+                </div>
+                <div className="source-row">
+                  <span className="source-name">보유 스킬 조각</span>
+                  <strong className="source-val text-white">
+                    {inspectSkill.pieces} / {reqPieces}개
+                  </strong>
+                </div>
+              </div>
+
+              {/* Actions inside Modal */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <button
+                  type="button"
+                  data-testid="skill-modal-upgrade-btn"
+                  className="btn-game btn-game-gold"
+                  style={{ width: '100%', minHeight: '38px', fontSize: '12px' }}
+                  disabled={!canLevelUp}
+                  onClick={() => {
+                    if (canLevelUp && onUpgradeSkill) {
+                      sound.playFanfare();
+                      onUpgradeSkill(inspectSkill.id);
+                    }
+                  }}
+                >
+                  <Sparkles size={14} />
+                  <span>
+                    {canLevelUp
+                      ? `스킬 레벨업 (조각 ${reqPieces}개 소모 → Lv.${inspectSkill.level + 1})`
+                      : `레벨업 조각 부족 (${inspectSkill.pieces} / ${reqPieces})`}
+                  </span>
+                </button>
+
+                {!inspectSkill.isAwakening && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+                    {[0, 1, 2, 3].map((sIdx) => {
+                      const isThisSlot = equippedSlotIdx === sIdx;
+                      return (
+                        <button
+                          key={sIdx}
+                          type="button"
+                          data-testid={`skill-modal-equip-slot-${sIdx}`}
+                          className={`btn-game ${isThisSlot ? 'btn-game-green' : 'btn-game-blue'}`}
+                          style={{ minHeight: '34px', padding: '4px 6px', fontSize: '10.5px' }}
+                          disabled={!inspectSkill.owned}
+                          onClick={() => {
+                            if (!onEquipSkill || !inspectSkill.owned) return;
+                            sound.playTap();
+                            setSelectedSlotIndex(sIdx);
+                            onEquipSkill(sIdx, isThisSlot ? null : inspectSkill.id);
+                          }}
+                        >
+                          <span>{isThisSlot ? `슬롯${sIdx + 1} 해제` : `슬롯${sIdx + 1} 장착`}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+      </GameModalPortal>
 
       <style>{`
         .hero-growth-goal-card {
@@ -1384,6 +1680,110 @@ export const HeroPage: React.FC<HeroPageProps> = ({
           background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.85));
           border: 1px solid rgba(251, 191, 36, 0.28);
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+        }
+
+        .hero-exp-mini-bar {
+          position: relative;
+          width: 100%;
+          max-width: 180px;
+          height: 12px;
+          background: rgba(2, 6, 23, 0.78);
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          border-radius: 999px;
+          overflow: hidden;
+          margin-top: 3px;
+        }
+
+        .hero-exp-mini-fill {
+          height: 100%;
+          background: linear-gradient(90deg, #3b82f6, #38bdf8);
+          border-radius: 999px;
+          transition: width 0.25s ease;
+        }
+
+        .hero-exp-mini-txt {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 8.5px;
+          font-weight: 800;
+          color: #f8fafc;
+          text-shadow: 0 1px 2px #000;
+        }
+
+        .hero-switch-class-pill {
+          min-height: 36px;
+          padding: 6px 11px;
+          font-size: 11px;
+          border-radius: 11px;
+          border-color: rgba(251, 191, 36, 0.45);
+          flex-shrink: 0;
+        }
+
+        .class-switch-inline-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          cursor: pointer;
+          border-color: rgba(251, 191, 36, 0.5) !important;
+          color: #fde047 !important;
+          background: rgba(245, 158, 11, 0.16) !important;
+        }
+
+        .slot-inspect-mini-btn {
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          border: 1px solid rgba(255, 255, 255, 0.22);
+          background: rgba(15, 23, 42, 0.85);
+          color: #93c5fd;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          padding: 0;
+        }
+
+        .skill-elem-tag {
+          font-size: 9px;
+          font-weight: 800;
+          padding: 1px 6px;
+          border-radius: 999px;
+          border: 1px solid;
+        }
+
+        .skill-rarity-tag {
+          font-size: 9.5px;
+          font-weight: 900;
+        }
+
+        .skill-combat-spec-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          font-size: 10px;
+          color: #cbd5e1;
+          margin-top: 2px;
+        }
+
+        .skill-combat-spec-row strong {
+          color: #fef08a;
+        }
+
+        .skill-detail-open-hint {
+          font-size: 9.5px;
+          font-weight: 800;
+          color: #93c5fd;
+        }
+
+        .skill-card-row {
+          cursor: pointer;
+        }
+
+        .skill-card-equipped {
+          box-shadow: 0 0 14px rgba(245, 158, 11, 0.22);
         }
 
         .growth-goal-top-row {

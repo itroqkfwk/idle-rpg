@@ -13,6 +13,7 @@ import {
   validateEquipmentSummonProbabilities,
 } from '../data/equipment';
 import { sound } from '../utils/audio';
+import { ShopChestEmblem } from '../components/RpgIcons';
 
 interface ShopPageProps {
   gold: number;
@@ -109,11 +110,17 @@ export const ShopPage: React.FC<ShopPageProps> = ({
       </div>
 
       <div className="drawer-content">
-        {/* Squirrel Merchant Banner */}
+        {/* Forest Merchant Banner */}
         <div className="merchant-encounter-banner">
-          <div className="merchant-npc-icon-box">🐿️</div>
+          <div className="merchant-npc-icon-box">
+            <img
+              src="./assets/pet_fox.png"
+              alt="잡화점 상인 도토리"
+              style={{ width: '38px', height: '38px', objectFit: 'contain' }}
+            />
+          </div>
           <div className="merchant-speech-bubble">
-            <span className="merchant-name">잡화점 상인 도토리</span>
+            <span className="merchant-name">숲속 잡화점 상인 · 도토리</span>
             <span className="merchant-quote">"10회 연속 소환 시 희귀 이상 보장, 30회마다 전설~신화 장비가 확정이라네!"</span>
           </div>
         </div>
@@ -125,7 +132,9 @@ export const ShopPage: React.FC<ShopPageProps> = ({
             <div className="chest-badge-tag hot-tag">HOT! 장비 소환 제단</div>
 
             <div className="summon-altar-top-row">
-              <div className="chest-visual-box">👑💎</div>
+              <div className="chest-visual-box">
+                <ShopChestEmblem variant="relic_altar" size={46} />
+              </div>
               <div className="chest-details">
                 <span className="chest-headline">빛나는 유물 장비 소환</span>
                 <span className="chest-subtext">
@@ -232,12 +241,16 @@ export const ShopPage: React.FC<ShopPageProps> = ({
           {/* 2. Free Supply Chest */}
           <div className="parchment-panel chest-row-panel">
             <div className="chest-badge-tag free-tag">무료 보급</div>
-            <div className="chest-visual-box">🎁</div>
+            <div className="chest-visual-box">
+              <ShopChestEmblem variant="free_chest" size={44} />
+            </div>
             <div className="chest-details">
               <span className="chest-headline">모험가 보급 상자</span>
               <span className="chest-subtext">일반 장비 & 조각 무료 보급 (60초 쿨타임)</span>
             </div>
             <button
+              type="button"
+              data-testid="shop-free-chest-btn"
               className={`btn-game ${secondsLeft === 0 ? 'btn-game-green' : 'btn-game-wood'} chest-open-btn`}
               disabled={secondsLeft > 0}
               onClick={handleFreeChest}
@@ -258,12 +271,15 @@ export const ShopPage: React.FC<ShopPageProps> = ({
 
           {/* 3. Gold Chest */}
           <div className="parchment-panel chest-row-panel">
-            <div className="chest-visual-box">📦</div>
+            <div className="chest-visual-box">
+              <ShopChestEmblem variant="gold_chest" size={44} />
+            </div>
             <div className="chest-details">
               <span className="chest-headline">골드 장비 상자</span>
               <span className="chest-subtext">사냥 골드로 장비 1회 소환 (기본 확률 적용)</span>
             </div>
             <button
+              type="button"
               data-testid="shop-gold-chest-btn"
               className="btn-game btn-game-gold chest-open-btn"
               disabled={gold < GOLD_CHEST_COST}
@@ -277,7 +293,12 @@ export const ShopPage: React.FC<ShopPageProps> = ({
           {/* 4. Skill Summon (스킬 비급서 소환) */}
           <div className="parchment-panel chest-row-panel skill-summon-theme">
             <div className="chest-badge-tag new-tag">{classId === 'mage' ? '마법사' : '전사'} 전용</div>
-            <div className="chest-visual-box">{classId === 'mage' ? '🔮📜' : '⚔️📜'}</div>
+            <div className="chest-visual-box">
+              <ShopChestEmblem
+                variant={classId === 'mage' ? 'skill_tome_mage' : 'skill_tome_warrior'}
+                size={44}
+              />
+            </div>
             <div className="chest-details">
               <span className="chest-headline">
                 {classId === 'mage' ? '비전 마법서 소환' : '강철 검결서 소환'}
@@ -288,6 +309,8 @@ export const ShopPage: React.FC<ShopPageProps> = ({
             </div>
             <div className="skill-summon-btns-group">
               <button
+                type="button"
+                data-testid="shop-summon-skill-1"
                 className="btn-game btn-game-wood chest-open-btn skill-half-btn"
                 disabled={gems < 100}
                 onClick={() => {
@@ -300,6 +323,8 @@ export const ShopPage: React.FC<ShopPageProps> = ({
                 <span className="chest-price-text">💎 100</span>
               </button>
               <button
+                type="button"
+                data-testid="shop-summon-skill-10"
                 className="btn-game btn-game-gold chest-open-btn skill-half-btn"
                 disabled={gems < 900}
                 onClick={() => {

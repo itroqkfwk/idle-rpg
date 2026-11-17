@@ -7,6 +7,7 @@ import {
   calculateMonsterCodexBonuses,
 } from '../data/monsterCodex';
 import { sound } from '../utils/audio';
+import { GameModalPortal } from './GameModalPortal';
 
 interface MonsterCodexModalProps {
   codex: MonsterCodexSaveState;
@@ -39,17 +40,17 @@ export const MonsterCodexModal: React.FC<MonsterCodexModalProps> = ({ codex, onC
   };
 
   return (
-    <div
-      className="codex-modal-overlay"
-      data-testid="monster-codex-modal"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          sound.playTap();
-          onClose();
-        }
+    <GameModalPortal
+      isOpen={true}
+      onClose={() => {
+        sound.playTap();
+        onClose();
       }}
+      overlayClassName="codex-modal-overlay"
+      dataTestId="monster-codex-modal"
+      ariaLabel="몬스터 도감"
     >
-      <div className="codex-modal-panel" role="dialog" aria-label="몬스터 도감">
+      <div className="codex-modal-panel" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="codex-modal-header">
           <div className="codex-title-group">
@@ -599,6 +600,6 @@ export const MonsterCodexModal: React.FC<MonsterCodexModalProps> = ({ codex, onC
           }
         }
       `}</style>
-    </div>
+    </GameModalPortal>
   );
 };
