@@ -1,0 +1,307 @@
+{
+  "classId": "warrior",
+  "stateFolder": "idle",
+  "clipId": "idle",
+  "frameWidth": 320,
+  "frameHeight": 290,
+  "pivot": {
+    "x": 118,
+    "y": 264
+  },
+  "durationMs": 2200,
+  "loop": true,
+  "contactTime": 0,
+  "releaseTime": 0,
+  "recoveryTime": 1,
+  "interruptPolicy": "always",
+  "frames": [
+    {
+      "frameIndex": 0,
+      "file": "frame_00.png",
+      "normalizedTime": 0,
+      "durationMs": 275,
+      "attachmentPoints": {
+        "weaponGrip": {
+          "x": 157,
+          "y": 205
+        },
+        "weaponTip": {
+          "x": 210,
+          "y": 132
+        },
+        "staffTip": {
+          "x": 210,
+          "y": 132
+        },
+        "leftHand": {
+          "x": 109,
+          "y": 215
+        },
+        "rightHand": {
+          "x": 157,
+          "y": 205
+        },
+        "groundContact": {
+          "x": 119,
+          "y": 264
+        },
+        "bodyCenter": {
+          "x": 119,
+          "y": 195
+        }
+      }
+    },
+    {
+      "frameIndex": 1,
+      "file": "frame_01.png",
+      "normalizedTime": 0.125,
+      "durationMs": 275,
+      "attachmentPoints": {
+        "weaponGrip": {
+          "x": 156,
+          "y": 207
+        },
+        "weaponTip": {
+          "x": 210,
+          "y": 134
+        },
+        "staffTip": {
+          "x": 210,
+          "y": 134
+        },
+        "leftHand": {
+          "x": 109,
+          "y": 215
+        },
+        "rightHand": {
+          "x": 156,
+          "y": 207
+        },
+        "groundContact": {
+          "x": 119,
+          "y": 264
+        },
+        "bodyCenter": {
+          "x": 119,
+          "y": 195
+        }
+      }
+    },
+    {
+      "frameIndex": 2,
+      "file": "frame_02.png",
+      "normalizedTime": 0.25,
+      "durationMs": 275,
+      "attachmentPoints": {
+        "weaponGrip": {
+          "x": 155,
+          "y": 207
+        },
+        "weaponTip": {
+          "x": 207,
+          "y": 132
+        },
+        "staffTip": {
+          "x": 207,
+          "y": 132
+        },
+        "leftHand": {
+          "x": 109,
+          "y": 215
+        },
+        "rightHand": {
+          "x": 155,
+          "y": 207
+        },
+        "groundContact": {
+          "x": 119,
+          "y": 264
+        },
+        "bodyCenter": {
+          "x": 119,
+          "y": 195
+        }
+      }
+    },
+    {
+      "frameIndex": 3,
+      "file": "frame_03.png",
+      "normalizedTime": 0.375,
+      "durationMs": 275,
+      "attachmentPoints": {
+        "weaponGrip": {
+          "x": 156,
+          "y": 207
+        },
+        "weaponTip": {
+          "x": 203,
+          "y": 129
+        },
+        "staffTip": {
+          "x": 203,
+          "y": 129
+        },
+        "leftHand": {
+          "x": 109,
+          "y": 215
+        },
+        "rightHand": {
+          "x": 156,
+          "y": 207
+        },
+        "groundContact": {
+          "x": 119,
+          "y": 264
+        },
+        "bodyCenter": {
+          "x": 119,
+          "y": 195
+        }
+      }
+    },
+    {
+      "frameIndex": 4,
+      "file": "frame_04.png",
+      "normalizedTime": 0.5,
+      "durationMs": 275,
+      "attachmentPoints": {
+        "weaponGrip": {
+          "x": 157,
+          "y": 205
+        },
+        "weaponTip": {
+          "x": 199,
+          "y": 126
+        },
+        "staffTip": {
+          "x": 199,
+          "y": 126
+        },
+        "leftHand": {
+          "x": 109,
+          "y": 215
+        },
+        "rightHand": {
+          "x": 157,
+          "y": 205
+        },
+        "groundContact": {
+          "x": 119,
+          "y": 264
+        },
+        "bodyCenter": {
+          "x": 119,
+          "y": 195
+        }
+      }
+    },
+    {
+      "frameIndex": 5,
+      "file": "frame_05.png",
+      "normalizedTime": 0.625,
+      "durationMs": 275,
+      "attachmentPoints": {
+        "weaponGrip": {
+          "x": 158,
+          "y": 203
+        },
+        "weaponTip": {
+          "x": 199,
+          "y": 124
+        },
+        "staffTip": {
+          "x": 199,
+          "y": 124
+        },
+        "leftHand": {
+          "x": 108,
+          "y": 215
+        },
+        "rightHand": {
+          "x": 158,
+          "y": 203
+        },
+        "groundContact": {
+          "x": 118,
+          "y": 264
+        },
+        "bodyCenter": {
+          "x": 118,
+          "y": 195
+        }
+      }
+    },
+    {
+      "frameIndex": 6,
+      "file": "frame_06.png",
+      "normalizedTime": 0.75,
+      "durationMs": 275,
+      "attachmentPoints": {
+        "weaponGrip": {
+          "x": 158,
+          "y": 203
+        },
+        "weaponTip": {
+          "x": 202,
+          "y": 126
+        },
+        "staffTip": {
+          "x": 202,
+          "y": 126
+        },
+        "leftHand": {
+          "x": 108,
+          "y": 215
+        },
+        "rightHand": {
+          "x": 158,
+          "y": 203
+        },
+        "groundContact": {
+          "x": 118,
+          "y": 264
+        },
+        "bodyCenter": {
+          "x": 118,
+          "y": 195
+        }
+      }
+    },
+    {
+      "frameIndex": 7,
+      "file": "frame_07.png",
+      "normalizedTime": 0.875,
+      "durationMs": 275,
+      "attachmentPoints": {
+        "weaponGrip": {
+          "x": 158,
+          "y": 203
+        },
+        "weaponTip": {
+          "x": 207,
+          "y": 129
+        },
+        "staffTip": {
+          "x": 207,
+          "y": 129
+        },
+        "leftHand": {
+          "x": 108,
+          "y": 215
+        },
+        "rightHand": {
+          "x": 158,
+          "y": 203
+        },
+        "groundContact": {
+          "x": 118,
+          "y": 264
+        },
+        "bodyCenter": {
+          "x": 118,
+          "y": 195
+        }
+      }
+    }
+  ]
+}

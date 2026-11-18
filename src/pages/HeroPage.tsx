@@ -8,6 +8,7 @@ import { calculatePrestigeStardustReward, getPrestigeUpgradeCost, DEFAULT_PRESTI
 import { sound } from '../utils/audio';
 import { GameModalPortal } from '../components/GameModalPortal';
 import { SkillEmblem, getSkillElementMeta } from '../components/RpgIcons';
+import { SkillPreviewStage } from '../components/SkillPreviewStage';
 
 interface HeroPageProps {
   stats: CharacterStats;
@@ -1551,11 +1552,14 @@ export const HeroPage: React.FC<HeroPageProps> = ({
                 </button>
               </div>
 
-              <p style={{ fontSize: '11.5px', color: '#e2e8f0', lineHeight: 1.45, marginBottom: '10px' }}>
+              <p style={{ fontSize: '11.5px', color: '#e2e8f0', lineHeight: 1.45, marginBottom: '8px' }}>
                 {inspectSkill.description}
               </p>
 
-              {/* Combat Motion & VFX Preview Box */}
+              {/* Live Isolated Visual Skill Motion + Canvas 2D VFX Preview Stage */}
+              <SkillPreviewStage skill={inspectSkill} />
+
+              {/* Combat Motion & VFX Structure Details */}
               <div
                 style={{
                   background: 'rgba(2, 6, 23, 0.72)',

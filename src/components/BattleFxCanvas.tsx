@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { SkillEffectType, CharacterClassId, EquipmentRarity, BossPatternType, BossPatternVfxEvent } from '../types/game';
 import { AmbientParticleType } from '../data/stages';
+import { animationClock } from '../utils/animationClock';
 
 interface BattleFxCanvasProps {
   activeSkillVfx: { id: string; type: SkillEffectType } | null;
@@ -689,7 +690,6 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
   bossPatternVfxEvent = null,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const animFrameRef = useRef<number | null>(null);
 
   // FX Simulation Collections
   const sparksRef = useRef<PhysicsSpark[]>([]);
@@ -817,6 +817,17 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
       staffTipY = (hr.top + hr.height * 0.34 - canvasRect.top) * scaleY;
       bladeOriginX = (hr.left + hr.width * 0.74 - canvasRect.left) * scaleX;
       bladeOriginY = (hr.top + hr.height * 0.48 - canvasRect.top) * scaleY;
+
+      // Override with live articulated FK skeletal joint world coordinates when fresh (<250ms)
+      const liveRig = typeof window !== 'undefined' ? window.__heroAttachmentPoints : undefined;
+      if (liveRig && performance.now() - liveRig.updatedAt < 250) {
+        heroX = (liveRig.bodyCenter.x - canvasRect.left) * scaleX;
+        heroY = (liveRig.bodyCenter.y - canvasRect.top) * scaleY;
+        staffTipX = (liveRig.staffTip.x - canvasRect.left) * scaleX;
+        staffTipY = (liveRig.staffTip.y - canvasRect.top) * scaleY;
+        bladeOriginX = (liveRig.weaponTip.x - canvasRect.left) * scaleX;
+        bladeOriginY = (liveRig.weaponTip.y - canvasRect.top) * scaleY;
+      }
     }
     if (enemyEl && canvasRect.width > 0) {
       const er = enemyEl.getBoundingClientRect();
@@ -3476,15 +3487,14 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
         ctx.restore();
       }
 
-      animFrameRef.current = requestAnimationFrame(render);
     };
 
-    animFrameRef.current = requestAnimationFrame(render);
+    const unsubscribe = animationClock.subscribe(2, render);
 
     return () => {
       window.removeEventListener('resize', resizeCanvas);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      unsubscribe();
     };
   }, [ambientType]);
 
@@ -3499,6 +3509,8 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
         height: '100%',
         pointerEvents: 'none',
         zIndex: 25,
+        willChange: 'transform',
+        transform: 'translateZ(0)',
       }}
     />
   );

@@ -1,16 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { CharacterStats, Equipment, DamageNumberData, CharacterClassId, PromotionId, SkillEffectType } from '../types/game';
+import { HeroSkeletalRig } from './HeroSkeletalRig';
+import { HeroRigState } from '../data/heroAnimationClips';
+import { preloadAllHeroRigAssets } from '../utils/heroRigAssetCache';
 
-export type HeroAnimationState =
-  | 'Idle'
-  | 'Move'
-  | 'Attack1'
-  | 'Attack2'
-  | 'Attack3'
-  | 'SkillCast'
-  | 'Hit'
-  | 'Victory'
-  | 'Defeat';
+export type HeroAnimationState = HeroRigState;
 
 interface PlayerCharacterProps {
   stats: CharacterStats;
@@ -50,6 +44,10 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
   isAwakeningCasting = false,
   basicComboStep = 1,
 }) => {
+  useEffect(() => {
+    preloadAllHeroRigAssets();
+  }, []);
+
   const [ghostHpPercent, setGhostHpPercent] = useState(100);
   const hpPercent = Math.max(0, Math.min(100, Math.round((stats.currentHp / maxHp) * 100)));
 
@@ -161,18 +159,6 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
     actionClass = 'hero-act-move';
   }
 
-  // Synchronized Ground Shadow State Class
-  const getShadowClass = () => {
-    if (heroAnimState === 'Defeat') return 'hero-shadow-defeat';
-    if (isAwakeningCasting) return 'hero-shadow-awakening';
-    if (heroAnimState === 'SkillCast') return isMage ? 'hero-shadow-levitate' : 'hero-shadow-lunge';
-    if (heroAnimState === 'Attack3') return isMage ? 'hero-shadow-levitate' : 'hero-shadow-warrior-3';
-    if (heroAnimState === 'Attack2') return isMage ? 'hero-shadow-mage-cast' : 'hero-shadow-warrior-2';
-    if (heroAnimState === 'Attack1') return isMage ? 'hero-shadow-mage-cast' : 'hero-shadow-lunge';
-    if (heroAnimState === 'Move') return 'hero-shadow-move';
-    return isMage ? 'hero-shadow-idle-mage' : 'hero-shadow-idle-warrior';
-  };
-
   const defaultAtkDurationSec = isMage
     ? basicComboStep === 3
       ? 0.44
@@ -188,11 +174,6 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
   const computedAtkDurationSec = attackDurationMs
     ? Math.max(0.18, Math.min(0.55, attackDurationMs / 1000))
     : defaultAtkDurationSec;
-
-  const showAfterimage =
-    heroAnimState === 'Attack2' ||
-    heroAnimState === 'Attack3' ||
-    heroAnimState === 'SkillCast';
 
   return (
     <div
@@ -251,10 +232,10 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           } as React.CSSProperties
         }
       >
-        {/* Soft Ground Contact Shadow (Synchronized with Jump / Levitation / Lunge) */}
-        <div className={`character-ground-shadow ${getShadowClass()}`} />
+        {/* Soft Outer Ambient Ground Shadow (Rig canvas draws precise foot-synced contact shadow) */}
+        <div className="character-ground-shadow" style={{ opacity: 0.25 }} />
 
-        {/* 👑 Sword Master Golden Radiant Aura (Pure CSS Geometry - Zero Text Emojis) */}
+        {/* Sword Master Golden Radiant Aura (Pure CSS Geometry - Zero Text Emojis) */}
         {isSwordMaster && (
           <div className="swordmaster-aura-ring">
             <div className="sm-aura-glow" />
@@ -263,7 +244,7 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           </div>
         )}
 
-        {/* ✨ Archmage Cosmic Starlight Aura (Pure CSS Geometry - Zero Text Emojis) */}
+        {/* Archmage Cosmic Starlight Aura (Pure CSS Geometry - Zero Text Emojis) */}
         {isArchmage && (
           <div className="archmage-aura-ring">
             <div className="am-cosmic-circle" />
@@ -272,64 +253,18 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           </div>
         )}
 
-        {/* 🔮 Mage Persistent Staff Arcane Glow & Floating Mana Motes */}
-        {isMage && (
-          <div
-            className={`mage-arcane-focus-layer ${
-              heroAnimState === 'Attack3' || heroAnimState === 'SkillCast'
-                ? 'staff-focus-nova'
-                : heroAnimState === 'Attack2'
-                ? 'staff-focus-twin'
-                : heroAnimState === 'Attack1'
-                ? 'staff-focus-bolt'
-                : 'staff-focus-idle'
-            }`}
-          >
-            <div className="mage-staff-orb-glow" />
-            <span className="mage-idle-mana-mote mana-mote-1" />
-            <span className="mage-idle-mana-mote mana-mote-2" />
-            <span className="mage-idle-mana-mote mana-mote-3" />
-          </div>
-        )}
-
-        {/* 👻 Motion Afterimage Ghost Trail (2타 / 3타 / 스킬 시전 시 잔상) */}
-        {showAfterimage && (
-          <img
-            src={spriteSrc}
-            alt=""
-            aria-hidden="true"
-            className={`hero-afterimage-ghost ${isMage ? 'ghost-mage' : 'ghost-warrior'} ${
-              heroAnimState === 'Attack3' ? 'ghost-finisher' : ''
-            }`}
-            draggable={false}
-          />
-        )}
-
-        {/* Real 2D Anime Sprite (Original PNG 100% Preserved) */}
-        <img
-          src={spriteSrc}
+        {/* Real 2D Articulated Skeletal Rig (Using Independent Part PNGs & Original Head Art) */}
+        <HeroSkeletalRig
+          classId={classId}
+          animState={heroAnimState}
+          castingSkillType={castingSkillType}
+          isAwakeningCasting={isAwakeningCasting}
+          isHitStop={Boolean(isHitStop)}
+          attackDurationMs={attackDurationMs}
+          isMainBattleHero={true}
+          fallbackSrc={spriteSrc}
           alt={roleTitle}
-          className="hero-2d-sprite"
-          draggable={false}
         />
-
-        {/* Warrior Weapon Swing Blade Arc Glint */}
-        {!isMage && (isAttacking || isCasting) && (
-          <div
-            className={`warrior-blade-swing-arc swing-step-${isCasting ? 3 : basicComboStep}`}
-            aria-hidden="true"
-          />
-        )}
-
-        {/* Mage Staff Tip Rotating Arcane Sigil on Attack/Cast */}
-        {isMage && (isAttacking || isCasting) && (
-          <div className="mage-staff-cast-sigil" aria-hidden="true" />
-        )}
-
-        {/* Mage Basic Staff Glow / Flare on Attack */}
-        {isMage && isAttacking && (
-          <div className={`mage-staff-flare-vfx mage-flare-step-${basicComboStep}`} />
-        )}
 
         {/* Dash & Landing Ground Dust Puff */}
         {(isAttacking || isCasting) && !isMage && (
@@ -917,331 +852,49 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
         }
 
         /* ==========================================================
-           CLASS-DIFFERENTIATED IDLE & MOVE ANIMATIONS
+           ARTICULATED SKELETAL STAGE SIZING (Zero Full-Image Wobble!)
            ========================================================== */
-        /* Warrior Idle: Grounded, heavy breathing, subtle weight shift & combat readiness */
-        .hero-idle-warrior {
-          animation: heroIdleWarrior 2.4s ease-in-out infinite;
-        }
-
-        @keyframes heroIdleWarrior {
-          0%, 100% { transform: translate(0, 0) scale(1, 1) rotate(0deg); }
-          38% { transform: translate(1.5px, -3px) scale(0.992, 1.018) rotate(0.7deg); }
-          72% { transform: translate(-0.8px, 1px) scale(1.014, 0.986) rotate(-0.5deg); }
-        }
-
-        /* Mage Idle: Gentle arcane levitation, buoyant sway, soft floating rhythm */
-        .hero-idle-mage {
-          animation: heroIdleMage 2.8s ease-in-out infinite;
-        }
-
-        @keyframes heroIdleMage {
-          0%, 100% { transform: translate(0, -2px) scale(1, 1) rotate(-0.8deg); }
-          50% { transform: translate(2px, -10px) scale(0.988, 1.02) rotate(1.2deg); }
-        }
-
-        /* Move State: Brisk forward combat advance step */
-        .hero-act-move {
-          animation: heroMoveStep 0.36s ease-in-out infinite;
-        }
-
-        @keyframes heroMoveStep {
-          0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1); }
-          25% { transform: translate(6px, -6px) rotate(4deg) scale(0.98, 1.03); }
-          50% { transform: translate(10px, 0px) rotate(2deg) scale(1.03, 0.97); }
-          75% { transform: translate(4px, -4px) rotate(-2deg) scale(0.99, 1.02); }
-        }
-
-        /* ==========================================================
-           ⚔️ WARRIOR 3-COMBO DISTINCT ATTACK ANIMATIONS
-           ========================================================== */
-        /* 1타 (횡베기): Short wind-up crouch -> forward dash lunge -> horizontal slash weight shift -> crisp recoil */
-        .hero-act-warrior-attack-1 {
-          animation: warriorAttack1Anim var(--attack-duration, 0.28s) cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
-        }
-
-        @keyframes warriorAttack1Anim {
-          0% { transform: translateX(0) translateY(0) rotate(0deg) scale(1, 1); }
-          20% { transform: translateX(-8px) translateY(3px) rotate(-8deg) scale(1.05, 0.94); }
-          44% { transform: translateX(48px) translateY(-2px) rotate(13deg) scale(1.09, 0.93); filter: brightness(1.2); }
-          68% { transform: translateX(34px) translateY(1px) rotate(6deg) scale(1.03, 0.97); }
-          100% { transform: translateX(0) translateY(0) rotate(0deg) scale(1, 1); filter: brightness(1); }
-        }
-
-        /* 2타 (올려베기): Counter-rotation dip -> upward rising slash -> upper-body lift recoil -> recovery */
-        .hero-act-warrior-attack-2 {
-          animation: warriorAttack2Anim var(--attack-duration, 0.32s) cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
-        }
-
-        @keyframes warriorAttack2Anim {
-          0% { transform: translateX(0) translateY(0) rotate(0deg) scale(1, 1); }
-          24% { transform: translateX(6px) translateY(5px) rotate(11deg) scale(1.06, 0.92); }
-          48% {
-            transform: translateX(58px) translateY(-16px) rotate(-18deg) scale(0.93, 1.13);
-            filter: brightness(1.28) drop-shadow(0 0 12px rgba(251, 191, 36, 0.65));
-          }
-          74% { transform: translateX(26px) translateY(-6px) rotate(-7deg) scale(0.98, 1.04); }
-          100% { transform: translateX(0) translateY(0) rotate(0deg) scale(1, 1); filter: brightness(1); }
-        }
-
-        /* 3타 (지면 강타 & X자 피니시): Power charge -> high aerial leap -> downward ground slam + landing squash -> recovery */
-        .hero-act-warrior-attack-3 {
-          animation: warriorAttack3Anim var(--attack-duration, 0.42s) cubic-bezier(0.18, 0.9, 0.22, 1) forwards;
-        }
-
-        @keyframes warriorAttack3Anim {
-          0% { transform: translateX(0) translateY(0) rotate(0deg) scale(1, 1); }
-          18% {
-            /* Power charge compression */
-            transform: translateX(-14px) translateY(6px) rotate(-14deg) scale(1.12, 0.87);
-            filter: brightness(1.2) drop-shadow(0 0 10px rgba(249, 115, 22, 0.6));
-          }
-          38% {
-            /* High aerial leap */
-            transform: translateX(32px) translateY(-36px) rotate(-18deg) scale(0.91, 1.15);
-            filter: brightness(1.38) drop-shadow(0 0 16px rgba(249, 115, 22, 0.85));
-          }
-          54% {
-            /* Violent downward ground slam + landing squash compression */
-            transform: translateX(84px) translateY(6px) rotate(17deg) scale(1.18, 0.83);
-            filter: brightness(1.55) drop-shadow(0 0 22px rgba(239, 68, 68, 0.95));
-          }
-          76% {
-            /* Rebound recoil */
-            transform: translateX(38px) translateY(-4px) rotate(4deg) scale(0.97, 1.04);
-          }
-          100% { transform: translateX(0) translateY(0) rotate(0deg) scale(1, 1); filter: brightness(1); }
-        }
-
-        /* ==========================================================
-           🔮 MAGE 3-COMBO DISTINCT STANCE CASTING ANIMATIONS
-           ========================================================== */
-        /* 1타 (비전 볼트): Staff mana gather -> arcane bolt release thrust -> recoil */
-        .hero-act-mage-attack-1 {
-          animation: mageAttack1Anim var(--attack-duration, 0.3s) cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
-        }
-
-        @keyframes mageAttack1Anim {
-          0% { transform: translateX(0) translateY(-2px) rotate(0deg) scale(1); filter: brightness(1); }
-          25% { transform: translateX(-6px) translateY(-5px) rotate(-6deg) scale(0.97, 1.04); filter: brightness(1.2); }
-          48% { transform: translateX(18px) translateY(-9px) rotate(9deg) scale(1.06, 0.96); filter: brightness(1.35); }
-          76% { transform: translateX(4px) translateY(-3px) rotate(2deg) scale(1.01, 1.0); filter: brightness(1.1); }
-          100% { transform: translateX(0) translateY(-2px) rotate(0deg) scale(1); filter: brightness(1); }
-        }
-
-        /* 2타 (트윈 나선탄): Enhanced dual-hand staff charge -> twin-helix release -> recoil */
-        .hero-act-mage-attack-2 {
-          animation: mageAttack2Anim var(--attack-duration, 0.34s) cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
-        }
-
-        @keyframes mageAttack2Anim {
-          0% { transform: translateX(0) translateY(-2px) rotate(0deg) scale(1); filter: brightness(1); }
-          28% { transform: translateX(-8px) translateY(-10px) rotate(-8deg) scale(0.95, 1.06); filter: brightness(1.25); }
-          52% { transform: translateX(22px) translateY(-15px) rotate(12deg) scale(1.09, 0.94); filter: brightness(1.42); }
-          78% { transform: translateX(6px) translateY(-6px) rotate(3deg) scale(1.02, 1.0); filter: brightness(1.15); }
-          100% { transform: translateX(0) translateY(-2px) rotate(0deg) scale(1); filter: brightness(1); }
-        }
-
-        /* 3타 (비전 노바): High levitation + mana convergence -> nova orb release -> recoil & landing */
-        .hero-act-mage-attack-3 {
-          animation: mageAttack3Anim var(--attack-duration, 0.44s) cubic-bezier(0.18, 0.9, 0.25, 1) forwards;
-        }
-
-        @keyframes mageAttack3Anim {
-          0% { transform: translateX(0) translateY(-2px) rotate(0deg) scale(1); filter: brightness(1); }
-          30% {
-            transform: translateX(-6px) translateY(-28px) rotate(-8deg) scale(0.94, 1.10);
-            filter: brightness(1.4) drop-shadow(0 0 16px #c084fc);
-          }
-          54% {
-            transform: translateX(24px) translateY(-20px) rotate(13deg) scale(1.13, 0.92);
-            filter: brightness(1.62) drop-shadow(0 0 24px #a855f7);
-          }
-          80% {
-            transform: translateX(6px) translateY(1px) rotate(2deg) scale(1.03, 0.97);
-            filter: brightness(1.2);
-          }
-          100% { transform: translateX(0) translateY(-2px) rotate(0deg) scale(1); filter: brightness(1); }
-        }
-
-        /* Warrior Skill Cast Poses */
-        .hero-act-warrior-cast {
-          animation: warriorCastAnim 0.48s cubic-bezier(0.15, 0.9, 0.25, 1) forwards;
-        }
-
-        .hero-act-warrior-cast-slam {
-          animation: warriorAttack3Anim 0.48s cubic-bezier(0.18, 0.9, 0.22, 1) forwards;
-        }
-
-        .hero-act-warrior-cast-spin {
-          animation: warriorSpinCastAnim 0.48s cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
-        }
-
-        .hero-act-warrior-cast-fortress {
-          animation: warriorFortressCastAnim 0.48s cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
-        }
-
-        .hero-act-warrior-cast-bash {
-          animation: warriorBashCastAnim 0.44s cubic-bezier(0.18, 0.9, 0.22, 1) forwards;
-        }
-
-        @keyframes warriorFortressCastAnim {
-          0% { transform: translate(0, 0) scale(1); }
-          25% { transform: translate(0, 5px) scale(1.08, 0.91); }
-          52% { transform: translate(4px, -10px) scale(1.12, 1.08); filter: brightness(1.42); }
-          100% { transform: translate(0, 0) scale(1); filter: brightness(1); }
-        }
-
-        @keyframes warriorBashCastAnim {
-          0% { transform: translateX(0) scale(1); }
-          22% { transform: translateX(-16px) translateY(3px) rotate(-6deg) scale(1.06, 0.94); }
-          48% { transform: translateX(74px) translateY(0px) rotate(8deg) scale(1.14, 0.92); filter: brightness(1.38); }
-          100% { transform: translateX(0) rotate(0deg) scale(1); filter: brightness(1); }
-        }
-
-        @keyframes warriorCastAnim {
-          0% { transform: translateX(0) scale(1); }
-          20% { transform: translateX(-14px) translateY(4px) rotate(-8deg) scale(0.93, 1.07); }
-          45% { transform: translateX(88px) translateY(-4px) rotate(14deg) scale(1.14, 0.9); filter: brightness(1.35); }
-          72% { transform: translateX(64px) translateY(0) rotate(9deg) scale(1.06, 0.95); }
-          100% { transform: translateX(0) translateY(0) rotate(0deg) scale(1); filter: brightness(1); }
-        }
-
-        @keyframes warriorSpinCastAnim {
-          0% { transform: translate(0, 0) scale(1); }
-          20% { transform: translate(-10px, 3px) rotate(-12deg) scale(1.06, 0.94); }
-          45% { transform: translate(56px, -12px) scaleX(-1) rotate(-10deg) scale(1.12); filter: brightness(1.4); }
-          72% { transform: translate(62px, -4px) scaleX(1) rotate(12deg) scale(1.08); }
-          100% { transform: translate(0, 0) scaleX(1) rotate(0deg) scale(1); filter: brightness(1); }
-        }
-
-        /* Mage Skill Cast Poses (Levitation & Magic Focus) */
-        .hero-act-mage-cast {
-          animation: mageSkillCastAnim 0.48s cubic-bezier(0.2, 0.8, 0.25, 1) forwards;
-        }
-
-        .hero-act-mage-cast-nova {
-          animation: mageAttack3Anim 0.48s cubic-bezier(0.18, 0.9, 0.25, 1) forwards;
-        }
-
-        .hero-act-mage-cast-sky {
-          animation: mageSkyCastAnim 0.48s cubic-bezier(0.18, 0.9, 0.25, 1) forwards;
-        }
-
-        @keyframes mageSkyCastAnim {
-          0% { transform: translateY(-2px) scale(1); }
-          30% { transform: translateX(-4px) translateY(-28px) rotate(-6deg) scale(0.96, 1.1); filter: brightness(1.45); }
-          62% { transform: translateX(10px) translateY(-22px) rotate(4deg) scale(1.08, 0.98); filter: brightness(1.55); }
-          100% { transform: translateY(-2px) rotate(0deg) scale(1); filter: brightness(1); }
-        }
-
-        .warrior-blade-swing-arc {
+        .hero-skeletal-stage {
           position: absolute;
-          top: 16%;
-          right: -28px;
-          width: 96px;
-          height: 118px;
-          border-right: 5px solid rgba(254, 240, 138, 0.92);
-          border-top: 2px solid rgba(56, 189, 248, 0.65);
-          border-radius: 0 100% 100% 0 / 0 60% 60% 0;
+          bottom: -18px;
+          left: -16%;
+          height: 128%;
+          aspect-ratio: 320 / 290;
+          width: auto;
+          z-index: 3;
           pointer-events: none;
-          z-index: 6;
-          animation: bladeArcSweep var(--attack-duration, 0.3s) ease-out forwards;
+          will-change: transform;
+          transform: translateZ(0);
+          contain: layout style;
         }
 
-        .warrior-blade-swing-arc.swing-step-2 {
-          border-right-color: #fbbf24;
-          transform: scaleY(-1);
-        }
-
-        .warrior-blade-swing-arc.swing-step-3 {
-          width: 112px;
-          height: 132px;
-          border-right-width: 7px;
-          border-right-color: #f97316;
-          border-top-color: #fef08a;
-        }
-
-        @keyframes bladeArcSweep {
-          0% { opacity: 0; transform: rotate(-35deg) scale(0.65); }
-          45% { opacity: 1; transform: rotate(8deg) scale(1.08); }
-          100% { opacity: 0; transform: rotate(28deg) scale(1.22); }
-        }
-
-        .mage-staff-cast-sigil {
-          position: absolute;
-          top: 19%;
-          right: 6%;
-          width: 44px;
-          height: 44px;
-          border-radius: 50%;
-          border: 2px dashed rgba(192, 132, 252, 0.92);
-          box-shadow: 0 0 14px rgba(56, 189, 248, 0.75), inset 0 0 10px rgba(232, 121, 249, 0.65);
+        .hero-skeletal-canvas {
+          width: 100%;
+          height: 100%;
+          display: block;
           pointer-events: none;
-          z-index: 6;
-          animation: staffSigilSpin var(--attack-duration, 0.36s) ease-out forwards;
         }
 
-        @keyframes staffSigilSpin {
-          0% { opacity: 0; transform: scale(0.35) rotate(0deg); }
-          45% { opacity: 1; transform: scale(1.25) rotate(90deg); }
-          100% { opacity: 0; transform: scale(1.55) rotate(180deg); }
+        .hero-fallback-sprite {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
         }
 
-        @keyframes mageSkillCastAnim {
-          0% { transform: translateY(-2px) scale(1); }
-          28% { transform: translateY(-22px) rotate(-4deg) scale(1.06, 1.06); filter: brightness(1.3); }
-          58% { transform: translateX(16px) translateY(-16px) rotate(6deg) scale(1.10, 0.95); filter: brightness(1.45); }
-          100% { transform: translateY(-2px) rotate(0deg) scale(1); filter: brightness(1); }
+        .hero-hit-while-acting .hero-skeletal-canvas {
+          opacity: 0.92;
         }
 
-        /* Grand Awakening Animation */
-        .hero-act-awakening {
-          animation: awakeningHeroAnim 0.82s ease-in-out forwards;
+        .hero-act-hit .hero-skeletal-canvas {
+          opacity: 0.9;
         }
 
-        @keyframes awakeningHeroAnim {
-          0% { transform: scale(1) translateY(0); filter: brightness(1); }
-          24% { transform: scale(1.12) translateY(-26px) rotate(-8deg); filter: brightness(1.55) drop-shadow(0 0 22px #fbbf24); }
-          54% { transform: scale(1.2) translateX(36px) translateY(-14px) rotate(12deg); filter: brightness(1.8) drop-shadow(0 0 36px #f59e0b); }
-          80% { transform: scale(1.06) translateX(14px) translateY(-4px); filter: brightness(1.3); }
-          100% { transform: scale(1) translateY(0); filter: brightness(1); }
+        .hero-act-awakening .hero-skeletal-canvas {
+          opacity: 1;
         }
 
-        /* Hurt Shake Feedback */
-        .hero-act-hit {
-          animation: heroHurtShake 0.2s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-          filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.75)) brightness(1.35);
-        }
-
-        @keyframes heroHurtShake {
-          0%, 100% { transform: translate(0, 0) rotate(0deg); }
-          30% { transform: translate(-10px, 2px) rotate(-5deg) scale(1.04, 0.96); }
-          60% { transform: translate(4px, -1px) rotate(2deg); }
-          80% { transform: translate(-3px, 0); }
-        }
-
-        /* Victory Stance */
-        .hero-act-victory {
-          animation: heroVictoryHop 0.45s ease-out forwards;
-        }
-
-        @keyframes heroVictoryHop {
-          0% { transform: translateY(0) scale(1); }
-          35% { transform: translateY(-12px) scale(1.06, 0.95); }
-          65% { transform: translateY(-4px) scale(0.98, 1.02); }
-          100% { transform: translateY(0) scale(1); }
-        }
-
-        /* Defeat Stance */
-        .hero-act-defeat {
-          animation: heroDefeatCollapse 0.5s ease-out forwards;
-        }
-
-        @keyframes heroDefeatCollapse {
-          0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
-          35% { transform: translate(-14px, -4px) rotate(-12deg) scale(1.05, 0.95); filter: brightness(2) grayscale(0.4); }
-          100% { transform: translate(-22px, 18px) rotate(-24deg) scale(0.92, 0.82); filter: grayscale(0.85) brightness(0.7); opacity: 0.65; }
+        .hero-act-defeat .hero-skeletal-canvas {
+          opacity: 0.75;
         }
 
         /* Pure CSS Geometric Victory Sparkle (Zero Text Emojis) */
@@ -1288,16 +941,7 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           100% { transform: translateY(-24px) scale(1); opacity: 0; }
         }
 
-        @media (prefers-reduced-motion: reduce) {
-          .hero-idle-warrior,
-          .hero-idle-mage,
-          .hero-shadow-idle-warrior,
-          .hero-shadow-idle-mage {
-            animation-duration: 4s;
-          }
-        }
-
-        /* 🖥️ PC Responsive Layout (width >= 768px) */
+        /* PC Responsive Layout (width >= 768px) */
         @media (min-width: 768px) {
           .hero-sprite-wrapper {
             height: clamp(230px, 27vh, 340px);
@@ -1307,14 +951,6 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           .character-ground-shadow {
             width: calc(clamp(230px, 27vh, 340px) * 0.65);
             height: calc(clamp(230px, 27vh, 340px) * 0.12);
-          }
-
-          @keyframes warriorCastAnim {
-            0% { transform: translateX(0) scale(1); }
-            20% { transform: translateX(-16px) translateY(4px) rotate(-7deg) scale(0.94, 1.06); }
-            45% { transform: translateX(clamp(100px, 8.5vw, 160px)) translateY(-3px) rotate(13deg) scale(1.14, 0.9); }
-            72% { transform: translateX(clamp(96px, 8.2vw, 154px)) translateY(0) rotate(10deg) scale(1.06, 0.95); }
-            100% { transform: translateX(0) translateY(0) rotate(0deg) scale(1); }
           }
         }
       `}</style>
