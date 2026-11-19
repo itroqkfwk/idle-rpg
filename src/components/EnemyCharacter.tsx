@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { Monster, DamageNumberData, MonsterStatusEffect, BossPatternType } from '../types/game';
+import React, { useState, useEffect, useRef } from 'react';
+import { Monster, DamageNumberData, MonsterStatusEffect, BossPatternType, BossPatternVfxEvent } from '../types/game';
 import { Skull } from 'lucide-react';
+import { MonsterSkeletalRig } from './MonsterSkeletalRig';
+import { MonsterRigState } from '../data/monsterAnimationClips';
 
 interface EnemyCharacterProps {
   monster: Monster;
   isHit: boolean;
   isDefeated: boolean;
   isAttacking: boolean;
+  isMoving?: boolean;
   isHitStop?: boolean;
   damages?: DamageNumberData[];
   monsterStatuses?: MonsterStatusEffect[];
@@ -15,6 +18,7 @@ interface EnemyCharacterProps {
   isCriticalHit?: boolean;
   bossPhase?: 1 | 2;
   bossPatternWarning?: BossPatternType | null;
+  bossPatternVfxEvent?: BossPatternVfxEvent | null;
 }
 
 const STATUS_META: Record<MonsterStatusEffect['type'], { label: string; icon: string; color: string; bg: string }> = {
@@ -30,6 +34,7 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
   isHit,
   isDefeated,
   isAttacking,
+  isMoving = false,
   isHitStop,
   damages,
   monsterStatuses = [],
@@ -38,8 +43,17 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
   isCriticalHit = false,
   bossPhase = 1,
   bossPatternWarning = null,
+  bossPatternVfxEvent = null,
 }) => {
   const [ghostHpPercent, setGhostHpPercent] = useState(100);
+  const [phase2AnimActive, setPhase2AnimActive] = useState(false);
+  const [patternImpactActive, setPatternImpactActive] = useState(false);
+  const [ch13SpecialActive, setCh13SpecialActive] = useState(false);
+  const prevBossPhaseRef = useRef<{ id: string; phase: 1 | 2 }>({ id: monster.id, phase: bossPhase });
+  const prevAttackingRef = useRef<boolean>(false);
+  const ch13AttackCountRef = useRef<number>(0);
+  const lastImpactEventIdRef = useRef<string | null>(null);
+
   const hpPercent = Math.max(0, Math.min(100, Math.round((monster.currentHp / monster.maxHp) * 100)));
 
   useEffect(() => {
@@ -48,6 +62,58 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
     }, 350);
     return () => clearTimeout(timer);
   }, [hpPercent]);
+
+  // Detect Phase 1 -> 2 Transition on Chapter 4 & 5 Bosses
+  useEffect(() => {
+    const prev = prevBossPhaseRef.current;
+    if (prev.id !== monster.id) {
+      prevBossPhaseRef.current = { id: monster.id, phase: bossPhase };
+      setPhase2AnimActive(false);
+      setPatternImpactActive(false);
+      setCh13SpecialActive(false);
+      ch13AttackCountRef.current = 0;
+      return;
+    }
+    if (prev.phase === 1 && bossPhase === 2 && (monster.id === 'c4_boss' || monster.id === 'c5_boss')) {
+      prevBossPhaseRef.current.phase = 2;
+      setPhase2AnimActive(true);
+      const t = setTimeout(() => setPhase2AnimActive(false), 680);
+      return () => clearTimeout(t);
+    }
+    prevBossPhaseRef.current.phase = bossPhase;
+  }, [monster.id, bossPhase]);
+
+  // Trigger SpecialAttack skeletal clip during boss pattern impact
+  useEffect(() => {
+    if (!bossPatternVfxEvent || bossPatternVfxEvent.phase !== 'impact') return;
+    if (lastImpactEventIdRef.current === bossPatternVfxEvent.id) return;
+    lastImpactEventIdRef.current = bossPatternVfxEvent.id;
+    setPatternImpactActive(true);
+    const t = setTimeout(() => setPatternImpactActive(false), 420);
+    return () => clearTimeout(t);
+  }, [bossPatternVfxEvent]);
+
+  // Differentiate Ch.1~3 & Ruins Boss Special Attack visually every 3rd strike without changing damage/timers
+  useEffect(() => {
+    if (isAttacking && !prevAttackingRef.current) {
+      prevAttackingRef.current = true;
+      const isCh13Boss =
+        monster.id === 'c1_boss' ||
+        monster.id === 'c2_boss' ||
+        monster.id === 'c3_boss' ||
+        monster.id.startsWith('dg_ruins_');
+      if (isCh13Boss) {
+        ch13AttackCountRef.current += 1;
+        if (ch13AttackCountRef.current % 3 === 0) {
+          setCh13SpecialActive(true);
+          const t = setTimeout(() => setCh13SpecialActive(false), 380);
+          return () => clearTimeout(t);
+        }
+      }
+    } else if (!isAttacking) {
+      prevAttackingRef.current = false;
+    }
+  }, [isAttacking, monster.id]);
 
   const isBoss = monster.isBoss || monster.id.includes('boss');
   const isGoldDungeonMob = monster.id.startsWith('dg_gold_');
@@ -160,8 +226,10 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
 
   const monsterConfig = getMonsterType();
 
-  const enemyAnimState = isDeadState
+  const enemyAnimState: MonsterRigState = isDeadState
     ? 'Defeat'
+    : phase2AnimActive
+    ? 'Phase2Transition'
     : activeHitStep === 3
     ? 'Hit3'
     : activeHitStep === 2
@@ -170,27 +238,22 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
     ? 'Hit1'
     : isFrozen || isStunned
     ? 'CC'
+    : patternImpactActive || ch13SpecialActive
+    ? 'SpecialAttack'
+    : bossPatternWarning !== null
+    ? 'AttackPrep'
     : isAttacking
     ? 'Attack'
+    : isMoving
+    ? 'Move'
     : 'Idle';
 
-  const getAttackClassByIdle = (idleCls: string) => {
-    if (isBoss) return 'enemy-act-attack boss-act-attack';
-    if (idleCls.includes('slime')) return 'enemy-act-attack slime-act-attack';
-    if (idleCls.includes('spirit') || idleCls.includes('bee')) return 'enemy-act-attack spirit-act-attack';
-    if (idleCls.includes('beast')) return 'enemy-act-attack beast-act-attack';
-    if (idleCls.includes('golem')) return 'enemy-act-attack golem-act-attack';
-    return 'enemy-act-attack';
-  };
+  const activeBossPattern = bossPatternWarning ?? bossPatternVfxEvent?.pattern ?? null;
 
   const getHitActionClass = () => {
     if (isDeadState) return 'enemy-act-defeat';
-    if (activeHitStep === 3) return isBoss ? 'enemy-act-hit-3-boss' : 'enemy-act-hit-3';
-    if (activeHitStep === 2) return isBoss ? 'enemy-act-hit-2-boss' : 'enemy-act-hit-2';
-    if (activeHitStep === 1) return isBoss ? 'enemy-act-hit-1-boss' : 'enemy-act-hit-1';
     if (isFrozen || isStunned) return 'enemy-act-cc-frozen';
-    if (isAttacking) return getAttackClassByIdle(monsterConfig.idleClass);
-    return monsterConfig.idleClass;
+    return 'enemy-rig-driven';
   };
 
   return (
@@ -357,12 +420,20 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           </div>
         )}
 
-        {/* 2D Monster Sprite */}
-        <img
-          src={monsterConfig.sprite}
+        {/* Articulated 2D Monster / Boss Skeletal Rig */}
+        <MonsterSkeletalRig
+          monster={monster}
+          animState={enemyAnimState}
+          bossPhase={bossPhase}
+          bossPattern={activeBossPattern}
+          isFrozen={isFrozen}
+          isBurning={isBurning}
+          isStunned={isStunned}
+          isHitStop={Boolean(isHitStop)}
+          isMainBattleMonster={true}
+          fallbackSrc={monsterConfig.sprite}
           alt={monster.name}
-          className={`monster-2d-sprite ${monsterConfig.sizeClass}`}
-          draggable={false}
+          className={monsterConfig.sizeClass}
         />
 
         {/* Ground Knockback Dust */}
@@ -770,6 +841,42 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           z-index: 2;
           pointer-events: none;
           transform-origin: bottom center;
+        }
+
+        .monster-skeletal-stage {
+          position: relative;
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: flex-end;
+          justify-content: center;
+          z-index: 2;
+          pointer-events: none;
+        }
+
+        .monster-skeletal-stage .monster-skeletal-canvas,
+        .status-tint-freeze .monster-skeletal-canvas,
+        .status-tint-burn .monster-skeletal-canvas,
+        .hit-crit-recoil .monster-skeletal-canvas,
+        .dungeon-gold-aura .monster-skeletal-canvas,
+        .dungeon-exp-aura .monster-skeletal-canvas,
+        .dungeon-ruins-aura .monster-skeletal-canvas {
+          width: 118%;
+          max-width: none;
+          height: 118%;
+          max-height: none;
+          display: block;
+          filter: none !important;
+          animation: none !important;
+        }
+
+        .monster-skeletal-stage.is-boss-rig .monster-skeletal-canvas {
+          width: 116%;
+          height: 116%;
+        }
+
+        .enemy-sprite-wrapper .character-ground-shadow {
+          opacity: 0.22;
         }
 
         /* 1/2/3타 피격 파동 링 (Pure CSS geometric ring, no text/emojis) */

@@ -3,6 +3,7 @@ import { Pet } from '../types/game';
 import { getPetBuffText } from '../data/pets';
 import { Check, Lock, ArrowUpRight, X, Sparkles, Swords } from 'lucide-react';
 import { sound } from '../utils/audio';
+import { PetSkeletalRig } from '../components/PetSkeletalRig';
 
 interface PetPageProps {
   pets: Pet[];
@@ -102,11 +103,15 @@ export const PetPage: React.FC<PetPageProps> = ({
               }}
             >
               <div className="pedestal-glow-ring" style={{ borderColor: `${theme.color}88` }} />
-              <div className="pedestal-sprite-container">
-                <img
-                  src={theme.sprite}
+              <div className={`pedestal-sprite-container ${!activePet.owned ? 'icon-silhouette' : ''}`}>
+                <PetSkeletalRig
+                  petId={activePet.id}
+                  petName={activePet.name}
+                  isMainBattlePet={false}
+                  sceneContext="pet_showcase"
+                  fallbackSrc={theme.sprite}
                   alt={activePet.name}
-                  className={`pedestal-pet-img ${!activePet.owned ? 'icon-silhouette' : ''}`}
+                  className="pedestal-pet-rig"
                 />
               </div>
               <div className="pedestal-meta-info">
@@ -288,6 +293,21 @@ export const PetPage: React.FC<PetPageProps> = ({
           justify-content: center;
           align-items: center;
           margin-bottom: 6px;
+        }
+
+        .pedestal-pet-rig {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: flex-end;
+          justify-content: center;
+        }
+
+        .pedestal-pet-rig .pet-skeletal-canvas {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          filter: none !important;
         }
 
         .pedestal-pet-img {

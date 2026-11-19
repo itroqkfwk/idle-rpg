@@ -440,7 +440,12 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
             basicComboStep={basicComboStep}
             attackDurationMs={basicAttackEvent?.animDurationMs}
           />
-          <PetCompanion pet={activePet} isAttacking={isPetAttacking} />
+          <PetCompanion
+            pet={activePet}
+            isAttacking={isPetAttacking}
+            isMoving={isMoving}
+            isVictory={isMonsterDefeated}
+          />
         </div>
 
         {/* Center: Boss Encounter Alert Badge & Emphasized Countdown Timer */}
@@ -494,6 +499,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
             isHit={isMonsterHit}
             isDefeated={isMonsterDefeated}
             isAttacking={isMonsterAttacking}
+            isMoving={isMoving}
             isHitStop={isHitStop}
             damages={damages.filter((d) => !d.isPlayer)}
             monsterStatuses={monsterStatuses}
@@ -502,6 +508,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
             isCriticalHit={isCriticalHit}
             bossPhase={bossPhase}
             bossPatternWarning={bossPatternWarning}
+            bossPatternVfxEvent={bossPatternVfxEvent}
           />
         </div>
       </div>

@@ -873,6 +873,7 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           height: 100%;
           display: block;
           pointer-events: none;
+          filter: none !important;
         }
 
         .hero-fallback-sprite {

@@ -1,0 +1,147 @@
+{
+  "petId": "pet_fairy",
+  "clipId": "attack",
+  "meta": {
+    "id": "attack",
+    "durationMs": 390,
+    "loop": false
+  },
+  "frames": [
+    {
+      "file": "frame_01.png",
+      "attachmentPoints": {
+        "bodyCenter": {
+          "x": 76,
+          "y": 62
+        },
+        "attackOrigin": {
+          "x": 102,
+          "y": 54
+        },
+        "groundContact": {
+          "x": 76,
+          "y": 122
+        }
+      }
+    },
+    {
+      "file": "frame_02.png",
+      "attachmentPoints": {
+        "bodyCenter": {
+          "x": 67.71294196464353,
+          "y": 56.36490858222757
+        },
+        "attackOrigin": {
+          "x": 83.38659635235967,
+          "y": 34.83488079660958
+        },
+        "groundContact": {
+          "x": 71.47545960532973,
+          "y": 122
+        }
+      }
+    },
+    {
+      "file": "frame_03.png",
+      "attachmentPoints": {
+        "bodyCenter": {
+          "x": 76.4592823813945,
+          "y": 56.27623706899685
+        },
+        "attackOrigin": {
+          "x": 98.39543941681957,
+          "y": 39.748720874129646
+        },
+        "groundContact": {
+          "x": 78.21428571428571,
+          "y": 122
+        }
+      }
+    },
+    {
+      "file": "frame_04.png",
+      "attachmentPoints": {
+        "bodyCenter": {
+          "x": 101.34127194468392,
+          "y": 61.74108376648132
+        },
+        "attackOrigin": {
+          "x": 121.72678096195935,
+          "y": 71.71599712143961
+        },
+        "groundContact": {
+          "x": 96.07142857142857,
+          "y": 122
+        }
+      }
+    },
+    {
+      "file": "frame_05.png",
+      "attachmentPoints": {
+        "bodyCenter": {
+          "x": 101.86262767175516,
+          "y": 61.97063524560629
+        },
+        "attackOrigin": {
+          "x": 121.15008973514637,
+          "y": 72.91877103947357
+        },
+        "groundContact": {
+          "x": 96.11989795918367,
+          "y": 122
+        }
+      }
+    },
+    {
+      "file": "frame_06.png",
+      "attachmentPoints": {
+        "bodyCenter": {
+          "x": 88.22139785484985,
+          "y": 58.56795647374156
+        },
+        "attackOrigin": {
+          "x": 114.49208764051144,
+          "y": 58.87647705666624
+        },
+        "groundContact": {
+          "x": 85.34948979591837,
+          "y": 122
+        }
+      }
+    },
+    {
+      "file": "frame_07.png",
+      "attachmentPoints": {
+        "bodyCenter": {
+          "x": 83.92445570222057,
+          "y": 59.083323035109714
+        },
+        "attackOrigin": {
+          "x": 110.52674878885227,
+          "y": 56.0893666294619
+        },
+        "groundContact": {
+          "x": 82.03272052622702,
+          "y": 122
+        }
+      }
+    },
+    {
+      "file": "frame_08.png",
+      "attachmentPoints": {
+        "bodyCenter": {
+          "x": 76,
+          "y": 62
+        },
+        "attackOrigin": {
+          "x": 102,
+          "y": 54
+        },
+        "groundContact": {
+          "x": 76,
+          "y": 122
+        }
+      }
+    }
+  ]
+}

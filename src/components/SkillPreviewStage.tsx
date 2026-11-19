@@ -1,20 +1,30 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Play, Pause, RotateCcw } from 'lucide-react';
-import { Skill } from '../types/game';
+import { Monster, Skill } from '../types/game';
 import { HeroSkeletalRig, HeroClientAttachments } from './HeroSkeletalRig';
+import { MonsterSkeletalRig } from './MonsterSkeletalRig';
 import { HERO_CLIP_CATALOG, HeroRigState, resolveHeroClipId } from '../data/heroAnimationClips';
 import { getSkillElementMeta } from './RpgIcons';
 import { animationClock } from '../utils/animationClock';
+import { combatAnchorRegistry } from '../utils/combatAnchorRegistry';
 
 interface SkillPreviewStageProps {
   skill: Skill;
 }
+
+const PREVIEW_DUMMY_MONSTER: Pick<Monster, 'id' | 'name' | 'isBoss' | 'element'> = {
+  id: 'c1_m1',
+  name: '연습용 슬라임',
+  isBoss: false,
+  element: 'grass',
+};
 
 export const SkillPreviewStage: React.FC<SkillPreviewStageProps> = ({ skill }) => {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const vfxCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const enemyTargetRef = useRef<HTMLDivElement | null>(null);
   const heroAttachRef = useRef<HeroClientAttachments | null>(null);
+  const stageRectRef = useRef<{ left: number; top: number; width: number; height: number } | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(true);
   const [replayCount, setReplayCount] = useState(0);
@@ -56,6 +66,27 @@ export const SkillPreviewStage: React.FC<SkillPreviewStageProps> = ({ skill }) =
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    const updateStageRect = () => {
+      const r = stageEl.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) {
+        stageRectRef.current = { left: r.left, top: r.top, width: r.width, height: r.height };
+        const w = Math.max(240, Math.round(r.width));
+        const h = Math.max(120, Math.round(r.height));
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+        }
+      }
+    };
+    updateStageRect();
+    const initRaf = requestAnimationFrame(updateStageRect);
+    let resizeObs: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObs = new ResizeObserver(updateStageRect);
+      resizeObs.observe(stageEl);
+    }
+    window.addEventListener('resize', updateStageRect, { passive: true });
+
     const CYCLE_MS = skill.isAwakening ? 1650 : 1280;
     const CAST_ACTIVE_MS = clipMeta.durationMs;
     const RELEASE_MS = CAST_ACTIVE_MS * clipMeta.releaseTime;
@@ -79,13 +110,10 @@ export const SkillPreviewStage: React.FC<SkillPreviewStageProps> = ({ skill }) =
         elapsedMs = (elapsedMs + dtMs) % CYCLE_MS;
       }
 
-      const stageRect = stageEl.getBoundingClientRect();
-      const targetW = Math.max(240, Math.round(stageRect.width));
-      const targetH = Math.max(120, Math.round(stageRect.height));
-      if (canvas.width !== targetW || canvas.height !== targetH) {
-        canvas.width = targetW;
-        canvas.height = targetH;
-      }
+      if (!stageRectRef.current) updateStageRect();
+      const stageRect = stageRectRef.current;
+      const targetW = canvas.width || 360;
+      const targetH = canvas.height || 158;
 
       ctx.clearRect(0, 0, targetW, targetH);
 
@@ -100,7 +128,7 @@ export const SkillPreviewStage: React.FC<SkillPreviewStageProps> = ({ skill }) =
         setAnimState(nextState);
       }
 
-      const inHitWindow = elapsedMs >= CONTACT_MS && elapsedMs <= CONTACT_MS + 240;
+      const inHitWindow = elapsedMs >= CONTACT_MS && elapsedMs <= CONTACT_MS + 260;
       if (inHitWindow !== lastHitTag) {
         lastHitTag = inHitWindow;
         setEnemyHitActive(inHitWindow);
@@ -119,11 +147,11 @@ export const SkillPreviewStage: React.FC<SkillPreviewStageProps> = ({ skill }) =
         setPhaseLabel(phaseStr);
       }
 
-      // Read live origin from preview HeroSkeletalRig attachments
+      // Read live origin exclusively from isolated 'skill_preview' scene context!
       let originX = targetW * 0.34;
       let originY = targetH * 0.56;
-      const att = heroAttachRef.current;
-      if (att && stageRect.width > 0) {
+      const att = combatAnchorRegistry.getHeroAnchors('skill_preview') ?? heroAttachRef.current;
+      if (att && stageRect && stageRect.width > 0) {
         const src = skill.classId === 'mage' ? att.staffTip : att.weaponTip;
         originX = src.x - stageRect.left;
         originY = src.y - stageRect.top;
@@ -131,13 +159,14 @@ export const SkillPreviewStage: React.FC<SkillPreviewStageProps> = ({ skill }) =
 
       let targetX = targetW * 0.78;
       let targetY = targetH * 0.58;
-      if (enemyTargetRef.current && stageRect.width > 0) {
-        const er = enemyTargetRef.current.getBoundingClientRect();
-        targetX = er.left + er.width * 0.48 - stageRect.left;
-        targetY = er.top + er.height * 0.54 - stageRect.top;
+      let groundY = targetH * 0.86;
+      const monAtt = combatAnchorRegistry.getMonsterAnchors('skill_preview');
+      if (monAtt && stageRect && stageRect.width > 0) {
+        targetX = monAtt.bodyCenter.x - stageRect.left;
+        targetY = monAtt.bodyCenter.y - stageRect.top;
+        groundY = monAtt.groundContact.y - stageRect.top;
       }
 
-      const groundY = targetH * 0.86;
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
 
@@ -158,7 +187,7 @@ export const SkillPreviewStage: React.FC<SkillPreviewStageProps> = ({ skill }) =
         ctx.fill();
       }
 
-      // Stage 3-4: Travel / Release from live weaponTip/staffTip to target dummy
+      // Stage 3-4: Travel / Release from live weaponTip/staffTip to MonsterSkeletalRig target
       if (elapsedMs >= RELEASE_MS * 0.78 && elapsedMs <= CONTACT_MS + 110) {
         const travelSpan = Math.max(1, CONTACT_MS - RELEASE_MS * 0.78);
         const travelP = Math.max(0, Math.min(1, (elapsedMs - RELEASE_MS * 0.78) / travelSpan));
@@ -167,7 +196,6 @@ export const SkillPreviewStage: React.FC<SkillPreviewStageProps> = ({ skill }) =
 
         if (skill.classId === 'mage') {
           if (skill.effectType === 'chain_lightning' || skill.effectType === 'thunder_strike') {
-            // Zigzag Lightning Arc from staffTip/sky -> enemy
             ctx.strokeStyle = '#facc15';
             ctx.lineWidth = 4;
             ctx.beginPath();
@@ -185,7 +213,6 @@ export const SkillPreviewStage: React.FC<SkillPreviewStageProps> = ({ skill }) =
             ctx.lineWidth = 1.6;
             ctx.stroke();
           } else {
-            // Projectile orb/missile flying cleanly from crystal tip
             ctx.fillStyle = elemMeta.color;
             ctx.beginPath();
             ctx.arc(px, py, skill.isAwakening ? 13 : 9, 0, Math.PI * 2);
@@ -194,7 +221,6 @@ export const SkillPreviewStage: React.FC<SkillPreviewStageProps> = ({ skill }) =
             ctx.beginPath();
             ctx.arc(px, py, skill.isAwakening ? 6 : 4, 0, Math.PI * 2);
             ctx.fill();
-            // Glowing Trail
             ctx.strokeStyle = elemMeta.color;
             ctx.lineWidth = 4;
             ctx.globalAlpha = 0.55;
@@ -204,7 +230,6 @@ export const SkillPreviewStage: React.FC<SkillPreviewStageProps> = ({ skill }) =
             ctx.stroke();
           }
         } else {
-          // Warrior Slash Arc / Shield Slam / Sword Wave from weaponTip
           if (skill.effectType === 'sword_wave' || skill.effectType === 'wind_blade') {
             ctx.strokeStyle = '#34d399';
             ctx.lineWidth = 6;
@@ -227,7 +252,7 @@ export const SkillPreviewStage: React.FC<SkillPreviewStageProps> = ({ skill }) =
         }
       }
 
-      // Stage 5: Impact Shockwave & Element Burst on Training Monster
+      // Stage 5: Impact Shockwave & Element Burst on Practice Monster
       if (elapsedMs >= CONTACT_MS && elapsedMs <= CAST_ACTIVE_MS + 180) {
         const impP = Math.max(0, Math.min(1, (elapsedMs - CONTACT_MS) / 360));
         const fade = Math.max(0, 1 - impP);
@@ -246,7 +271,6 @@ export const SkillPreviewStage: React.FC<SkillPreviewStageProps> = ({ skill }) =
         ctx.ellipse(targetX, groundY - 4, radius * 1.15, radius * 0.32, 0, 0, Math.PI * 2);
         ctx.stroke();
 
-        // Radial Star Sparks
         const sparkCount = skill.isAwakening ? 12 : 8;
         for (let k = 0; k < sparkCount; k++) {
           const a = (k / sparkCount) * Math.PI * 2 + impP * 0.8;
@@ -257,7 +281,6 @@ export const SkillPreviewStage: React.FC<SkillPreviewStageProps> = ({ skill }) =
           ctx.fill();
         }
 
-        // Awakening Pillar Beam
         if (skill.isAwakening) {
           ctx.globalAlpha = fade * 0.45;
           ctx.fillStyle = elemMeta.color;
@@ -268,9 +291,14 @@ export const SkillPreviewStage: React.FC<SkillPreviewStageProps> = ({ skill }) =
       ctx.restore();
     };
 
-    const unsubscribe = animationClock.subscribe(4, drawStage);
+    const unsubscribe = animationClock.subscribe(5, drawStage);
     return () => {
+      cancelAnimationFrame(initRaf);
       unsubscribe();
+      if (resizeObs) resizeObs.disconnect();
+      window.removeEventListener('resize', updateStageRect);
+      combatAnchorRegistry.clearHeroAnchors('skill_preview');
+      combatAnchorRegistry.clearMonsterAnchors('skill_preview');
     };
   }, [skill.id, skill.classId, skill.effectType, skill.isAwakening, replayCount, clipMeta, elemMeta.color, isPassiveOnly]);
 
@@ -288,7 +316,7 @@ export const SkillPreviewStage: React.FC<SkillPreviewStageProps> = ({ skill }) =
           <span className="preview-isolated-tag">미리보기 (실제 전투 무관)</span>
         </div>
 
-        {/* Preview Hero Skeletal Rig (Isolated from main battle state) */}
+        {/* Preview Hero Skeletal Rig (Isolated 'skill_preview' scene context) */}
         <div className="skill-preview-hero-slot">
           <HeroSkeletalRig
             classId={skill.classId}
@@ -296,6 +324,7 @@ export const SkillPreviewStage: React.FC<SkillPreviewStageProps> = ({ skill }) =
             castingSkillType={skill.effectType}
             isAwakeningCasting={Boolean(skill.isAwakening)}
             isMainBattleHero={false}
+            sceneContext="skill_preview"
             paused={!isPlaying}
             replayToken={replayCount}
             onAttachmentsUpdate={(pts) => {
@@ -304,18 +333,22 @@ export const SkillPreviewStage: React.FC<SkillPreviewStageProps> = ({ skill }) =
           />
         </div>
 
-        {/* Isolated Practice Target Dummy */}
+        {/* Isolated Practice Target Monster (Real Articulated MonsterSkeletalRig!) */}
         <div
           ref={enemyTargetRef}
           className={`skill-preview-dummy ${enemyHitActive ? 'dummy-hit' : ''}`}
           data-dummy-hit={enemyHitActive ? 'true' : 'false'}
         >
-          <div className="dummy-shadow" />
-          <img
-            src="./assets/monster_slime.png"
+          <MonsterSkeletalRig
+            monster={PREVIEW_DUMMY_MONSTER}
+            animState={enemyHitActive ? 'Hit2' : 'Idle'}
+            isMainBattleMonster={false}
+            sceneContext="skill_preview"
+            paused={!isPlaying}
+            replayToken={replayCount}
+            fallbackSrc="./assets/monster_slime.png"
             alt="연습용 타겟"
-            className="dummy-sprite"
-            draggable={false}
+            className="dummy-rig-stage"
           />
           <span className="dummy-label">훈련 표적</span>
         </div>

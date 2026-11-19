@@ -202,31 +202,31 @@
       "durationMs": 37,
       "attachmentPoints": {
         "weaponGrip": {
-          "x": 155,
-          "y": 200
+          "x": 157,
+          "y": 205
         },
         "weaponTip": {
-          "x": 198,
-          "y": 120
+          "x": 210,
+          "y": 132
         },
         "staffTip": {
-          "x": 198,
-          "y": 120
+          "x": 210,
+          "y": 132
         },
         "leftHand": {
-          "x": 108,
-          "y": 217
+          "x": 107,
+          "y": 216
         },
         "rightHand": {
-          "x": 155,
-          "y": 200
+          "x": 157,
+          "y": 205
         },
         "groundContact": {
-          "x": 116,
+          "x": 119,
           "y": 264
         },
         "bodyCenter": {
-          "x": 116,
+          "x": 119,
           "y": 195
         }
       }

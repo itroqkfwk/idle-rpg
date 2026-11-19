@@ -1,12 +1,20 @@
 import React from 'react';
 import { Pet } from '../types/game';
+import { PetSkeletalRig } from './PetSkeletalRig';
 
 interface PetCompanionProps {
   pet: Pet | null;
   isAttacking?: boolean;
+  isMoving?: boolean;
+  isVictory?: boolean;
 }
 
-export const PetCompanion: React.FC<PetCompanionProps> = ({ pet, isAttacking = false }) => {
+export const PetCompanion: React.FC<PetCompanionProps> = ({
+  pet,
+  isAttacking = false,
+  isMoving = false,
+  isVictory = false,
+}) => {
   if (!pet) return null;
 
   const getPetSprite = (p: Pet) => {
@@ -18,26 +26,32 @@ export const PetCompanion: React.FC<PetCompanionProps> = ({ pet, isAttacking = f
   };
 
   return (
-    <div className="pet-companion-box" title={`${pet.name} (${pet.description})`}>
-      <div className={`pet-sprite ${isAttacking ? 'anim-pet-attack' : 'anim-pet-bounce'}`}>
+    <div
+      className="pet-companion-box"
+      title={`${pet.name} (${pet.description})`}
+      data-pet-id={pet.id}
+    >
+      <div className={`pet-sprite ${isAttacking ? 'pet-attacking-wrap' : 'pet-idle-wrap'}`}>
         {/* Companion Aura Glow */}
         <div className={`pet-aura-ring ${isAttacking ? 'pet-aura-burst' : ''}`} />
-        {/* Real 2D Companion Sprite */}
-        <img
-          src={getPetSprite(pet)}
+        {/* Articulated 2D Pet Skeletal Rig */}
+        <PetSkeletalRig
+          petId={pet.id}
+          petName={pet.name}
+          isAttacking={isAttacking}
+          isMoving={isMoving}
+          isVictory={isVictory}
+          isMainBattlePet={true}
+          fallbackSrc={getPetSprite(pet)}
           alt={pet.name}
-          className="pet-2d-sprite"
-          draggable={false}
         />
-        {/* Soft Ground Shadow */}
-        <div className="pet-shadow" />
       </div>
 
       <style>{`
         .pet-companion-box {
           position: absolute;
-          bottom: 8px;
-          left: 8px;
+          bottom: 4px;
+          left: -12px;
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -55,82 +69,51 @@ export const PetCompanion: React.FC<PetCompanionProps> = ({ pet, isAttacking = f
 
         .pet-aura-ring {
           position: absolute;
-          top: 50%;
+          top: 56%;
           left: 50%;
           transform: translate(-50%, -50%);
-          width: 38px;
-          height: 38px;
+          width: 44px;
+          height: 44px;
           border-radius: 50%;
-          background: radial-gradient(circle, rgba(245, 158, 11, 0.25) 0%, transparent 70%);
-          filter: blur(4px);
+          background: radial-gradient(circle, rgba(245, 158, 11, 0.22) 0%, transparent 70%);
           pointer-events: none;
-          transition: transform 0.2s ease, background 0.2s ease;
+          transition: transform 0.16s ease, opacity 0.16s ease;
         }
 
         .pet-aura-burst {
           transform: translate(-50%, -50%) scale(1.45);
-          background: radial-gradient(circle, rgba(251, 191, 36, 0.7) 0%, rgba(249, 115, 22, 0.35) 55%, transparent 75%);
+          background: radial-gradient(circle, rgba(251, 191, 36, 0.55) 0%, rgba(249, 115, 22, 0.25) 55%, transparent 75%);
+        }
+
+        .pet-skeletal-stage {
+          position: relative;
+          width: 78px;
+          height: 68px;
+          display: flex;
+          align-items: flex-end;
+          justify-content: center;
         }
 
         .pet-2d-sprite {
-          width: 44px;
-          height: 44px;
+          width: 100%;
+          height: 100%;
           object-fit: contain;
-          filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 8px rgba(245, 158, 11, 0.5));
         }
 
-        .pet-shadow {
-          width: 32px;
-          height: 8px;
-          border-radius: 50%;
-          background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55) 0%, transparent 70%);
-          margin-top: -4px;
+        .pet-skeletal-canvas {
+          filter: none !important;
+          display: block;
         }
 
-        .anim-pet-bounce {
-          animation: petHop 1.8s ease-in-out infinite;
-        }
-
-        .anim-pet-attack {
-          animation: petAttackLunge 0.38s cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
-        }
-
-        @keyframes petAttackLunge {
-          0% { transform: translate(0, 0) scale(1); }
-          40% { transform: translate(24px, -14px) rotate(10deg) scale(1.22); filter: brightness(1.3); }
-          100% { transform: translate(0, 0) rotate(0deg) scale(1); filter: brightness(1); }
-        }
-
-        @keyframes petHop {
-          0%, 100% {
-            transform: translateY(0) scale(1);
-          }
-          40% {
-            transform: translateY(-6px) scale(1.04, 0.96);
-          }
-          50% {
-            transform: translateY(-8px) scale(0.97, 1.03);
-          }
-          80% {
-            transform: translateY(0) scale(1.02, 0.98);
-          }
-        }
-
-        /* 🖥️ PC Responsive Layout (width >= 768px) */
         @media (min-width: 768px) {
           .pet-companion-box {
-            left: clamp(8px, 1.5vw, 24px);
-            bottom: clamp(8px, 1.2vh, 18px);
+            left: clamp(-4px, 0.8vw, 14px);
+            bottom: clamp(4px, 0.8vh, 14px);
           }
 
-          .pet-2d-sprite {
-            width: clamp(44px, 5.5vh, 64px);
-            height: clamp(44px, 5.5vh, 64px);
-          }
-
-          .pet-shadow {
-            width: clamp(32px, 4vh, 48px);
-            height: clamp(8px, 1vh, 12px);
+          .pet-skeletal-stage {
+            width: clamp(82px, 9.2vh, 112px);
+            height: clamp(72px, 8vh, 98px);
           }
         }
       `}</style>

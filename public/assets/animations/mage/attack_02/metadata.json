@@ -347,15 +347,15 @@
       "attachmentPoints": {
         "weaponGrip": {
           "x": 157,
-          "y": 204
+          "y": 203
         },
         "weaponTip": {
           "x": 171,
-          "y": 152
+          "y": 151
         },
         "staffTip": {
           "x": 171,
-          "y": 152
+          "y": 151
         },
         "leftHand": {
           "x": 112,
@@ -363,7 +363,7 @@
         },
         "rightHand": {
           "x": 157,
-          "y": 204
+          "y": 203
         },
         "groundContact": {
           "x": 118,
@@ -371,7 +371,7 @@
         },
         "bodyCenter": {
           "x": 118,
-          "y": 196
+          "y": 195
         }
       }
     }

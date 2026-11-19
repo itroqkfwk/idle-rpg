@@ -1306,6 +1306,7 @@ export const App: React.FC = () => {
             atkLevel: 35,
             hpLevel: 35,
             defLevel: 30,
+            currentHp: 53827,
             atkSpeed: 1.65,
             gold: 950000,
           },

@@ -490,7 +490,8 @@ export function evaluateHeroClipPose(
   clipId: HeroAnimationClipId,
   tNormalized: number
 ): HeroSkeletonPose {
-  const t = ((tNormalized % 1) + 1) % 1;
+  const isLoop = HERO_CLIP_CATALOG[clipId]?.loop ?? false;
+  const t = isLoop ? ((tNormalized % 1) + 1) % 1 : Math.max(0, Math.min(1, tNormalized));
   const phase = t * Math.PI * 2;
   const isWarrior = classId === 'warrior';
 
@@ -616,7 +617,7 @@ export function evaluateHeroClipPose(
     if (isWarrior) {
       return sampleKeyframes(classId, t, [
         { t: 0.00, pose: { rootX: 0, torsoAngle: 2, upperArmRAngle: -24, forearmRAngle: -52, weaponAngle: 92 } },
-        { t: 0.26, pose: { rootX: 6, torsoAngle: 20, headAngle: -8, capeAngle: 16, upperArmRAngle: -18, forearmRAngle: -16, weaponAngle: 142, upperArmLAngle: 32, forearmLAngle: -42, thighLAngle: 28, shinLAngle: 32, thighRAngle: -32, shinRAngle: 42 }, ease: 'smooth' },
+        { t: 0.26, pose: { rootX: 6, torsoAngle: 20, headAngle: -8, capeAngle: 16, upperArmRAngle: -18, forearmRAngle: -16, weaponAngle: 108, upperArmLAngle: 32, forearmLAngle: -42, thighLAngle: 28, shinLAngle: 32, thighRAngle: -32, shinRAngle: 42 }, ease: 'smooth' },
         { t: 0.50, pose: { rootX: 38, rootY: -10, torsoAngle: -12, headAngle: 8, capeAngle: 34, upperArmRAngle: -116, forearmRAngle: -18, weaponAngle: 98, upperArmLAngle: -52, forearmLAngle: -44, thighLAngle: 22, shinLAngle: 8, thighRAngle: -28, shinRAngle: 18, groundLock: false }, ease: 'linear' },
         { t: 0.76, pose: { rootX: 18, rootY: -2, torsoAngle: -5, capeAngle: 18, upperArmRAngle: -78, forearmRAngle: -32, weaponAngle: 84 }, ease: 'smooth' },
         { t: 1.00, pose: { rootX: 0, rootY: 0, torsoAngle: 2, upperArmRAngle: -24, forearmRAngle: -52, weaponAngle: 92 }, ease: 'smooth' },
@@ -678,7 +679,7 @@ export function evaluateHeroClipPose(
     return sampleKeyframes(classId, t, [
       { t: 0.00, pose: { expression: 'defeat', groundLock: true } },
       { t: 0.35, pose: { rootX: -12, rootY: 8, expression: 'defeat', torsoAngle: -16, headAngle: 16, upperArmRAngle: 24, forearmRAngle: -20, weaponAngle: 110, thighLAngle: 42, shinLAngle: 68, thighRAngle: -24, shinRAngle: 76, groundLock: true }, ease: 'smooth' },
-      { t: 1.00, pose: { rootX: -20, rootY: 20, pelvisY: -26, expression: 'defeat', pelvisAngle: -18, torsoAngle: -28, headAngle: 26, capeAngle: -28, upperArmLAngle: 48, forearmLAngle: -12, upperArmRAngle: 38, forearmRAngle: -18, weaponAngle: 132, thighLAngle: 58, shinLAngle: 86, thighRAngle: 22, shinRAngle: 88, rootAlpha: 0.85, groundLock: false }, ease: 'smooth' },
+      { t: 1.00, pose: { rootX: -20, rootY: 20, pelvisY: -26, expression: 'defeat', pelvisAngle: -18, torsoAngle: -28, headAngle: 26, capeAngle: -28, upperArmLAngle: 48, forearmLAngle: -12, upperArmRAngle: 38, forearmRAngle: -18, weaponAngle: 96, thighLAngle: 58, shinLAngle: 86, thighRAngle: 22, shinRAngle: 88, rootAlpha: 0.85, groundLock: false }, ease: 'smooth' },
     ]);
   }
 
@@ -699,7 +700,7 @@ export function evaluateHeroClipPose(
     return sampleKeyframes('warrior', t, [
       { t: 0.00, pose: { groundLock: true } },
       { t: 0.20, pose: { rootX: -8, torsoAngle: -20, upperArmRAngle: 48, forearmRAngle: -18, weaponAngle: -10, upperArmLAngle: 38, capeAngle: 32 }, ease: 'smooth' },
-      { t: 0.45, pose: { rootX: 38, rootY: -12, torsoScaleX: -0.92, torsoAngle: 14, capeAngle: 64, upperArmRAngle: -94, forearmRAngle: -10, weaponAngle: 94, upperArmLAngle: 86, forearmLAngle: 10, thighLAngle: -24, thighRAngle: 24, groundLock: false }, ease: 'linear' },
+      { t: 0.45, pose: { rootX: 38, rootY: -12, torsoScaleX: 1.04, torsoAngle: 14, capeAngle: 64, upperArmRAngle: -94, forearmRAngle: -10, weaponAngle: 94, upperArmLAngle: 86, forearmLAngle: 10, thighLAngle: -24, thighRAngle: 24, groundLock: false }, ease: 'linear' },
       { t: 0.72, pose: { rootX: 42, rootY: -6, torsoScaleX: 1.0, torsoAngle: 18, capeAngle: 48, upperArmRAngle: -96, forearmRAngle: -14, weaponAngle: 108, weaponFrontOfTorso: true, groundLock: false }, ease: 'linear' },
       { t: 1.00, pose: { rootX: 0, rootY: 0, torsoScaleX: 1.0, groundLock: true }, ease: 'smooth' },
     ]);
@@ -745,7 +746,7 @@ export function evaluateHeroClipPose(
     return sampleKeyframes('warrior', t, [
       { t: 0.00, pose: { groundLock: true, weaponFrontOfTorso: true } },
       { t: 0.16, pose: { rootX: -12, rootY: 4, torsoAngle: 14, thighLAngle: 34, shinLAngle: 42, thighRAngle: -32, shinRAngle: 44, capeAngle: 20, upperArmRAngle: -18, weaponAngle: 78, weaponFrontOfTorso: true, groundLock: true }, ease: 'smooth' },
-      { t: 0.42, pose: { rootX: 22, rootY: -42, torsoAngle: -14, headAngle: 10, capeAngle: 62, upperArmRAngle: -132, forearmRAngle: -14, weaponAngle: 132, weaponScale: 1.24, upperArmLAngle: -122, forearmLAngle: -18, weaponFrontOfTorso: true, thighLAngle: 18, shinLAngle: 38, thighRAngle: -46, shinRAngle: 64, groundLock: false }, ease: 'smooth' },
+      { t: 0.42, pose: { rootX: 22, rootY: -30, torsoAngle: -14, headAngle: 10, capeAngle: 62, upperArmRAngle: -132, forearmRAngle: -14, weaponAngle: 132, weaponScale: 1.24, upperArmLAngle: -122, forearmLAngle: -18, weaponFrontOfTorso: true, thighLAngle: 18, shinLAngle: 38, thighRAngle: -46, shinRAngle: 64, groundLock: false }, ease: 'smooth' },
       { t: 0.62, pose: { rootX: 56, rootY: 0, torsoAngle: 30, headAngle: -14, capeAngle: 54, upperArmRAngle: -66, forearmRAngle: -10, weaponAngle: 128, weaponScale: 1.28, upperArmLAngle: -46, forearmLAngle: -18, weaponFrontOfTorso: true, thighLAngle: 36, shinLAngle: 26, thighRAngle: -48, shinRAngle: 48, groundLock: true }, ease: 'linear' },
       { t: 0.84, pose: { rootX: 30, rootY: 0, torsoAngle: 16, weaponAngle: 118, weaponScale: 1.12, weaponFrontOfTorso: true, groundLock: true }, ease: 'smooth' },
       { t: 1.00, pose: { rootX: 0, rootY: 0, weaponScale: 1.0, groundLock: true }, ease: 'smooth' },
@@ -908,10 +909,10 @@ export function solveHeroSkeleton(
     let mFootR = matTranslate(mShinR, 0, geo.shinLen);
     mFootR = matRotateDeg(mFootR, pose.footRAngle);
 
-    // Torso
+    // Torso (keep child joint frame unscaled so head/face proportions never stretch)
     let mTorso = matTranslate(mPelvis, geo.pelvisToTorso.x, geo.pelvisToTorso.y);
     mTorso = matRotateDeg(mTorso, pose.torsoAngle);
-    mTorso = matScale(mTorso, pose.torsoScaleX ?? 1, pose.torsoScaleY ?? 1);
+    const mTorsoDraw = matScale(mTorso, pose.torsoScaleX ?? 1, pose.torsoScaleY ?? 1);
 
     // Cape behind torso
     let mCape = matTranslate(mTorso, geo.torsoToCape.x, geo.torsoToCape.y);
@@ -1006,7 +1007,7 @@ export function solveHeroSkeleton(
         hair_back_l: mHairL,
         hair_back_r: mHairR,
         pelvis: mPelvis,
-        torso: mTorso,
+        torso: mTorsoDraw,
         head: mHead,
         upper_arm_l: mUpperArmL,
         forearm_l: mForearmL,

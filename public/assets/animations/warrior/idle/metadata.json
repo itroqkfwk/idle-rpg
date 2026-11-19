@@ -62,12 +62,12 @@
           "y": 207
         },
         "weaponTip": {
-          "x": 210,
-          "y": 134
+          "x": 211,
+          "y": 135
         },
         "staffTip": {
-          "x": 210,
-          "y": 134
+          "x": 211,
+          "y": 135
         },
         "leftHand": {
           "x": 109,
@@ -94,24 +94,24 @@
       "durationMs": 275,
       "attachmentPoints": {
         "weaponGrip": {
-          "x": 155,
-          "y": 207
+          "x": 156,
+          "y": 208
         },
         "weaponTip": {
-          "x": 207,
-          "y": 132
+          "x": 208,
+          "y": 134
         },
         "staffTip": {
-          "x": 207,
-          "y": 132
+          "x": 208,
+          "y": 134
         },
         "leftHand": {
           "x": 109,
           "y": 215
         },
         "rightHand": {
-          "x": 155,
-          "y": 207
+          "x": 156,
+          "y": 208
         },
         "groundContact": {
           "x": 119,
@@ -135,11 +135,11 @@
         },
         "weaponTip": {
           "x": 203,
-          "y": 129
+          "y": 130
         },
         "staffTip": {
           "x": 203,
-          "y": 129
+          "y": 130
         },
         "leftHand": {
           "x": 109,
@@ -202,23 +202,23 @@
       "durationMs": 275,
       "attachmentPoints": {
         "weaponGrip": {
-          "x": 158,
+          "x": 157,
           "y": 203
         },
         "weaponTip": {
-          "x": 199,
-          "y": 124
+          "x": 198,
+          "y": 123
         },
         "staffTip": {
-          "x": 199,
-          "y": 124
+          "x": 198,
+          "y": 123
         },
         "leftHand": {
           "x": 108,
           "y": 215
         },
         "rightHand": {
-          "x": 158,
+          "x": 157,
           "y": 203
         },
         "groundContact": {
@@ -239,15 +239,15 @@
       "attachmentPoints": {
         "weaponGrip": {
           "x": 158,
-          "y": 203
+          "y": 202
         },
         "weaponTip": {
-          "x": 202,
-          "y": 126
+          "x": 201,
+          "y": 123
         },
         "staffTip": {
-          "x": 202,
-          "y": 126
+          "x": 201,
+          "y": 123
         },
         "leftHand": {
           "x": 108,
@@ -255,7 +255,7 @@
         },
         "rightHand": {
           "x": 158,
-          "y": 203
+          "y": 202
         },
         "groundContact": {
           "x": 118,
@@ -274,23 +274,23 @@
       "durationMs": 275,
       "attachmentPoints": {
         "weaponGrip": {
-          "x": 158,
+          "x": 157,
           "y": 203
         },
         "weaponTip": {
-          "x": 207,
-          "y": 129
+          "x": 206,
+          "y": 127
         },
         "staffTip": {
-          "x": 207,
-          "y": 129
+          "x": 206,
+          "y": 127
         },
         "leftHand": {
           "x": 108,
           "y": 215
         },
         "rightHand": {
-          "x": 158,
+          "x": 157,
           "y": 203
         },
         "groundContact": {

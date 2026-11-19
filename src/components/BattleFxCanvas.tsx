@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { SkillEffectType, CharacterClassId, EquipmentRarity, BossPatternType, BossPatternVfxEvent } from '../types/game';
 import { AmbientParticleType } from '../data/stages';
 import { animationClock } from '../utils/animationClock';
+import { combatAnchorRegistry } from '../utils/combatAnchorRegistry';
 
 interface BattleFxCanvasProps {
   activeSkillVfx: { id: string; type: SkillEffectType } | null;
@@ -99,8 +100,6 @@ export function drawEquipmentSummonRitual(
     ctx.translate(cx, cy);
     ctx.rotate(elapsedSec * 1.6);
     ctx.strokeStyle = `rgba(56, 189, 248, ${0.85 * fadeAlpha})`;
-    ctx.shadowColor = '#38bdf8';
-    ctx.shadowBlur = 10;
     ctx.lineWidth = 2.2 * scale;
 
     const rRing = baseRadius * (0.75 + Math.sin(clampedProg * Math.PI) * 0.12);
@@ -170,8 +169,6 @@ export function drawEquipmentSummonRitual(
     ctx.translate(cx, cy);
     ctx.rotate(-elapsedSec * 2.0);
     ctx.strokeStyle = `rgba(216, 180, 254, ${0.9 * fadeAlpha})`;
-    ctx.shadowColor = '#a855f7';
-    ctx.shadowBlur = 12;
     ctx.lineWidth = 2.4 * scale;
 
     const rRing = baseRadius * 0.86;
@@ -269,8 +266,6 @@ export function drawEquipmentSummonRitual(
     ctx.translate(cx, cy);
     ctx.rotate(elapsedSec * 2.4);
     ctx.strokeStyle = `rgba(254, 240, 138, ${0.92 * fadeAlpha})`;
-    ctx.shadowColor = '#f59e0b';
-    ctx.shadowBlur = 14;
     ctx.lineWidth = 2.5 * scale;
 
     const rRing = baseRadius * 0.95;
@@ -356,8 +351,6 @@ export function drawEquipmentSummonRitual(
     ctx.translate(cx, cy);
     ctx.rotate(elapsedSec * layer.speed);
     ctx.strokeStyle = layer.color;
-    ctx.shadowColor = layer.color;
-    ctx.shadowBlur = 14;
     ctx.globalAlpha = 0.9 * fadeAlpha;
     ctx.lineWidth = layer.lineWidth * scale;
 
@@ -765,13 +758,14 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
     }>
   >([]);
 
+  const canvasRectRef = useRef<{ left: number; top: number; width: number; height: number } | null>(null);
   const lastTimeRef = useRef<number>(performance.now());
   const activeVfxIdRef = useRef<string | null>(null);
   const lastBasicEventIdRef = useRef<string | null>(null);
   const lastPetEventIdRef = useRef<string | null>(null);
   const prevMonsterDefeatedRef = useRef<boolean>(false);
 
-  // Anchor Calculation relative to actual DOM character & monster sprite wrappers
+  // Anchor Calculation using Scene-Scoped Rig Registry + Cached Canvas Rect
   const getAnchors = () => {
     const canvas = canvasRef.current;
     if (!canvas) {
@@ -784,18 +778,17 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
         bladeOriginY: 445,
         monsterX: 700,
         monsterY: 450,
+        petX: 240,
+        petY: 495,
         groundY: 560,
       };
     }
-    const canvasRect = canvas.getBoundingClientRect();
-    const heroEl =
-      document.querySelector('.hero-sprite-wrapper') ||
-      document.querySelector('.hero-slot') ||
-      document.querySelector('.player-avatar-wrapper');
-    const enemyEl =
-      document.querySelector('.enemy-sprite-wrapper') ||
-      document.querySelector('.enemy-slot') ||
-      document.querySelector('.enemy-2d-container');
+    let canvasRect = canvasRectRef.current;
+    if (!canvasRect || canvasRect.width <= 0) {
+      const r = canvas.getBoundingClientRect();
+      canvasRect = { left: r.left, top: r.top, width: r.width, height: r.height };
+      if (r.width > 0 && r.height > 0) canvasRectRef.current = canvasRect;
+    }
 
     let heroX = canvas.width * 0.34;
     let heroY = canvas.height * 0.58;
@@ -805,40 +798,64 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
     let bladeOriginY = heroY - 6;
     let monsterX = canvas.width * 0.68;
     let monsterY = canvas.height * 0.58;
+    let petX = heroX - 38;
+    let petY = heroY + 28;
     let groundY = canvas.height * 0.74;
 
-    if (heroEl && canvasRect.width > 0) {
-      const hr = heroEl.getBoundingClientRect();
+    if (canvasRect && canvasRect.width > 0) {
       const scaleX = canvas.width / canvasRect.width;
       const scaleY = canvas.height / canvasRect.height;
-      heroX = (hr.left + hr.width * 0.56 - canvasRect.left) * scaleX;
-      heroY = (hr.top + hr.height * 0.52 - canvasRect.top) * scaleY;
-      staffTipX = (hr.left + hr.width * 0.78 - canvasRect.left) * scaleX;
-      staffTipY = (hr.top + hr.height * 0.34 - canvasRect.top) * scaleY;
-      bladeOriginX = (hr.left + hr.width * 0.74 - canvasRect.left) * scaleX;
-      bladeOriginY = (hr.top + hr.height * 0.48 - canvasRect.top) * scaleY;
+      const now = performance.now();
 
-      // Override with live articulated FK skeletal joint world coordinates when fresh (<250ms)
-      const liveRig = typeof window !== 'undefined' ? window.__heroAttachmentPoints : undefined;
-      if (liveRig && performance.now() - liveRig.updatedAt < 250) {
-        heroX = (liveRig.bodyCenter.x - canvasRect.left) * scaleX;
-        heroY = (liveRig.bodyCenter.y - canvasRect.top) * scaleY;
-        staffTipX = (liveRig.staffTip.x - canvasRect.left) * scaleX;
-        staffTipY = (liveRig.staffTip.y - canvasRect.top) * scaleY;
-        bladeOriginX = (liveRig.weaponTip.x - canvasRect.left) * scaleX;
-        bladeOriginY = (liveRig.weaponTip.y - canvasRect.top) * scaleY;
+      const liveHero = combatAnchorRegistry.getHeroAnchors('main_battle');
+      if (liveHero && now - liveHero.updatedAt < 400) {
+        heroX = (liveHero.bodyCenter.x - canvasRect.left) * scaleX;
+        heroY = (liveHero.bodyCenter.y - canvasRect.top) * scaleY;
+        staffTipX = (liveHero.staffTip.x - canvasRect.left) * scaleX;
+        staffTipY = (liveHero.staffTip.y - canvasRect.top) * scaleY;
+        bladeOriginX = (liveHero.weaponTip.x - canvasRect.left) * scaleX;
+        bladeOriginY = (liveHero.weaponTip.y - canvasRect.top) * scaleY;
+        groundY = (liveHero.groundContact.y - canvasRect.top) * scaleY;
+      } else {
+        const heroEl =
+          document.querySelector('.hero-sprite-wrapper') ||
+          document.querySelector('.hero-slot');
+        if (heroEl) {
+          const hr = heroEl.getBoundingClientRect();
+          heroX = (hr.left + hr.width * 0.56 - canvasRect.left) * scaleX;
+          heroY = (hr.top + hr.height * 0.52 - canvasRect.top) * scaleY;
+          staffTipX = (hr.left + hr.width * 0.78 - canvasRect.left) * scaleX;
+          staffTipY = (hr.top + hr.height * 0.34 - canvasRect.top) * scaleY;
+          bladeOriginX = (hr.left + hr.width * 0.74 - canvasRect.left) * scaleX;
+          bladeOriginY = (hr.top + hr.height * 0.48 - canvasRect.top) * scaleY;
+        }
+      }
+
+      const liveMonster = combatAnchorRegistry.getMonsterAnchors('main_battle');
+      if (liveMonster && now - liveMonster.updatedAt < 400) {
+        monsterX = (liveMonster.bodyCenter.x - canvasRect.left) * scaleX;
+        monsterY = (liveMonster.bodyCenter.y - canvasRect.top) * scaleY;
+        groundY = (liveMonster.groundContact.y - canvasRect.top) * scaleY;
+      } else {
+        const enemyEl =
+          document.querySelector('.enemy-sprite-wrapper') ||
+          document.querySelector('.enemy-slot');
+        if (enemyEl) {
+          const er = enemyEl.getBoundingClientRect();
+          monsterX = (er.left + er.width * 0.5 - canvasRect.left) * scaleX;
+          monsterY = (er.top + er.height * 0.52 - canvasRect.top) * scaleY;
+          groundY = (er.bottom - 10 - canvasRect.top) * scaleY;
+        }
+      }
+
+      const livePet = combatAnchorRegistry.getPetAnchors('main_battle');
+      if (livePet && now - livePet.updatedAt < 400) {
+        petX = (livePet.attackOrigin.x - canvasRect.left) * scaleX;
+        petY = (livePet.attackOrigin.y - canvasRect.top) * scaleY;
       }
     }
-    if (enemyEl && canvasRect.width > 0) {
-      const er = enemyEl.getBoundingClientRect();
-      const scaleX = canvas.width / canvasRect.width;
-      const scaleY = canvas.height / canvasRect.height;
-      monsterX = (er.left + er.width * 0.5 - canvasRect.left) * scaleX;
-      monsterY = (er.top + er.height * 0.52 - canvasRect.top) * scaleY;
-      groundY = (er.bottom - 10 - canvasRect.top) * scaleY;
-    }
 
-    return { heroX, heroY, staffTipX, staffTipY, bladeOriginX, bladeOriginY, monsterX, monsterY, groundY };
+    return { heroX, heroY, staffTipX, staffTipY, bladeOriginX, bladeOriginY, monsterX, monsterY, petX, petY, groundY };
   };
 
   // Helper: Spawn velocity-stretched directional sparks (scaled automatically for mobile & reduced-motion)
@@ -1787,39 +1804,48 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
   }, [basicAttackEvent]);
 
   // ==========================================
-  // Trigger Active Pet Companion Projectile VFX
+  // Trigger Active Pet Companion Projectile VFX (Synced to Pet Rig attackOrigin)
   // ==========================================
   useEffect(() => {
     if (!petAttackEvent) return;
     if (lastPetEventIdRef.current === petAttackEvent.id) return;
     lastPetEventIdRef.current = petAttackEvent.id;
 
-    const { heroX, monsterX, monsterY, groundY } = getAnchors();
-    const petColor = petAttackEvent.petId.includes('fox')
+    const petId = petAttackEvent.petId;
+    const petColor = petId.includes('fox')
       ? '#f97316'
-      : petAttackEvent.petId.includes('fairy')
+      : petId.includes('fairy')
       ? '#34d399'
-      : petAttackEvent.petId.includes('dragon')
+      : petId.includes('cat')
+      ? '#c084fc'
+      : petId.includes('dragon')
       ? '#ef4444'
       : '#38bdf8';
 
-    // Launch projectile at 80ms when pet reaches leap forward apex
+    const projType: ActiveProjectile['type'] = petId.includes('dragon')
+      ? 'fireball'
+      : petId.includes('cat')
+      ? 'sword_wave'
+      : 'magic_missile';
+
+    // Launch projectile at 80ms when pet rig reaches AttackExecute apex using live attackOrigin
     setTimeout(() => {
+      const { petX, petY, monsterX, monsterY } = getAnchors();
       projectilesRef.current.push({
         id: `pet_proj_${petAttackEvent.id}`,
-        type: 'magic_missile',
-        startX: heroX - 20,
-        startY: groundY - 26,
+        type: projType,
+        startX: petX,
+        startY: petY,
         targetX: monsterX,
-        targetY: monsterY + 8,
-        currentX: heroX - 20,
-        currentY: groundY - 26,
+        targetY: monsterY + 4,
+        currentX: petX,
+        currentY: petY,
         progress: 0,
         speed: 0.11,
         flightDuration: 0.16,
         color: petColor,
-        size: 11,
-        waveOffset: -16,
+        size: petId.includes('dragon') ? 13 : 11,
+        waveOffset: projType === 'magic_missile' ? -14 : undefined,
         wavePhase: 0.5,
         trail: [],
       });
@@ -1827,8 +1853,9 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
 
     // Impact at 240ms exactly synchronized with App.tsx damage application
     setTimeout(() => {
-      spawnShockwave(monsterX, monsterY + 8, 48, 340, petColor, 0.85, 3.5);
-      spawnDirectionalSparks(monsterX, monsterY + 8, 14, petColor, 0, 2.0, 7.5, groundY);
+      const { monsterX, monsterY, groundY } = getAnchors();
+      spawnShockwave(monsterX, monsterY + 4, 48, 340, petColor, 0.85, 3.5);
+      spawnDirectionalSparks(monsterX, monsterY + 4, 14, petColor, 0, 2.0, 7.5, groundY);
     }, 240);
   }, [petAttackEvent]);
 
@@ -2132,6 +2159,9 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
 
     const resizeCanvas = () => {
       const rect = canvas.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        canvasRectRef.current = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+      }
       const targetW = Math.round(rect.width);
       const targetH = Math.round(rect.height);
       if (targetW > 0 && targetH > 0 && (canvas.width !== targetW || canvas.height !== targetH)) {
@@ -2140,7 +2170,12 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
       }
     };
     resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
+    let resizeObs: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObs = new ResizeObserver(resizeCanvas);
+      resizeObs.observe(canvas);
+    }
+    window.addEventListener('resize', resizeCanvas, { passive: true });
 
     // Prevent delta-time spike or particle backlog when returning from a background tab
     const handleVisibilityChange = () => {
@@ -2342,8 +2377,6 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
           ctx.rotate(rotation);
           ctx.strokeStyle = `rgba(251, 191, 36, ${0.75 * alpha})`;
           ctx.lineWidth = 2.5;
-          ctx.shadowColor = '#fbbf24';
-          ctx.shadowBlur = 12;
 
           // Outer circle
           ctx.beginPath();
@@ -2467,8 +2500,6 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
             const circleAlpha = Math.max(0, 1 - Math.abs(elapsed - 0.3) * 2);
             ctx.save();
             ctx.strokeStyle = '#fbbf24';
-            ctx.shadowColor = '#f59e0b';
-            ctx.shadowBlur = 16;
             ctx.lineWidth = 3;
             ctx.globalAlpha = circleAlpha;
             ctx.beginPath();
@@ -3492,6 +3523,7 @@ export const BattleFxCanvas: React.FC<BattleFxCanvasProps> = ({
     const unsubscribe = animationClock.subscribe(2, render);
 
     return () => {
+      if (resizeObs) resizeObs.disconnect();
       window.removeEventListener('resize', resizeCanvas);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       unsubscribe();
