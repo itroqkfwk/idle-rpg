@@ -15,7 +15,9 @@ import { animationClock } from '../utils/animationClock';
 import {
   combatAnchorRegistry,
   CombatSceneContextId,
+  DEFAULT_VISUAL_RENDER_MODE,
   MonsterSceneAttachments,
+  VisualRenderMode,
 } from '../utils/combatAnchorRegistry';
 
 interface MonsterSkeletalRigProps {
@@ -29,6 +31,7 @@ interface MonsterSkeletalRigProps {
   isHitStop?: boolean;
   isMainBattleMonster?: boolean;
   sceneContext?: CombatSceneContextId;
+  renderMode?: VisualRenderMode;
   paused?: boolean;
   replayToken?: number;
   fallbackSrc?: string;
@@ -111,6 +114,7 @@ export const MonsterSkeletalRig: React.FC<MonsterSkeletalRigProps> = ({
   isHitStop = false,
   isMainBattleMonster = true,
   sceneContext,
+  renderMode = DEFAULT_VISUAL_RENDER_MODE,
   paused = false,
   replayToken = 0,
   fallbackSrc,
@@ -121,10 +125,13 @@ export const MonsterSkeletalRig: React.FC<MonsterSkeletalRigProps> = ({
   const rigId: MonsterRigId = resolveMonsterRigId(monster);
   const spec = MONSTER_RIG_SPECS[rigId];
   const resolvedScene: CombatSceneContextId = sceneContext ?? (isMainBattleMonster ? 'main_battle' : 'skill_preview');
+  const isOriginalArt = renderMode === 'original_art';
+  const resolvedSrc = fallbackSrc || spec.sourcePng;
 
+  const hostRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const atlasRef = useRef<PackedRigAtlas | null>(getCachedMonsterAtlas(rigId));
-  const [assetsReady, setAssetsReady] = useState<boolean>(Boolean(atlasRef.current));
+  const atlasRef = useRef<PackedRigAtlas | null>(isOriginalArt ? null : getCachedMonsterAtlas(rigId));
+  const [assetsReady, setAssetsReady] = useState<boolean>(isOriginalArt ? true : Boolean(atlasRef.current));
   const cachedRectRef = useRef<{ left: number; top: number; width: number; height: number } | null>(null);
   const dprRef = useRef<number>(computeAdaptiveDpr());
 
@@ -140,6 +147,7 @@ export const MonsterSkeletalRig: React.FC<MonsterSkeletalRigProps> = ({
     isHitStop,
     paused,
     resolvedScene,
+    isOriginalArt,
     onAttachmentsUpdate,
   });
   stateRef.current = {
@@ -154,6 +162,7 @@ export const MonsterSkeletalRig: React.FC<MonsterSkeletalRigProps> = ({
     isHitStop,
     paused,
     resolvedScene,
+    isOriginalArt,
     onAttachmentsUpdate,
   };
 
@@ -165,7 +174,13 @@ export const MonsterSkeletalRig: React.FC<MonsterSkeletalRigProps> = ({
     lastSignature: '',
   });
 
+  // Never load skeletal part atlas when renderMode === 'original_art'
   useEffect(() => {
+    if (isOriginalArt) {
+      atlasRef.current = null;
+      setAssetsReady(true);
+      return;
+    }
     let mounted = true;
     const cached = getCachedMonsterAtlas(rigId);
     if (cached) {
@@ -184,15 +199,17 @@ export const MonsterSkeletalRig: React.FC<MonsterSkeletalRigProps> = ({
     return () => {
       mounted = false;
     };
-  }, [rigId]);
+  }, [rigId, isOriginalArt]);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const targetEl = isOriginalArt ? hostRef.current : canvasRef.current;
+    if (!targetEl) return;
+
+    const canvas = !isOriginalArt ? canvasRef.current : null;
+    const ctx = canvas ? canvas.getContext('2d') : null;
 
     const syncResolution = () => {
+      if (!canvas) return;
       const nextDpr = computeAdaptiveDpr();
       dprRef.current = nextDpr;
       const curSpec = MONSTER_RIG_SPECS[stateRef.current.rigId];
@@ -204,10 +221,12 @@ export const MonsterSkeletalRig: React.FC<MonsterSkeletalRigProps> = ({
         timerRef.current.lastSignature = '';
       }
     };
-    syncResolution();
+    if (canvas) syncResolution();
 
     const updateRectCache = () => {
-      const r = canvas.getBoundingClientRect();
+      const el = isOriginalArt ? hostRef.current : canvasRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
       if (r.width > 0 && r.height > 0) {
         cachedRectRef.current = { left: r.left, top: r.top, width: r.width, height: r.height };
       }
@@ -218,10 +237,10 @@ export const MonsterSkeletalRig: React.FC<MonsterSkeletalRigProps> = ({
     let resizeObs: ResizeObserver | null = null;
     if (typeof ResizeObserver !== 'undefined') {
       resizeObs = new ResizeObserver(updateRectCache);
-      resizeObs.observe(canvas);
+      resizeObs.observe(targetEl);
     }
     const handleResize = () => {
-      syncResolution();
+      if (canvas) syncResolution();
       updateRectCache();
     };
     window.addEventListener('resize', handleResize, { passive: true });
@@ -235,19 +254,16 @@ export const MonsterSkeletalRig: React.FC<MonsterSkeletalRigProps> = ({
     };
     document.addEventListener('visibilitychange', handleVisibility);
 
-    const shadowSprite = getRadialSprite('shadow');
-    const hitSprite = getRadialSprite('hit');
-    const frostSprite = getRadialSprite('frost');
-    const burnSprite = getRadialSprite('burn');
-    const phase2Sprite = getRadialSprite('phase2');
+    const shadowSprite = !isOriginalArt ? getRadialSprite('shadow') : null;
+    const hitSprite = !isOriginalArt ? getRadialSprite('hit') : null;
+    const frostSprite = !isOriginalArt ? getRadialSprite('frost') : null;
+    const burnSprite = !isOriginalArt ? getRadialSprite('burn') : null;
+    const phase2Sprite = !isOriginalArt ? getRadialSprite('phase2') : null;
 
     timerRef.current.lastFrameTime = performance.now();
 
-    const unsubscribe = animationClock.subscribe(isMainBattleMonster ? 1 : 4, (now: number) => {
+    const onTick = (now: number) => {
       const s = stateRef.current;
-      const atlas = atlasRef.current;
-      if (!atlas || atlas.canvas.width <= 0) return;
-
       const curSpec = MONSTER_RIG_SPECS[s.rigId];
       const timer = timerRef.current;
       const dtMs = Math.max(0, Math.min(50, now - timer.lastFrameTime));
@@ -261,7 +277,7 @@ export const MonsterSkeletalRig: React.FC<MonsterSkeletalRigProps> = ({
         timer.lastReplayToken = replayToken;
         timer.elapsedMs = 0;
         timer.lastSignature = '';
-        syncResolution();
+        if (canvas) syncResolution();
       } else if (!s.paused && !s.isHitStop) {
         timer.elapsedMs += dtMs;
       }
@@ -277,99 +293,102 @@ export const MonsterSkeletalRig: React.FC<MonsterSkeletalRigProps> = ({
       }
       timer.lastSignature = signature;
 
-      const dpr = dprRef.current;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, curSpec.canonicalW, curSpec.canonicalH);
-
       const pose = evaluateMonsterClipPose(curSpec.archetype, clipId, normT, {
         bossPattern: s.bossPattern,
         bossPhase: s.bossPhase,
       });
       const solved = solveMonsterSkeleton(curSpec.rigId, pose, curSpec.centerX, curSpec.groundY, 1.0);
 
-      // 1. Pre-rendered Ground Contact Shadow
-      const gx = solved.attachments.groundContact.x;
-      const gy = curSpec.groundY + 4;
-      const altPx = Math.max(0, -pose.rootY);
-      const shScale = Math.max(0.45, 1 - altPx / 120);
-      const baseShW = curSpec.isBoss ? 176 : curSpec.archetype === 'beast' ? 148 : 112;
-      const baseShH = curSpec.isBoss ? 28 : 20;
-      ctx.save();
-      ctx.globalAlpha = Math.max(0.24, 0.85 * shScale * solved.rootAlpha);
-      ctx.drawImage(shadowSprite, gx - (baseShW * shScale) / 2, gy - (baseShH * shScale) / 2, baseShW * shScale, baseShH * shScale);
-      ctx.restore();
+      if (!s.isOriginalArt && canvas && ctx) {
+        const atlas = atlasRef.current;
+        if (!atlas || atlas.canvas.width <= 0) return;
 
-      // 2. Boss Phase 2 / CC Underlying Aura
-      if ((curSpec.isBoss && s.bossPhase === 2 && solved.rootAlpha > 0.1) || s.isFrozen || s.isBurning) {
-        const bx = solved.attachments.bodyCenter.x;
-        const by = solved.attachments.bodyCenter.y;
-        const r = curSpec.isBoss ? 118 : 82;
+        const dpr = dprRef.current;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, curSpec.canonicalW, curSpec.canonicalH);
+
+        const gx = solved.attachments.groundContact.x;
+        const gy = curSpec.groundY + 4;
+        const altPx = Math.max(0, -pose.rootY);
+        const shScale = Math.max(0.45, 1 - altPx / 120);
+        const baseShW = curSpec.isBoss ? 176 : curSpec.archetype === 'beast' ? 148 : 112;
+        const baseShH = curSpec.isBoss ? 28 : 20;
+        if (shadowSprite) {
+          ctx.save();
+          ctx.globalAlpha = Math.max(0.24, 0.85 * shScale * solved.rootAlpha);
+          ctx.drawImage(shadowSprite, gx - (baseShW * shScale) / 2, gy - (baseShH * shScale) / 2, baseShW * shScale, baseShH * shScale);
+          ctx.restore();
+        }
+
+        if ((curSpec.isBoss && s.bossPhase === 2 && solved.rootAlpha > 0.1) || s.isFrozen || s.isBurning) {
+          const bx = solved.attachments.bodyCenter.x;
+          const by = solved.attachments.bodyCenter.y;
+          const r = curSpec.isBoss ? 118 : 82;
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.globalAlpha = 0.55 * solved.rootAlpha;
+          if (s.isFrozen && frostSprite) {
+            ctx.drawImage(frostSprite, bx - r, by - r, r * 2, r * 2);
+          } else if (s.isBurning && burnSprite) {
+            ctx.drawImage(burnSprite, bx - r, by - r, r * 2, r * 2);
+          } else if (s.bossPhase === 2 && phase2Sprite) {
+            ctx.drawImage(phase2Sprite, bx - r, by - r, r * 2, r * 2);
+          }
+          ctx.restore();
+        }
+
         ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.globalAlpha = 0.55 * solved.rootAlpha;
-        if (s.isFrozen) {
-          ctx.drawImage(frostSprite, bx - r, by - r, r * 2, r * 2);
-        } else if (s.isBurning) {
-          ctx.drawImage(burnSprite, bx - r, by - r, r * 2, r * 2);
-        } else if (s.bossPhase === 2) {
-          ctx.drawImage(phase2Sprite, bx - r, by - r, r * 2, r * 2);
+        ctx.globalAlpha = solved.rootAlpha;
+        for (let i = 0; i < solved.drawOrder.length; i++) {
+          const partId = solved.drawOrder[i];
+          const partSpec = curSpec.parts[partId];
+          const m = solved.matrices[partId];
+          if (!partSpec || !m) continue;
+
+          let fileName = partSpec.file;
+          if (partId === 'face') {
+            if (solved.expression === 'hit' && atlas.rects['face_hit.png']) fileName = 'face_hit.png';
+            else if (solved.expression === 'attack' && atlas.rects['face_attack.png']) fileName = 'face_attack.png';
+          }
+          const srcRect = atlas.rects[fileName];
+          if (!srcRect) continue;
+
+          ctx.setTransform(
+            dpr * m[0],
+            dpr * m[1],
+            dpr * m[2],
+            dpr * m[3],
+            dpr * m[4],
+            dpr * m[5]
+          );
+          ctx.drawImage(
+            atlas.canvas,
+            srcRect.sx,
+            srcRect.sy,
+            srcRect.sw,
+            srcRect.sh,
+            -partSpec.pivotX,
+            -partSpec.pivotY,
+            partSpec.w,
+            partSpec.h
+          );
         }
         ctx.restore();
-      }
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      // 3. Draw Articulated Parts from Packed Atlas
-      ctx.save();
-      ctx.globalAlpha = solved.rootAlpha;
-      for (let i = 0; i < solved.drawOrder.length; i++) {
-        const partId = solved.drawOrder[i];
-        const partSpec = curSpec.parts[partId];
-        const m = solved.matrices[partId];
-        if (!partSpec || !m) continue;
-
-        let fileName = partSpec.file;
-        if (partId === 'face') {
-          if (solved.expression === 'hit' && atlas.rects['face_hit.png']) fileName = 'face_hit.png';
-          else if (solved.expression === 'attack' && atlas.rects['face_attack.png']) fileName = 'face_attack.png';
+        if (solved.hitFlashAlpha > 0.05 && hitSprite) {
+          const bx = solved.attachments.bodyCenter.x;
+          const by = solved.attachments.bodyCenter.y;
+          const hr = curSpec.isBoss ? 105 : 74;
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.globalAlpha = Math.min(0.9, solved.hitFlashAlpha);
+          ctx.drawImage(hitSprite, bx - hr, by - hr, hr * 2, hr * 2);
+          ctx.restore();
         }
-        const srcRect = atlas.rects[fileName];
-        if (!srcRect) continue;
-
-        ctx.setTransform(
-          dpr * m[0],
-          dpr * m[1],
-          dpr * m[2],
-          dpr * m[3],
-          dpr * m[4],
-          dpr * m[5]
-        );
-        ctx.drawImage(
-          atlas.canvas,
-          srcRect.sx,
-          srcRect.sy,
-          srcRect.sw,
-          srcRect.sh,
-          -partSpec.pivotX,
-          -partSpec.pivotY,
-          partSpec.w,
-          partSpec.h
-        );
-      }
-      ctx.restore();
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-      // 4. Lightweight Additive Hit Flash (Zero CSS drop-shadow cost)
-      if (solved.hitFlashAlpha > 0.05) {
-        const bx = solved.attachments.bodyCenter.x;
-        const by = solved.attachments.bodyCenter.y;
-        const hr = curSpec.isBoss ? 105 : 74;
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.globalAlpha = Math.min(0.9, solved.hitFlashAlpha);
-        ctx.drawImage(hitSprite, bx - hr, by - hr, hr * 2, hr * 2);
-        ctx.restore();
       }
 
-      // 5. Publish Scene-Scoped Monster Anchors (no rAF DOM reflow polling)
+      // Publish Scene-Scoped Monster Anchors (no rAF DOM reflow polling)
       if (!cachedRectRef.current) {
         updateRectCache();
       }
@@ -398,7 +417,10 @@ export const MonsterSkeletalRig: React.FC<MonsterSkeletalRigProps> = ({
           s.onAttachmentsUpdate(clientPts, normT);
         }
       }
-    });
+    };
+
+    onTick(performance.now());
+    const unsubscribe = animationClock.subscribe(isMainBattleMonster ? 1 : 4, onTick);
 
     return () => {
       cancelAnimationFrame(initRaf);
@@ -409,7 +431,32 @@ export const MonsterSkeletalRig: React.FC<MonsterSkeletalRigProps> = ({
       document.removeEventListener('visibilitychange', handleVisibility);
       combatAnchorRegistry.clearMonsterAnchors(resolvedScene);
     };
-  }, [rigId, replayToken, isMainBattleMonster, resolvedScene]);
+  }, [rigId, replayToken, isMainBattleMonster, resolvedScene, isOriginalArt]);
+
+  const activeClipId = resolveMonsterClipId(animState);
+
+  if (isOriginalArt) {
+    return (
+      <div className={`monster-skeletal-stage monster-original-art-stage ${spec.isBoss ? 'is-boss-rig' : ''} ${className}`}>
+        <img
+          ref={(el) => {
+            hostRef.current = el;
+          }}
+          src={resolvedSrc}
+          alt={alt}
+          className={`monster-2d-sprite monster-original-art-sprite monster-skeletal-canvas ${className}`}
+          data-render-mode="original_art"
+          data-rig-ready="true"
+          data-monster-rig-id={rigId}
+          data-monster-archetype={spec.archetype}
+          data-anim-state={animState}
+          data-clip-id={activeClipId}
+          data-scene-context={resolvedScene}
+          draggable={false}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={`monster-skeletal-stage ${spec.isBoss ? 'is-boss-rig' : ''} ${className}`}>
@@ -420,11 +467,12 @@ export const MonsterSkeletalRig: React.FC<MonsterSkeletalRigProps> = ({
         ref={canvasRef}
         className="monster-2d-sprite monster-skeletal-canvas"
         aria-label={alt}
+        data-render-mode="skeletal_rig"
         data-rig-ready={assetsReady ? 'true' : 'false'}
         data-monster-rig-id={rigId}
         data-monster-archetype={spec.archetype}
         data-anim-state={animState}
-        data-clip-id={resolveMonsterClipId(animState)}
+        data-clip-id={activeClipId}
         data-scene-context={resolvedScene}
         style={{
           opacity: assetsReady ? 1 : 0,

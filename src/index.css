@@ -288,7 +288,7 @@ html, body {
 }
 
 @keyframes slideUpSheetMobile {
-  from { transform: translateY(28px); opacity: 0; }
+  from { transform: translateY(0); opacity: 0.95; }
   to { transform: translateY(0); opacity: 1; }
 }
 
@@ -617,7 +617,7 @@ html, body {
   }
 
   @keyframes slideUpSheetPC {
-    from { transform: translate(-50%, 30px); opacity: 0; }
+    from { transform: translate(-50%, 0); opacity: 0.95; }
     to { transform: translate(-50%, 0); opacity: 1; }
   }
 
@@ -710,7 +710,18 @@ html, body {
 .skill-preview-hero-slot .hero-skeletal-canvas {
   width: 100%;
   height: 100%;
+  object-fit: contain;
   display: block;
+}
+
+.skill-preview-hero-slot.preview-hero-casting {
+  animation: previewHeroCastMove 0.65s ease-in-out infinite alternate;
+}
+
+@keyframes previewHeroCastMove {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(12px, -6px) scale(1.03); }
+  100% { transform: translate(0, 0) scale(1); }
 }
 
 .skill-preview-dummy {
@@ -725,6 +736,12 @@ html, body {
   justify-content: flex-end;
   z-index: 3;
   pointer-events: none;
+  transition: transform 0.14s ease, filter 0.14s ease;
+}
+
+.skill-preview-dummy.dummy-hit {
+  transform: translateX(8px) scale(0.94, 1.05);
+  filter: brightness(1.45);
 }
 
 .skill-preview-dummy .dummy-rig-stage {

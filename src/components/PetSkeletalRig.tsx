@@ -14,7 +14,9 @@ import { animationClock } from '../utils/animationClock';
 import {
   combatAnchorRegistry,
   CombatSceneContextId,
+  DEFAULT_VISUAL_RENDER_MODE,
   PetSceneAttachments,
+  VisualRenderMode,
 } from '../utils/combatAnchorRegistry';
 
 interface PetSkeletalRigProps {
@@ -25,6 +27,7 @@ interface PetSkeletalRigProps {
   isVictory?: boolean;
   isMainBattlePet?: boolean;
   sceneContext?: CombatSceneContextId;
+  renderMode?: VisualRenderMode;
   paused?: boolean;
   replayToken?: number;
   fallbackSrc?: string;
@@ -71,6 +74,14 @@ function computeAdaptiveDpr(): number {
   return Math.min(window.devicePixelRatio || 1, 1.35);
 }
 
+function getDefaultPetOriginalSprite(rigId: PetRigId): string {
+  if (rigId === 'pet_fairy') return './assets/ch5_butterfly.png';
+  if (rigId === 'pet_slime') return './assets/ch5_slime.png';
+  if (rigId === 'pet_cat') return './assets/ch5_fox.png';
+  if (rigId === 'pet_dragon') return './assets/ch4_spirit.png';
+  return './assets/pet_fox.png';
+}
+
 export const PetSkeletalRig: React.FC<PetSkeletalRigProps> = ({
   petId,
   petName,
@@ -79,6 +90,7 @@ export const PetSkeletalRig: React.FC<PetSkeletalRigProps> = ({
   isVictory = false,
   isMainBattlePet = true,
   sceneContext,
+  renderMode = DEFAULT_VISUAL_RENDER_MODE,
   paused = false,
   replayToken = 0,
   fallbackSrc,
@@ -89,10 +101,13 @@ export const PetSkeletalRig: React.FC<PetSkeletalRigProps> = ({
   const rigId: PetRigId = resolvePetRigId(petId, petName);
   const spec = PET_RIG_SPECS[rigId];
   const resolvedScene: CombatSceneContextId = sceneContext ?? (isMainBattlePet ? 'main_battle' : 'pet_showcase');
+  const isOriginalArt = renderMode === 'original_art';
+  const resolvedSrc = fallbackSrc || getDefaultPetOriginalSprite(rigId);
 
+  const hostRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const atlasRef = useRef<PackedRigAtlas | null>(getCachedPetAtlas(rigId));
-  const [assetsReady, setAssetsReady] = useState<boolean>(Boolean(atlasRef.current));
+  const atlasRef = useRef<PackedRigAtlas | null>(isOriginalArt ? null : getCachedPetAtlas(rigId));
+  const [assetsReady, setAssetsReady] = useState<boolean>(isOriginalArt ? true : Boolean(atlasRef.current));
   const cachedRectRef = useRef<{ left: number; top: number; width: number; height: number } | null>(null);
   const dprRef = useRef<number>(computeAdaptiveDpr());
 
@@ -103,6 +118,7 @@ export const PetSkeletalRig: React.FC<PetSkeletalRigProps> = ({
     isVictory,
     paused,
     resolvedScene,
+    isOriginalArt,
     onAttachmentsUpdate,
   });
   stateRef.current = {
@@ -112,6 +128,7 @@ export const PetSkeletalRig: React.FC<PetSkeletalRigProps> = ({
     isVictory,
     paused,
     resolvedScene,
+    isOriginalArt,
     onAttachmentsUpdate,
   };
 
@@ -123,7 +140,13 @@ export const PetSkeletalRig: React.FC<PetSkeletalRigProps> = ({
     lastSignature: '',
   });
 
+  // Never load skeletal part atlas when renderMode === 'original_art'
   useEffect(() => {
+    if (isOriginalArt) {
+      atlasRef.current = null;
+      setAssetsReady(true);
+      return;
+    }
     let mounted = true;
     const cached = getCachedPetAtlas(rigId);
     if (cached) {
@@ -142,15 +165,17 @@ export const PetSkeletalRig: React.FC<PetSkeletalRigProps> = ({
     return () => {
       mounted = false;
     };
-  }, [rigId]);
+  }, [rigId, isOriginalArt]);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const targetEl = isOriginalArt ? hostRef.current : canvasRef.current;
+    if (!targetEl) return;
+
+    const canvas = !isOriginalArt ? canvasRef.current : null;
+    const ctx = canvas ? canvas.getContext('2d') : null;
 
     const syncResolution = () => {
+      if (!canvas) return;
       const nextDpr = computeAdaptiveDpr();
       dprRef.current = nextDpr;
       const curSpec = PET_RIG_SPECS[stateRef.current.rigId];
@@ -162,10 +187,12 @@ export const PetSkeletalRig: React.FC<PetSkeletalRigProps> = ({
         timerRef.current.lastSignature = '';
       }
     };
-    syncResolution();
+    if (canvas) syncResolution();
 
     const updateRectCache = () => {
-      const r = canvas.getBoundingClientRect();
+      const el = isOriginalArt ? hostRef.current : canvasRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
       if (r.width > 0 && r.height > 0) {
         cachedRectRef.current = { left: r.left, top: r.top, width: r.width, height: r.height };
       }
@@ -176,10 +203,10 @@ export const PetSkeletalRig: React.FC<PetSkeletalRigProps> = ({
     let resizeObs: ResizeObserver | null = null;
     if (typeof ResizeObserver !== 'undefined') {
       resizeObs = new ResizeObserver(updateRectCache);
-      resizeObs.observe(canvas);
+      resizeObs.observe(targetEl);
     }
     const handleResize = () => {
-      syncResolution();
+      if (canvas) syncResolution();
       updateRectCache();
     };
     window.addEventListener('resize', handleResize, { passive: true });
@@ -193,15 +220,12 @@ export const PetSkeletalRig: React.FC<PetSkeletalRigProps> = ({
     };
     document.addEventListener('visibilitychange', handleVisibility);
 
-    const shadowSprite = getPetRadialSprite('shadow');
-    const auraSprite = getPetRadialSprite('aura');
+    const shadowSprite = !isOriginalArt ? getPetRadialSprite('shadow') : null;
+    const auraSprite = !isOriginalArt ? getPetRadialSprite('aura') : null;
     timerRef.current.lastFrameTime = performance.now();
 
-    const unsubscribe = animationClock.subscribe(isMainBattlePet ? 1 : 5, (now: number) => {
+    const onTick = (now: number) => {
       const s = stateRef.current;
-      const atlas = atlasRef.current;
-      if (!atlas || atlas.canvas.width <= 0) return;
-
       const curSpec = PET_RIG_SPECS[s.rigId];
       const clipId = resolvePetClipId(s.isAttacking, s.isMoving, s.isVictory);
       const key = `${s.rigId}:${clipId}`;
@@ -227,71 +251,83 @@ export const PetSkeletalRig: React.FC<PetSkeletalRigProps> = ({
       if (s.paused && timer.lastSignature === signature) return;
       timer.lastSignature = signature;
 
-      const dpr = dprRef.current;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, curSpec.canonicalW, curSpec.canonicalH);
-
       const pose = evaluatePetClipPose(s.rigId, clipId, normT);
       const solved = solvePetSkeleton(s.rigId, pose, curSpec.centerX, curSpec.groundY, 1.0);
 
-      // Keep data-pet-state DOM attribute accurate without React re-renders
       const subPhase: PetRigState = solved.subPhase;
-      if (canvas.getAttribute('data-pet-state') !== subPhase) {
-        canvas.setAttribute('data-pet-state', subPhase);
+      const domEl = s.isOriginalArt ? hostRef.current : canvasRef.current;
+      if (domEl && domEl.getAttribute('data-pet-state') !== subPhase) {
+        domEl.setAttribute('data-pet-state', subPhase);
       }
 
-      // 1. Baked Ground Shadow
-      const gx = solved.attachments.groundContact.x;
-      const gy = curSpec.groundY + 3;
-      const shScale = Math.max(0.45, 1 - Math.max(0, -pose.rootY) / 70);
-      ctx.save();
-      ctx.globalAlpha = Math.max(0.28, 0.85 * shScale);
-      ctx.drawImage(shadowSprite, gx - (76 * shScale) / 2, gy - (14 * shScale) / 2, 76 * shScale, 14 * shScale);
-      ctx.restore();
+      if (!s.isOriginalArt && canvas && ctx) {
+        const atlas = atlasRef.current;
+        if (!atlas || atlas.canvas.width <= 0) return;
 
-      // 2. Co-op Attack Charge Glint at live attackOrigin
-      if (clipId === 'attack') {
-        const ax = solved.attachments.attackOrigin.x;
-        const ay = solved.attachments.attackOrigin.y;
-        const r = subPhase === 'AttackExecute' ? 22 : 14;
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.drawImage(auraSprite, ax - r, ay - r, r * 2, r * 2);
-        ctx.restore();
-      }
+        const dpr = dprRef.current;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, curSpec.canonicalW, curSpec.canonicalH);
 
-      // 3. Render Articulated Pet Parts
-      for (let i = 0; i < solved.drawOrder.length; i++) {
-        const partId = solved.drawOrder[i];
-        const partSpec = curSpec.parts[partId];
-        const m = solved.matrices[partId];
-        if (!partSpec || !m) continue;
-
-        let fileName = partSpec.file;
-        if (partId === 'face') {
-          if (solved.expression === 'attack' && atlas.rects['face_attack.png']) fileName = 'face_attack.png';
-          else if (solved.expression === 'victory' && atlas.rects['face_victory.png']) fileName = 'face_victory.png';
+        const gx = solved.attachments.groundContact.x;
+        const gy = curSpec.groundY + 3;
+        const shScale = Math.max(0.45, 1 - Math.max(0, -pose.rootY) / 70);
+        if (shadowSprite) {
+          ctx.save();
+          ctx.globalAlpha = Math.max(0.28, 0.85 * shScale);
+          ctx.drawImage(shadowSprite, gx - (76 * shScale) / 2, gy - (14 * shScale) / 2, 76 * shScale, 14 * shScale);
+          ctx.restore();
         }
-        const srcRect = atlas.rects[fileName];
-        if (!srcRect) continue;
 
-        ctx.setTransform(dpr * m[0], dpr * m[1], dpr * m[2], dpr * m[3], dpr * m[4], dpr * m[5]);
-        ctx.drawImage(
-          atlas.canvas,
-          srcRect.sx,
-          srcRect.sy,
-          srcRect.sw,
-          srcRect.sh,
-          -partSpec.pivotX,
-          -partSpec.pivotY,
-          partSpec.w,
-          partSpec.h
-        );
+        if (clipId === 'attack' && auraSprite) {
+          const ax = solved.attachments.attackOrigin.x;
+          const ay = solved.attachments.attackOrigin.y;
+          const r = subPhase === 'AttackExecute' ? 22 : 14;
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.drawImage(auraSprite, ax - r, ay - r, r * 2, r * 2);
+          ctx.restore();
+        }
+
+        for (let i = 0; i < solved.drawOrder.length; i++) {
+          const partId = solved.drawOrder[i];
+          const partSpec = curSpec.parts[partId];
+          const m = solved.matrices[partId];
+          if (!partSpec || !m) continue;
+
+          let fileName = partSpec.file;
+          if (partId === 'face') {
+            if (solved.expression === 'attack' && atlas.rects['face_attack.png']) fileName = 'face_attack.png';
+            else if (solved.expression === 'victory' && atlas.rects['face_victory.png']) fileName = 'face_victory.png';
+          }
+          const srcRect = atlas.rects[fileName];
+          if (!srcRect) continue;
+
+          ctx.setTransform(
+            dpr * m[0],
+            dpr * m[1],
+            dpr * m[2],
+            dpr * m[3],
+            dpr * m[4],
+            dpr * m[5]
+          );
+          ctx.drawImage(
+            atlas.canvas,
+            srcRect.sx,
+            srcRect.sy,
+            srcRect.sw,
+            srcRect.sh,
+            -partSpec.pivotX,
+            -partSpec.pivotY,
+            partSpec.w,
+            partSpec.h
+          );
+        }
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       }
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      // 4. Publish Live Pet Attachments (for projectile launch synchronization)
-      if (!cachedRectRef.current) updateRectCache();
+      if (!cachedRectRef.current) {
+        updateRectCache();
+      }
       const rect = cachedRectRef.current;
       if (rect && rect.width > 0 && rect.height > 0) {
         const scaleX = rect.width / curSpec.canonicalW;
@@ -315,7 +351,10 @@ export const PetSkeletalRig: React.FC<PetSkeletalRigProps> = ({
           s.onAttachmentsUpdate(clientPts, normT);
         }
       }
-    });
+    };
+
+    onTick(performance.now());
+    const unsubscribe = animationClock.subscribe(isMainBattlePet ? 1 : 5, onTick);
 
     return () => {
       cancelAnimationFrame(initRaf);
@@ -326,9 +365,31 @@ export const PetSkeletalRig: React.FC<PetSkeletalRigProps> = ({
       document.removeEventListener('visibilitychange', handleVisibility);
       combatAnchorRegistry.clearPetAnchors(resolvedScene);
     };
-  }, [rigId, replayToken, isMainBattlePet, resolvedScene]);
+  }, [rigId, replayToken, isMainBattlePet, resolvedScene, isOriginalArt]);
 
-  const initialState: PetRigState = isAttacking ? 'AttackPrep' : isVictory ? 'Victory' : isMoving ? 'Move' : 'Idle';
+  const activeClipId = resolvePetClipId(isAttacking, isMoving, isVictory);
+
+  if (isOriginalArt) {
+    return (
+      <div className={`pet-skeletal-stage pet-original-art-stage ${className}`}>
+        <img
+          ref={(el) => {
+            hostRef.current = el;
+          }}
+          src={resolvedSrc}
+          alt={alt}
+          className="pet-2d-sprite pet-original-art-sprite pet-skeletal-canvas"
+          data-render-mode="original_art"
+          data-rig-ready="true"
+          data-pet-rig-id={rigId}
+          data-pet-state={isAttacking ? 'AttackExecute' : isVictory ? 'Victory' : isMoving ? 'Move' : 'Idle'}
+          data-clip-id={activeClipId}
+          data-scene-context={resolvedScene}
+          draggable={false}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={`pet-skeletal-stage ${className}`}>
@@ -339,11 +400,15 @@ export const PetSkeletalRig: React.FC<PetSkeletalRigProps> = ({
         ref={canvasRef}
         className="pet-2d-sprite pet-skeletal-canvas"
         aria-label={alt}
+        data-render-mode="skeletal_rig"
         data-rig-ready={assetsReady ? 'true' : 'false'}
         data-pet-rig-id={rigId}
-        data-pet-state={initialState}
+        data-pet-state="Idle"
+        data-clip-id={activeClipId}
         data-scene-context={resolvedScene}
-        style={{ opacity: assetsReady ? 1 : 0 }}
+        style={{
+          opacity: assetsReady ? 1 : 0,
+        }}
       />
     </div>
   );

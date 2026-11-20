@@ -766,8 +766,8 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           display: flex;
           justify-content: center;
           align-items: flex-end;
-          gap: 20px;
-          padding: 0 12px 170px 12px;
+          gap: clamp(14px, 3.8vw, 24px);
+          padding: 0 10px clamp(190px, 24vh, 218px) 10px;
           box-sizing: border-box;
           transform: translate3d(0, 0, 0);
           will-change: transform;
@@ -782,13 +782,13 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
 
         .hero-slot {
           align-self: flex-end;
-          width: 175px;
+          width: clamp(154px, 43vw, 175px);
           flex-shrink: 0;
         }
 
         .enemy-slot {
           align-self: flex-end;
-          width: 165px;
+          width: clamp(152px, 42vw, 170px);
           flex-shrink: 0;
         }
 
@@ -1453,22 +1453,22 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           }
 
           .combat-arena-stage {
-            width: min(62vw, 1100px);
+            width: min(68vw, 1120px);
             margin: 0 auto;
-            gap: clamp(24px, 4.5vw, 64px);
-            padding: 0 24px clamp(130px, 16vh, 200px) 24px;
+            gap: clamp(48px, 6.5vw, 108px);
+            padding: 0 24px clamp(194px, 22.5vh, 242px) 24px;
           }
 
           .hero-slot {
-            width: clamp(220px, 20vw, 320px);
+            width: clamp(200px, 18.5vw, 280px);
           }
 
           .enemy-slot {
-            width: clamp(210px, 19vw, 310px);
+            width: clamp(195px, 18vw, 275px);
           }
 
           .battle-bottom-floating-bar {
-            bottom: 162px;
+            bottom: 158px;
           }
 
           .floating-boss-btn {
@@ -1489,8 +1489,8 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         /* 🖥️ Low Height PC Screens (e.g. 1366x768, 1280x720, max-height: 800px) */
         @media (min-width: 768px) and (max-height: 800px) {
           .combat-arena-stage {
-            padding-bottom: clamp(100px, 14vh, 140px);
-            gap: clamp(20px, 3.5vw, 48px);
+            padding-bottom: clamp(174px, 21vh, 194px);
+            gap: clamp(32px, 5vw, 72px);
           }
 
           .battle-bottom-floating-bar {

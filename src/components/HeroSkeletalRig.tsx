@@ -3,7 +3,6 @@ import { CharacterClassId, SkillEffectType } from '../types/game';
 import {
   CLASS_PART_SPECS,
   HERO_CLIP_CATALOG,
-  HeroAnimationClipId,
   HeroRigState,
   RIG_CANONICAL_H,
   RIG_CANONICAL_W,
@@ -15,7 +14,13 @@ import {
 } from '../data/heroAnimationClips';
 import { PackedHeroAtlas, getCachedHeroAtlas, preloadHeroRigParts } from '../utils/heroRigAssetCache';
 import { animationClock } from '../utils/animationClock';
-import { combatAnchorRegistry, CombatSceneContextId, HeroSceneAttachments } from '../utils/combatAnchorRegistry';
+import {
+  combatAnchorRegistry,
+  CombatSceneContextId,
+  DEFAULT_VISUAL_RENDER_MODE,
+  HeroSceneAttachments,
+  VisualRenderMode,
+} from '../utils/combatAnchorRegistry';
 
 export type HeroClientAttachments = HeroSceneAttachments;
 
@@ -28,6 +33,7 @@ interface HeroSkeletalRigProps {
   attackDurationMs?: number;
   isMainBattleHero?: boolean;
   sceneContext?: CombatSceneContextId;
+  renderMode?: VisualRenderMode;
   paused?: boolean;
   replayToken?: number;
   fallbackSrc?: string;
@@ -36,7 +42,7 @@ interface HeroSkeletalRigProps {
   className?: string;
 }
 
-// Pre-rendered radial sprites (eliminates per-frame createRadialGradient allocations)
+// Pre-rendered radial sprites (only used if skeletal_rig canvas mode is explicitly enabled)
 let cachedShadowSprite: HTMLCanvasElement | null = null;
 let cachedCyanOrbSprite: HTMLCanvasElement | null = null;
 let cachedPurpleOrbSprite: HTMLCanvasElement | null = null;
@@ -94,6 +100,7 @@ export const HeroSkeletalRig: React.FC<HeroSkeletalRigProps> = ({
   attackDurationMs,
   isMainBattleHero = true,
   sceneContext,
+  renderMode = DEFAULT_VISUAL_RENDER_MODE,
   paused = false,
   replayToken = 0,
   fallbackSrc,
@@ -102,9 +109,13 @@ export const HeroSkeletalRig: React.FC<HeroSkeletalRigProps> = ({
   className = '',
 }) => {
   const resolvedScene: CombatSceneContextId = sceneContext ?? (isMainBattleHero ? 'main_battle' : 'skill_preview');
+  const isOriginalArt = renderMode === 'original_art';
+  const resolvedSrc = fallbackSrc || (classId === 'mage' ? './assets/hero_mage.png' : './assets/hero_knight.png');
+
+  const hostRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const atlasRef = useRef<PackedHeroAtlas | null>(getCachedHeroAtlas(classId));
-  const [assetsReady, setAssetsReady] = useState<boolean>(Boolean(atlasRef.current));
+  const atlasRef = useRef<PackedHeroAtlas | null>(isOriginalArt ? null : getCachedHeroAtlas(classId));
+  const [assetsReady, setAssetsReady] = useState<boolean>(isOriginalArt ? true : Boolean(atlasRef.current));
   const cachedRectRef = useRef<{ left: number; top: number; width: number; height: number } | null>(null);
   const dprRef = useRef<number>(computeAdaptiveDpr());
 
@@ -118,6 +129,7 @@ export const HeroSkeletalRig: React.FC<HeroSkeletalRigProps> = ({
     paused,
     isMainBattleHero,
     resolvedScene,
+    isOriginalArt,
     onAttachmentsUpdate,
   });
   stateRef.current = {
@@ -130,6 +142,7 @@ export const HeroSkeletalRig: React.FC<HeroSkeletalRigProps> = ({
     paused,
     isMainBattleHero,
     resolvedScene,
+    isOriginalArt,
     onAttachmentsUpdate,
   };
 
@@ -141,7 +154,13 @@ export const HeroSkeletalRig: React.FC<HeroSkeletalRigProps> = ({
     lastDrawnSignature: '',
   });
 
+  // Only load skeletal part atlas when skeletal_rig mode is explicitly requested
   useEffect(() => {
+    if (isOriginalArt) {
+      atlasRef.current = null;
+      setAssetsReady(true);
+      return;
+    }
     let mounted = true;
     const cached = getCachedHeroAtlas(classId);
     if (cached) {
@@ -149,6 +168,7 @@ export const HeroSkeletalRig: React.FC<HeroSkeletalRigProps> = ({
       clipTimerRef.current.lastDrawnSignature = '';
       setAssetsReady(true);
     } else {
+      setAssetsReady(false);
       preloadHeroRigParts(classId).then((loaded) => {
         if (!mounted) return;
         atlasRef.current = loaded;
@@ -159,15 +179,17 @@ export const HeroSkeletalRig: React.FC<HeroSkeletalRigProps> = ({
     return () => {
       mounted = false;
     };
-  }, [classId]);
+  }, [classId, isOriginalArt]);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const targetEl = isOriginalArt ? hostRef.current : canvasRef.current;
+    if (!targetEl) return;
+
+    const canvas = !isOriginalArt ? canvasRef.current : null;
+    const ctx = canvas ? canvas.getContext('2d') : null;
 
     const syncCanvasResolution = () => {
+      if (!canvas) return;
       const nextDpr = computeAdaptiveDpr();
       dprRef.current = nextDpr;
       const targetW = Math.round(RIG_CANONICAL_W * nextDpr);
@@ -178,10 +200,12 @@ export const HeroSkeletalRig: React.FC<HeroSkeletalRigProps> = ({
         clipTimerRef.current.lastDrawnSignature = '';
       }
     };
-    syncCanvasResolution();
+    if (canvas) syncCanvasResolution();
 
     const updateRectCache = () => {
-      const r = canvas.getBoundingClientRect();
+      const el = isOriginalArt ? hostRef.current : canvasRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
       if (r.width > 0 && r.height > 0) {
         cachedRectRef.current = { left: r.left, top: r.top, width: r.width, height: r.height };
       }
@@ -191,13 +215,11 @@ export const HeroSkeletalRig: React.FC<HeroSkeletalRigProps> = ({
 
     let resizeObs: ResizeObserver | null = null;
     if (typeof ResizeObserver !== 'undefined') {
-      resizeObs = new ResizeObserver(() => {
-        updateRectCache();
-      });
-      resizeObs.observe(canvas);
+      resizeObs = new ResizeObserver(updateRectCache);
+      resizeObs.observe(targetEl);
     }
     const handleResize = () => {
-      syncCanvasResolution();
+      if (canvas) syncCanvasResolution();
       updateRectCache();
     };
     window.addEventListener('resize', handleResize, { passive: true });
@@ -211,17 +233,14 @@ export const HeroSkeletalRig: React.FC<HeroSkeletalRigProps> = ({
     };
     document.addEventListener('visibilitychange', handleVisibility);
 
-    const shadowSprite = getShadowSprite();
-    const cyanOrbSprite = getOrbGlowSprite(false);
-    const purpleOrbSprite = getOrbGlowSprite(true);
+    const shadowSprite = !isOriginalArt ? getShadowSprite() : null;
+    const cyanOrbSprite = !isOriginalArt ? getOrbGlowSprite(false) : null;
+    const purpleOrbSprite = !isOriginalArt ? getOrbGlowSprite(true) : null;
 
     clipTimerRef.current.lastFrameTime = performance.now();
 
-    const unsubscribe = animationClock.subscribe(isMainBattleHero ? 1 : 4, (now: number) => {
+    const onTick = (now: number) => {
       const s = stateRef.current;
-      const atlas = atlasRef.current;
-      if (!atlas || atlas.canvas.width <= 0) return;
-
       const timer = clipTimerRef.current;
       const dtMs = Math.max(0, Math.min(50, now - timer.lastFrameTime));
       timer.lastFrameTime = now;
@@ -250,7 +269,7 @@ export const HeroSkeletalRig: React.FC<HeroSkeletalRigProps> = ({
         : meta.durationMs;
 
       const normT = meta.loop
-        ? ((timer.elapsedMs % durationMs) / durationMs)
+        ? (timer.elapsedMs % durationMs) / durationMs
         : Math.min(1, timer.elapsedMs / Math.max(1, durationMs));
 
       const signature = `${clipKey}:${Math.round(normT * 240)}`;
@@ -258,10 +277,6 @@ export const HeroSkeletalRig: React.FC<HeroSkeletalRigProps> = ({
         return;
       }
       timer.lastDrawnSignature = signature;
-
-      const dpr = dprRef.current;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, RIG_CANONICAL_W, RIG_CANONICAL_H);
 
       const pose = evaluateHeroClipPose(s.classId, clipId, normT);
       const solved = solveHeroSkeleton(
@@ -272,100 +287,87 @@ export const HeroSkeletalRig: React.FC<HeroSkeletalRigProps> = ({
         1.0
       );
 
-      // 1. Pre-rendered Ground Contact Shadow Sprite (Zero createRadialGradient)
-      const gx = solved.attachments.groundContact.x;
-      const gy = RIG_DEFAULT_GROUND_Y + 3;
-      const altitude = Math.max(0, -pose.rootY);
-      const shadowScale = Math.max(0.42, 1 - altitude / 95);
-      const shadowW = 108 * shadowScale;
-      const shadowH = 22 * shadowScale;
-      ctx.save();
-      ctx.globalAlpha = Math.max(0.28, 0.85 * shadowScale * solved.rootAlpha);
-      ctx.drawImage(shadowSprite, gx - shadowW / 2, gy - shadowH / 2, shadowW, shadowH);
-      ctx.restore();
+      // If skeletal_rig canvas mode is explicitly active, draw articulated parts
+      if (!s.isOriginalArt && canvas && ctx) {
+        const atlas = atlasRef.current;
+        if (!atlas || atlas.canvas.width <= 0) return;
 
-      // 2. Render Articulated Skeletal Parts from Single Packed Atlas Texture
-      const specs = CLASS_PART_SPECS[s.classId];
-      ctx.save();
-      ctx.globalAlpha = solved.rootAlpha;
-      for (let i = 0; i < solved.drawOrder.length; i++) {
-        const partId = solved.drawOrder[i];
-        if (partId === 'offhand' && !solved.offhandVisible) continue;
-        let fileName = specs[partId].file;
-        if (partId === 'head') {
-          if (solved.expression === 'hit' && atlas.rects['head_hit.png']) fileName = 'head_hit.png';
-          else if (solved.expression === 'victory' && atlas.rects['head_victory.png']) fileName = 'head_victory.png';
-          else if (solved.expression === 'defeat' && atlas.rects['head_defeat.png']) fileName = 'head_defeat.png';
+        const dpr = dprRef.current;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, RIG_CANONICAL_W, RIG_CANONICAL_H);
+
+        const gx = solved.attachments.groundContact.x;
+        const gy = RIG_DEFAULT_GROUND_Y + 3;
+        const altitude = Math.max(0, -pose.rootY);
+        const shadowScale = Math.max(0.42, 1 - altitude / 95);
+        const shadowW = 108 * shadowScale;
+        const shadowH = 22 * shadowScale;
+        if (shadowSprite) {
+          ctx.save();
+          ctx.globalAlpha = Math.max(0.28, 0.85 * shadowScale * solved.rootAlpha);
+          ctx.drawImage(shadowSprite, gx - shadowW / 2, gy - shadowH / 2, shadowW, shadowH);
+          ctx.restore();
         }
-        const srcRect = atlas.rects[fileName];
-        if (!srcRect) continue;
-        const m = solved.matrices[partId];
-        ctx.setTransform(
-          dpr * m[0],
-          dpr * m[1],
-          dpr * m[2],
-          dpr * m[3],
-          dpr * m[4],
-          dpr * m[5]
-        );
-        ctx.drawImage(
-          atlas.canvas,
-          srcRect.sx,
-          srcRect.sy,
-          srcRect.sw,
-          srcRect.sh,
-          -specs[partId].pivotX,
-          -specs[partId].pivotY,
-          specs[partId].w,
-          specs[partId].h
-        );
-      }
-      ctx.restore();
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      // 2.5 Pre-rendered Weapon-Locked Luminous Glint
-      if (s.classId === 'mage') {
-        const isBurst = s.animState === 'Attack3' || s.animState === 'SkillCast' || s.isAwakeningCasting;
-        const isAtk = s.animState === 'Attack1' || s.animState === 'Attack2';
-        const pulse = 0.88 + Math.sin(now * 0.008) * 0.14;
-        const orbR = (isBurst ? 28 : isAtk ? 20 : 13) * pulse;
-        const orbX = solved.attachments.staffTip.x;
-        const orbY = solved.attachments.staffTip.y;
+        const specs = CLASS_PART_SPECS[s.classId];
         ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.drawImage(
-          isBurst ? purpleOrbSprite : cyanOrbSprite,
-          orbX - orbR,
-          orbY - orbR,
-          orbR * 2,
-          orbR * 2
-        );
+        ctx.globalAlpha = solved.rootAlpha;
+        for (let i = 0; i < solved.drawOrder.length; i++) {
+          const partId = solved.drawOrder[i];
+          if (partId === 'offhand' && !solved.offhandVisible) continue;
+          let fileName = specs[partId].file;
+          if (partId === 'head') {
+            if (solved.expression === 'hit' && atlas.rects['head_hit.png']) fileName = 'head_hit.png';
+            else if (solved.expression === 'victory' && atlas.rects['head_victory.png']) fileName = 'head_victory.png';
+            else if (solved.expression === 'defeat' && atlas.rects['head_defeat.png']) fileName = 'head_defeat.png';
+          }
+          const srcRect = atlas.rects[fileName];
+          if (!srcRect) continue;
+          const m = solved.matrices[partId];
+          ctx.setTransform(
+            dpr * m[0],
+            dpr * m[1],
+            dpr * m[2],
+            dpr * m[3],
+            dpr * m[4],
+            dpr * m[5]
+          );
+          ctx.drawImage(
+            atlas.canvas,
+            srcRect.sx,
+            srcRect.sy,
+            srcRect.sw,
+            srcRect.sh,
+            -specs[partId].pivotX,
+            -specs[partId].pivotY,
+            specs[partId].w,
+            specs[partId].h
+          );
+        }
         ctx.restore();
-      } else if (
-        s.animState === 'Attack1' ||
-        s.animState === 'Attack2' ||
-        s.animState === 'Attack3' ||
-        s.animState === 'SkillCast'
-      ) {
-        const tx = solved.attachments.weaponTip.x;
-        const ty = solved.attachments.weaponTip.y;
-        const gx2 = solved.attachments.weaponGrip.x;
-        const gy2 = solved.attachments.weaponGrip.y;
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.strokeStyle = s.isAwakeningCasting || s.animState === 'Attack3'
-          ? 'rgba(251, 191, 36, 0.72)'
-          : 'rgba(186, 230, 253, 0.65)';
-        ctx.lineWidth = s.animState === 'Attack3' ? 5 : 3.5;
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(gx2, gy2);
-        ctx.lineTo(tx, ty);
-        ctx.stroke();
-        ctx.restore();
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        if (s.classId === 'mage' && cyanOrbSprite && purpleOrbSprite) {
+          const isBurst = s.animState === 'Attack3' || s.animState === 'SkillCast' || s.isAwakeningCasting;
+          const isAtk = s.animState === 'Attack1' || s.animState === 'Attack2';
+          const pulse = 0.88 + Math.sin(now * 0.008) * 0.14;
+          const orbR = (isBurst ? 28 : isAtk ? 20 : 13) * pulse;
+          const orbX = solved.attachments.staffTip.x;
+          const orbY = solved.attachments.staffTip.y;
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.drawImage(
+            isBurst ? purpleOrbSprite : cyanOrbSprite,
+            orbX - orbR,
+            orbY - orbR,
+            orbR * 2,
+            orbR * 2
+          );
+          ctx.restore();
+        }
       }
 
-      // 3. Publish Scene-Isolated Attachment Coordinates using Cached Bounding Rect (zero DOM reflow inside rAF!)
+      // Publish Scene-Isolated Attachment Coordinates using Cached Bounding Rect (zero DOM reflow inside rAF)
       if (!cachedRectRef.current) {
         updateRectCache();
       }
@@ -398,7 +400,10 @@ export const HeroSkeletalRig: React.FC<HeroSkeletalRigProps> = ({
           s.onAttachmentsUpdate(clientPts, normT);
         }
       }
-    });
+    };
+
+    onTick(performance.now());
+    const unsubscribe = animationClock.subscribe(isMainBattleHero ? 1 : 4, onTick);
 
     return () => {
       cancelAnimationFrame(initRaf);
@@ -409,7 +414,31 @@ export const HeroSkeletalRig: React.FC<HeroSkeletalRigProps> = ({
       document.removeEventListener('visibilitychange', handleVisibility);
       combatAnchorRegistry.clearHeroAnchors(resolvedScene);
     };
-  }, [replayToken, isMainBattleHero, resolvedScene]);
+  }, [replayToken, isMainBattleHero, resolvedScene, isOriginalArt]);
+
+  const activeClipId = resolveHeroClipId(classId, animState, castingSkillType ?? null, isAwakeningCasting);
+
+  if (isOriginalArt) {
+    return (
+      <div className={`hero-skeletal-stage hero-original-art-stage ${className}`}>
+        <img
+          ref={(el) => {
+            hostRef.current = el;
+          }}
+          src={resolvedSrc}
+          alt={alt}
+          className="hero-2d-sprite hero-original-art-sprite hero-skeletal-canvas"
+          data-render-mode="original_art"
+          data-rig-ready="true"
+          data-class-id={classId}
+          data-anim-state={animState}
+          data-clip-id={activeClipId}
+          data-scene-context={resolvedScene}
+          draggable={false}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={`hero-skeletal-stage ${className}`}>
@@ -420,9 +449,11 @@ export const HeroSkeletalRig: React.FC<HeroSkeletalRigProps> = ({
         ref={canvasRef}
         className="hero-2d-sprite hero-skeletal-canvas"
         aria-label={alt}
+        data-render-mode="skeletal_rig"
         data-rig-ready={assetsReady ? 'true' : 'false'}
         data-class-id={classId}
         data-anim-state={animState}
+        data-clip-id={activeClipId}
         data-scene-context={resolvedScene}
         style={{
           opacity: assetsReady ? 1 : 0,

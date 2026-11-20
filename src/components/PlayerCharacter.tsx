@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { CharacterStats, Equipment, DamageNumberData, CharacterClassId, PromotionId, SkillEffectType } from '../types/game';
 import { HeroSkeletalRig } from './HeroSkeletalRig';
 import { HeroRigState } from '../data/heroAnimationClips';
-import { preloadAllHeroRigAssets } from '../utils/heroRigAssetCache';
 
 export type HeroAnimationState = HeroRigState;
 
@@ -44,10 +43,6 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
   isAwakeningCasting = false,
   basicComboStep = 1,
 }) => {
-  useEffect(() => {
-    preloadAllHeroRigAssets();
-  }, []);
-
   const [ghostHpPercent, setGhostHpPercent] = useState(100);
   const hpPercent = Math.max(0, Math.min(100, Math.round((stats.currentHp / maxHp) * 100)));
 
@@ -159,6 +154,18 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
     actionClass = 'hero-act-move';
   }
 
+  // Synchronized Ground Shadow State Class
+  const getShadowClass = () => {
+    if (heroAnimState === 'Defeat') return 'hero-shadow-defeat';
+    if (isAwakeningCasting) return 'hero-shadow-awakening';
+    if (heroAnimState === 'SkillCast') return isMage ? 'hero-shadow-levitate' : 'hero-shadow-lunge';
+    if (heroAnimState === 'Attack3') return isMage ? 'hero-shadow-levitate' : 'hero-shadow-warrior-3';
+    if (heroAnimState === 'Attack2') return isMage ? 'hero-shadow-mage-cast' : 'hero-shadow-warrior-2';
+    if (heroAnimState === 'Attack1') return isMage ? 'hero-shadow-mage-cast' : 'hero-shadow-lunge';
+    if (heroAnimState === 'Move') return 'hero-shadow-move';
+    return isMage ? 'hero-shadow-idle-mage' : 'hero-shadow-idle-warrior';
+  };
+
   const defaultAtkDurationSec = isMage
     ? basicComboStep === 3
       ? 0.44
@@ -174,6 +181,11 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
   const computedAtkDurationSec = attackDurationMs
     ? Math.max(0.18, Math.min(0.55, attackDurationMs / 1000))
     : defaultAtkDurationSec;
+
+  const showAfterimage =
+    heroAnimState === 'Attack2' ||
+    heroAnimState === 'Attack3' ||
+    heroAnimState === 'SkillCast';
 
   return (
     <div
@@ -232,8 +244,8 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           } as React.CSSProperties
         }
       >
-        {/* Soft Outer Ambient Ground Shadow (Rig canvas draws precise foot-synced contact shadow) */}
-        <div className="character-ground-shadow" style={{ opacity: 0.25 }} />
+        {/* Soft Ground Contact Shadow (Synchronized with Jump / Levitation / Lunge) */}
+        <div className={`character-ground-shadow ${getShadowClass()}`} />
 
         {/* Sword Master Golden Radiant Aura (Pure CSS Geometry - Zero Text Emojis) */}
         {isSwordMaster && (
@@ -253,7 +265,40 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           </div>
         )}
 
-        {/* Real 2D Articulated Skeletal Rig (Using Independent Part PNGs & Original Head Art) */}
+        {/* Mage Persistent Staff Arcane Glow & Floating Mana Motes */}
+        {isMage && (
+          <div
+            className={`mage-arcane-focus-layer ${
+              heroAnimState === 'Attack3' || heroAnimState === 'SkillCast'
+                ? 'staff-focus-nova'
+                : heroAnimState === 'Attack2'
+                ? 'staff-focus-twin'
+                : heroAnimState === 'Attack1'
+                ? 'staff-focus-bolt'
+                : 'staff-focus-idle'
+            }`}
+          >
+            <div className="mage-staff-orb-glow" />
+            <span className="mage-idle-mana-mote mana-mote-1" />
+            <span className="mage-idle-mana-mote mana-mote-2" />
+            <span className="mage-idle-mana-mote mana-mote-3" />
+          </div>
+        )}
+
+        {/* Motion Afterimage Ghost Trail (2타 / 3타 / 스킬 시전 시 잔상) */}
+        {showAfterimage && (
+          <img
+            src={spriteSrc}
+            alt=""
+            aria-hidden="true"
+            className={`hero-afterimage-ghost ${isMage ? 'ghost-mage' : 'ghost-warrior'} ${
+              heroAnimState === 'Attack3' ? 'ghost-finisher' : ''
+            }`}
+            draggable={false}
+          />
+        )}
+
+        {/* Original 2D Anime Illustration (Default original_art mode) */}
         <HeroSkeletalRig
           classId={classId}
           animState={heroAnimState}
@@ -262,9 +307,28 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           isHitStop={Boolean(isHitStop)}
           attackDurationMs={attackDurationMs}
           isMainBattleHero={true}
+          renderMode="original_art"
           fallbackSrc={spriteSrc}
           alt={roleTitle}
         />
+
+        {/* Warrior Weapon Swing Blade Arc Glint */}
+        {!isMage && (isAttacking || isCasting) && (
+          <div
+            className={`warrior-blade-swing-arc swing-step-${isCasting ? 3 : basicComboStep}`}
+            aria-hidden="true"
+          />
+        )}
+
+        {/* Mage Staff Tip Rotating Arcane Sigil on Attack/Cast */}
+        {isMage && (isAttacking || isCasting) && (
+          <div className="mage-staff-cast-sigil" aria-hidden="true" />
+        )}
+
+        {/* Mage Basic Staff Glow / Flare on Attack */}
+        {isMage && isAttacking && (
+          <div className={`mage-staff-flare-vfx mage-flare-step-${basicComboStep}`} />
+        )}
 
         {/* Dash & Landing Ground Dust Puff */}
         {(isAttacking || isCasting) && !isMage && (
@@ -305,7 +369,12 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           display: flex;
           flex-direction: column;
           align-items: center;
-          margin-bottom: 6px;
+          margin-bottom: 0px;
+          padding: 3px 9px 4px;
+          border-radius: 11px;
+          background: rgba(11, 18, 33, 0.78);
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
           z-index: 10;
         }
 
@@ -499,7 +568,6 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           width: 100%;
           height: 100%;
           object-fit: contain;
-          filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.45));
           transform-origin: 50% 88%;
           z-index: 3;
           pointer-events: none;
@@ -507,7 +575,7 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
 
         /* Non-interrupting Hit Flash while Hero is mid-attack or mid-skill */
         .hero-hit-while-acting .hero-2d-sprite {
-          filter: brightness(2.1) contrast(1.25) drop-shadow(0 0 14px rgba(239, 68, 68, 0.85)) !important;
+          opacity: 0.92;
         }
 
         /* 👻 Motion Afterimage Ghost Layer */
@@ -524,37 +592,34 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
         }
 
         .ghost-warrior {
-          filter: brightness(1.9) sepia(1) hue-rotate(165deg) saturate(3.5) blur(1.2px);
           animation: afterimageGhostWarrior var(--attack-duration, 0.32s) ease-out forwards;
         }
 
         .ghost-warrior.ghost-finisher {
-          filter: brightness(2.1) sepia(1) hue-rotate(-15deg) saturate(4.5) blur(1.4px);
+          opacity: 0;
         }
 
         .ghost-mage {
-          filter: brightness(2.0) sepia(1) hue-rotate(230deg) saturate(4) blur(1.3px);
           animation: afterimageGhostMage var(--attack-duration, 0.34s) ease-out forwards;
         }
 
         @keyframes afterimageGhostWarrior {
           0% { opacity: 0; transform: translate(0, 0) scale(1); }
-          28% { opacity: 0.5; transform: translate(-14px, 4px) scale(0.97, 1.03); }
-          65% { opacity: 0.32; transform: translate(-22px, 8px) scale(0.94, 1.05); }
+          28% { opacity: 0.42; transform: translate(-14px, 4px) scale(0.97, 1.03); }
+          65% { opacity: 0.24; transform: translate(-22px, 8px) scale(0.94, 1.05); }
           100% { opacity: 0; transform: translate(-6px, 0) scale(1); }
         }
 
         @keyframes afterimageGhostMage {
           0% { opacity: 0; transform: translate(0, 0) scale(1); }
-          30% { opacity: 0.52; transform: translate(-12px, 6px) scale(1.05); }
-          70% { opacity: 0.26; transform: translate(-18px, 10px) scale(1.08); }
+          30% { opacity: 0.44; transform: translate(-12px, 6px) scale(1.05); }
+          70% { opacity: 0.22; transform: translate(-18px, 10px) scale(1.08); }
           100% { opacity: 0; transform: translate(0, 0) scale(1); }
         }
 
         /* Hit Stop Freeze Frame */
         .hit-stop-freeze {
           animation-play-state: paused !important;
-          filter: brightness(1.35) contrast(1.15) !important;
         }
 
         /* 🔮 Mage Staff Arcane Glow & Floating Mana Motes (Zero Text Emojis) */
@@ -573,27 +638,23 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           height: 28px;
           border-radius: 50%;
           background: radial-gradient(circle, rgba(224, 242, 254, 0.92) 0%, rgba(56, 189, 248, 0.6) 45%, rgba(168, 85, 247, 0) 75%);
-          filter: blur(2px);
           animation: staffOrbPulse 2.0s ease-in-out infinite alternate;
-          transition: transform 0.12s ease, filter 0.12s ease;
+          transition: transform 0.12s ease;
         }
 
         .staff-focus-bolt .mage-staff-orb-glow {
           transform: scale(1.55);
           background: radial-gradient(circle, #ffffff 0%, rgba(56, 189, 248, 0.9) 50%, transparent 80%);
-          filter: drop-shadow(0 0 10px #38bdf8);
         }
 
         .staff-focus-twin .mage-staff-orb-glow {
           transform: scale(1.85);
           background: radial-gradient(circle, #ffffff 0%, rgba(192, 132, 252, 0.95) 45%, rgba(56, 189, 248, 0.55) 75%, transparent 95%);
-          filter: drop-shadow(0 0 14px #c084fc);
         }
 
         .staff-focus-nova .mage-staff-orb-glow {
           transform: scale(2.3);
           background: radial-gradient(circle, #ffffff 0%, rgba(250, 204, 21, 0.95) 35%, rgba(168, 85, 247, 0.85) 68%, transparent 95%);
-          filter: drop-shadow(0 0 18px #a855f7);
         }
 
         @keyframes staffOrbPulse {
@@ -666,7 +727,6 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           height: 11px;
           background: linear-gradient(135deg, #ffffff 0%, #fde047 55%, #f59e0b 100%);
           clip-path: polygon(50% 0%, 66% 34%, 100% 50%, 66% 66%, 50% 100%, 34% 66%, 0% 50%, 34% 34%);
-          filter: drop-shadow(0 0 6px #fbbf24);
           animation: smFloat 2.2s infinite ease-in-out;
         }
 
@@ -713,7 +773,6 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           height: 10px;
           background: linear-gradient(135deg, #ffffff 0%, #e879f9 55%, #38bdf8 100%);
           clip-path: polygon(50% 0%, 64% 36%, 100% 50%, 64% 64%, 50% 100%, 36% 64%, 0% 50%, 36% 36%);
-          filter: drop-shadow(0 0 6px #a855f7);
           animation: amStarFloat 2.4s infinite ease-in-out;
         }
 
@@ -852,7 +911,7 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
         }
 
         /* ==========================================================
-           ARTICULATED SKELETAL STAGE SIZING (Zero Full-Image Wobble!)
+           ORIGINAL ART STAGE & NATURAL WHOLE-SPRITE COMBAT MOTIONS
            ========================================================== */
         .hero-skeletal-stage {
           position: absolute;
@@ -868,12 +927,33 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           contain: layout style;
         }
 
-        .hero-skeletal-canvas {
+        .hero-skeletal-stage.hero-original-art-stage {
+          position: relative;
+          bottom: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          aspect-ratio: auto;
+          display: flex;
+          justify-content: center;
+          align-items: flex-end;
+        }
+
+        canvas.hero-skeletal-canvas {
           width: 100%;
           height: 100%;
           display: block;
           pointer-events: none;
           filter: none !important;
+        }
+
+        img.hero-original-art-sprite {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          display: block;
+          pointer-events: none;
+          transform-origin: 50% 88%;
         }
 
         .hero-fallback-sprite {
@@ -882,20 +962,262 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           object-fit: contain;
         }
 
-        .hero-hit-while-acting .hero-skeletal-canvas {
-          opacity: 0.92;
+        /* Warrior Idle: Grounded, calm breathing & subtle combat poise */
+        .hero-idle-warrior {
+          animation: heroIdleWarrior 2.4s ease-in-out infinite;
         }
 
-        .hero-act-hit .hero-skeletal-canvas {
-          opacity: 0.9;
+        @keyframes heroIdleWarrior {
+          0%, 100% { transform: translate(0, 0) scale(1, 1) rotate(0deg); }
+          42% { transform: translate(1px, -2.5px) scale(0.996, 1.01) rotate(0.5deg); }
+          75% { transform: translate(-0.5px, 0.5px) scale(1.006, 0.994) rotate(-0.3deg); }
         }
 
-        .hero-act-awakening .hero-skeletal-canvas {
-          opacity: 1;
+        /* Mage Idle: Gentle arcane floating rhythm without warping proportions */
+        .hero-idle-mage {
+          animation: heroIdleMage 2.8s ease-in-out infinite;
         }
 
-        .hero-act-defeat .hero-skeletal-canvas {
-          opacity: 0.75;
+        @keyframes heroIdleMage {
+          0%, 100% { transform: translate(0, -1px) scale(1, 1) rotate(-0.5deg); }
+          50% { transform: translate(1.5px, -7px) scale(0.996, 1.008) rotate(0.8deg); }
+        }
+
+        /* Move State: Natural forward step */
+        .hero-act-move {
+          animation: heroMoveStep 0.38s ease-in-out infinite;
+        }
+
+        @keyframes heroMoveStep {
+          0%, 100% { transform: translate(0, 0) rotate(0deg); }
+          25% { transform: translate(5px, -4px) rotate(2deg); }
+          50% { transform: translate(8px, 0px) rotate(1deg); }
+          75% { transform: translate(3px, -3px) rotate(-1deg); }
+        }
+
+        /* Warrior 3-Combo Natural Forward Lunge & Recoil (No Body Distortion) */
+        .hero-act-warrior-attack-1 {
+          animation: warriorAttack1Anim var(--attack-duration, 0.28s) cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
+        }
+
+        @keyframes warriorAttack1Anim {
+          0% { transform: translate(0, 0) rotate(0deg) scale(1); }
+          20% { transform: translate(-6px, 2px) rotate(-4deg) scale(1.02, 0.98); }
+          46% { transform: translate(34px, -2px) rotate(7deg) scale(1.03, 0.98); }
+          100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+        }
+
+        .hero-act-warrior-attack-2 {
+          animation: warriorAttack2Anim var(--attack-duration, 0.32s) cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
+        }
+
+        @keyframes warriorAttack2Anim {
+          0% { transform: translate(0, 0) rotate(0deg) scale(1); }
+          22% { transform: translate(4px, 3px) rotate(5deg) scale(1.02, 0.98); }
+          48% { transform: translate(42px, -10px) rotate(-8deg) scale(0.98, 1.03); }
+          100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+        }
+
+        .hero-act-warrior-attack-3 {
+          animation: warriorAttack3Anim var(--attack-duration, 0.42s) cubic-bezier(0.18, 0.9, 0.22, 1) forwards;
+        }
+
+        @keyframes warriorAttack3Anim {
+          0% { transform: translate(0, 0) rotate(0deg) scale(1); }
+          18% { transform: translate(-8px, 3px) rotate(-6deg) scale(1.03, 0.97); }
+          40% { transform: translate(24px, -22px) rotate(-8deg) scale(0.98, 1.04); }
+          58% { transform: translate(54px, 3px) rotate(8deg) scale(1.04, 0.96); }
+          100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+        }
+
+        /* Mage 3-Combo Natural Staff Cast Motions */
+        .hero-act-mage-attack-1 {
+          animation: mageAttack1Anim var(--attack-duration, 0.3s) cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
+        }
+
+        @keyframes mageAttack1Anim {
+          0% { transform: translate(0, -1px) rotate(0deg) scale(1); }
+          25% { transform: translate(-4px, -4px) rotate(-3deg) scale(0.99, 1.01); }
+          50% { transform: translate(12px, -6px) rotate(4deg) scale(1.02, 0.99); }
+          100% { transform: translate(0, -1px) rotate(0deg) scale(1); }
+        }
+
+        .hero-act-mage-attack-2 {
+          animation: mageAttack2Anim var(--attack-duration, 0.34s) cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
+        }
+
+        @keyframes mageAttack2Anim {
+          0% { transform: translate(0, -1px) rotate(0deg) scale(1); }
+          28% { transform: translate(-6px, -8px) rotate(-4deg) scale(0.98, 1.02); }
+          54% { transform: translate(16px, -11px) rotate(6deg) scale(1.03, 0.98); }
+          100% { transform: translate(0, -1px) rotate(0deg) scale(1); }
+        }
+
+        .hero-act-mage-attack-3 {
+          animation: mageAttack3Anim var(--attack-duration, 0.44s) cubic-bezier(0.18, 0.9, 0.25, 1) forwards;
+        }
+
+        @keyframes mageAttack3Anim {
+          0% { transform: translate(0, -1px) rotate(0deg) scale(1); }
+          32% { transform: translate(-4px, -18px) rotate(-4deg) scale(0.98, 1.03); }
+          56% { transform: translate(18px, -13px) rotate(6deg) scale(1.04, 0.98); }
+          100% { transform: translate(0, -1px) rotate(0deg) scale(1); }
+        }
+
+        /* Warrior & Mage Skill Cast Motions */
+        .hero-act-warrior-cast {
+          animation: warriorCastAnim 0.46s cubic-bezier(0.15, 0.9, 0.25, 1) forwards;
+        }
+        .hero-act-warrior-cast-slam {
+          animation: warriorAttack3Anim 0.46s cubic-bezier(0.18, 0.9, 0.22, 1) forwards;
+        }
+        .hero-act-warrior-cast-spin {
+          animation: warriorCastAnim 0.46s cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
+        }
+        .hero-act-warrior-cast-fortress {
+          animation: warriorFortressCastAnim 0.46s cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
+        }
+        .hero-act-warrior-cast-bash {
+          animation: warriorBashCastAnim 0.42s cubic-bezier(0.18, 0.9, 0.22, 1) forwards;
+        }
+
+        @keyframes warriorFortressCastAnim {
+          0% { transform: translate(0, 0) scale(1); }
+          28% { transform: translate(0, 3px) scale(1.03, 0.97); }
+          55% { transform: translate(2px, -7px) scale(1.05, 1.03); }
+          100% { transform: translate(0, 0) scale(1); }
+        }
+
+        @keyframes warriorBashCastAnim {
+          0% { transform: translateX(0) scale(1); }
+          22% { transform: translate(-10px, 2px) rotate(-4deg); }
+          50% { transform: translate(48px, 0px) rotate(5deg) scale(1.04, 0.97); }
+          100% { transform: translateX(0) rotate(0deg) scale(1); }
+        }
+
+        @keyframes warriorCastAnim {
+          0% { transform: translateX(0) scale(1); }
+          20% { transform: translate(-10px, 3px) rotate(-5deg); }
+          48% { transform: translate(56px, -3px) rotate(8deg) scale(1.05, 0.97); }
+          100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+        }
+
+        .hero-act-mage-cast {
+          animation: mageSkillCastAnim 0.46s cubic-bezier(0.2, 0.8, 0.25, 1) forwards;
+        }
+        .hero-act-mage-cast-nova {
+          animation: mageAttack3Anim 0.46s cubic-bezier(0.18, 0.9, 0.25, 1) forwards;
+        }
+        .hero-act-mage-cast-sky {
+          animation: mageSkyCastAnim 0.46s cubic-bezier(0.18, 0.9, 0.25, 1) forwards;
+        }
+
+        @keyframes mageSkillCastAnim {
+          0% { transform: translateY(-1px) scale(1); }
+          30% { transform: translateY(-14px) rotate(-3deg) scale(1.03); }
+          60% { transform: translate(12px, -10px) rotate(4deg) scale(1.04, 0.98); }
+          100% { transform: translateY(-1px) rotate(0deg) scale(1); }
+        }
+
+        @keyframes mageSkyCastAnim {
+          0% { transform: translateY(-1px) scale(1); }
+          32% { transform: translate(-3px, -18px) rotate(-4deg) scale(1.03); }
+          64% { transform: translate(8px, -14px) rotate(3deg) scale(1.04); }
+          100% { transform: translateY(-1px) rotate(0deg) scale(1); }
+        }
+
+        .warrior-blade-swing-arc {
+          position: absolute;
+          top: 16%;
+          right: -24px;
+          width: 92px;
+          height: 112px;
+          border-right: 5px solid rgba(254, 240, 138, 0.92);
+          border-top: 2px solid rgba(56, 189, 248, 0.65);
+          border-radius: 0 100% 100% 0 / 0 60% 60% 0;
+          pointer-events: none;
+          z-index: 6;
+          animation: bladeArcSweep var(--attack-duration, 0.3s) ease-out forwards;
+        }
+
+        .warrior-blade-swing-arc.swing-step-2 {
+          border-right-color: #fbbf24;
+          transform: scaleY(-1);
+        }
+
+        .warrior-blade-swing-arc.swing-step-3 {
+          width: 108px;
+          height: 126px;
+          border-right-width: 6px;
+          border-right-color: #f97316;
+          border-top-color: #fef08a;
+        }
+
+        @keyframes bladeArcSweep {
+          0% { opacity: 0; transform: rotate(-32deg) scale(0.68); }
+          45% { opacity: 1; transform: rotate(8deg) scale(1.06); }
+          100% { opacity: 0; transform: rotate(26deg) scale(1.18); }
+        }
+
+        .mage-staff-cast-sigil {
+          position: absolute;
+          top: 19%;
+          right: 6%;
+          width: 42px;
+          height: 42px;
+          border-radius: 50%;
+          border: 2px dashed rgba(192, 132, 252, 0.92);
+          box-shadow: 0 0 14px rgba(56, 189, 248, 0.75), inset 0 0 10px rgba(232, 121, 249, 0.65);
+          pointer-events: none;
+          z-index: 6;
+          animation: staffSigilSpin var(--attack-duration, 0.36s) ease-out forwards;
+        }
+
+        @keyframes staffSigilSpin {
+          0% { opacity: 0; transform: scale(0.35) rotate(0deg); }
+          45% { opacity: 1; transform: scale(1.2) rotate(90deg); }
+          100% { opacity: 0; transform: scale(1.5) rotate(180deg); }
+        }
+
+        .hero-act-awakening {
+          animation: awakeningHeroAnim 0.8s ease-in-out forwards;
+        }
+
+        @keyframes awakeningHeroAnim {
+          0% { transform: scale(1) translateY(0); }
+          26% { transform: scale(1.06) translateY(-18px) rotate(-4deg); }
+          56% { transform: scale(1.09) translateX(24px) translateY(-10px) rotate(6deg); }
+          100% { transform: scale(1) translateY(0); }
+        }
+
+        .hero-act-hit {
+          animation: heroHurtShake 0.2s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+        }
+
+        @keyframes heroHurtShake {
+          0%, 100% { transform: translate(0, 0) rotate(0deg); }
+          30% { transform: translate(-8px, 1px) rotate(-3deg); }
+          65% { transform: translate(3px, -1px) rotate(1.5deg); }
+        }
+
+        .hero-act-victory {
+          animation: heroVictoryHop 0.45s ease-out forwards;
+        }
+
+        @keyframes heroVictoryHop {
+          0% { transform: translateY(0) scale(1); }
+          38% { transform: translateY(-10px) scale(1.03, 0.98); }
+          100% { transform: translateY(0) scale(1); }
+        }
+
+        .hero-act-defeat {
+          animation: heroDefeatCollapse 0.5s ease-out forwards;
+        }
+
+        @keyframes heroDefeatCollapse {
+          0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
+          35% { transform: translate(-10px, -2px) rotate(-8deg); opacity: 0.85; }
+          100% { transform: translate(-18px, 14px) rotate(-18deg) scale(0.94, 0.88); opacity: 0.65; }
         }
 
         /* Pure CSS Geometric Victory Sparkle (Zero Text Emojis) */
@@ -907,7 +1229,6 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           height: 16px;
           background: linear-gradient(135deg, #ffffff 0%, #fef08a 50%, #f59e0b 100%);
           clip-path: polygon(50% 0%, 64% 36%, 100% 50%, 64% 64%, 50% 100%, 36% 64%, 0% 50%, 36% 36%);
-          filter: drop-shadow(0 0 8px #fbbf24);
           animation: victorySparklePop 0.5s ease-out forwards;
           z-index: 10;
           pointer-events: none;
@@ -945,13 +1266,13 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
         /* PC Responsive Layout (width >= 768px) */
         @media (min-width: 768px) {
           .hero-sprite-wrapper {
-            height: clamp(230px, 27vh, 340px);
-            width: calc(clamp(230px, 27vh, 340px) * 0.9);
+            height: clamp(198px, 23.5vh, 265px);
+            width: calc(clamp(198px, 23.5vh, 265px) * 0.92);
           }
 
           .character-ground-shadow {
-            width: calc(clamp(230px, 27vh, 340px) * 0.65);
-            height: calc(clamp(230px, 27vh, 340px) * 0.12);
+            width: calc(clamp(198px, 23.5vh, 265px) * 0.65);
+            height: calc(clamp(198px, 23.5vh, 265px) * 0.12);
           }
         }
       `}</style>

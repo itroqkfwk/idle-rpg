@@ -303,13 +303,14 @@ export const PetPage: React.FC<PetPageProps> = ({
           justify-content: center;
         }
 
-        .pedestal-pet-rig .pet-skeletal-canvas {
+        .pedestal-pet-rig canvas.pet-skeletal-canvas {
           width: 100%;
           height: 100%;
           object-fit: contain;
           filter: none !important;
         }
 
+        .pedestal-pet-rig img.pet-original-art-sprite,
         .pedestal-pet-img {
           width: 100%;
           height: 100%;

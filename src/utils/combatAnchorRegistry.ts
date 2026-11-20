@@ -2,6 +2,9 @@ import { CharacterClassId } from '../types/game';
 
 export type CombatSceneContextId = 'main_battle' | 'skill_preview' | 'pet_showcase';
 
+export type VisualRenderMode = 'original_art' | 'skeletal_rig';
+export const DEFAULT_VISUAL_RENDER_MODE: VisualRenderMode = 'original_art';
+
 export interface ClientPoint {
   x: number;
   y: number;
@@ -87,6 +90,9 @@ export const combatAnchorRegistry = {
   },
   clearHeroAnchors(sceneId: CombatSceneContextId): void {
     sceneBuckets[sceneId].hero = null;
+    if (sceneId === 'main_battle' && typeof window !== 'undefined') {
+      delete window.__heroAttachmentPoints;
+    }
   },
 
   setMonsterAnchors(sceneId: CombatSceneContextId, data: MonsterSceneAttachments): void {
@@ -100,6 +106,9 @@ export const combatAnchorRegistry = {
   },
   clearMonsterAnchors(sceneId: CombatSceneContextId): void {
     sceneBuckets[sceneId].monster = null;
+    if (sceneId === 'main_battle' && typeof window !== 'undefined') {
+      delete window.__monsterAttachmentPoints;
+    }
   },
 
   setPetAnchors(sceneId: CombatSceneContextId, data: PetSceneAttachments): void {
@@ -113,5 +122,8 @@ export const combatAnchorRegistry = {
   },
   clearPetAnchors(sceneId: CombatSceneContextId): void {
     sceneBuckets[sceneId].pet = null;
+    if (sceneId === 'main_battle' && typeof window !== 'undefined') {
+      delete window.__petAttachmentPoints;
+    }
   },
 };

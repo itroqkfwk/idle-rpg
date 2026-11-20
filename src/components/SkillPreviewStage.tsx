@@ -316,8 +316,8 @@ export const SkillPreviewStage: React.FC<SkillPreviewStageProps> = ({ skill }) =
           <span className="preview-isolated-tag">미리보기 (실제 전투 무관)</span>
         </div>
 
-        {/* Preview Hero Skeletal Rig (Isolated 'skill_preview' scene context) */}
-        <div className="skill-preview-hero-slot">
+        {/* Preview Hero Original Art / Rig (Isolated 'skill_preview' scene context) */}
+        <div className={`skill-preview-hero-slot ${animState === 'SkillCast' && isPlaying ? 'preview-hero-casting' : ''}`}>
           <HeroSkeletalRig
             classId={skill.classId}
             animState={animState}
@@ -325,6 +325,7 @@ export const SkillPreviewStage: React.FC<SkillPreviewStageProps> = ({ skill }) =
             isAwakeningCasting={Boolean(skill.isAwakening)}
             isMainBattleHero={false}
             sceneContext="skill_preview"
+            renderMode="original_art"
             paused={!isPlaying}
             replayToken={replayCount}
             onAttachmentsUpdate={(pts) => {
@@ -333,7 +334,7 @@ export const SkillPreviewStage: React.FC<SkillPreviewStageProps> = ({ skill }) =
           />
         </div>
 
-        {/* Isolated Practice Target Monster (Real Articulated MonsterSkeletalRig!) */}
+        {/* Isolated Practice Target Monster (Original Art Mode) */}
         <div
           ref={enemyTargetRef}
           className={`skill-preview-dummy ${enemyHitActive ? 'dummy-hit' : ''}`}
@@ -344,6 +345,7 @@ export const SkillPreviewStage: React.FC<SkillPreviewStageProps> = ({ skill }) =
             animState={enemyHitActive ? 'Hit2' : 'Idle'}
             isMainBattleMonster={false}
             sceneContext="skill_preview"
+            renderMode="original_art"
             paused={!isPlaying}
             replayToken={replayCount}
             fallbackSrc="./assets/monster_slime.png"

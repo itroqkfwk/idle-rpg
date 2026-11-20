@@ -212,6 +212,9 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
       if (monster.id.includes('_w4')) return { sprite: './assets/monster_spirit.png', idleClass: 'spirit-act-idle', sizeClass: 'medium-size' };
       return { sprite: './assets/monster_slime.png', idleClass: 'slime-act-idle', sizeClass: 'slime-size' };
     }
+    if (monster.id === 'c3_m2' || monster.name.includes('여우')) {
+      return { sprite: './assets/ch3_fox.png', idleClass: 'beast-act-idle', sizeClass: 'medium-size' };
+    }
     if (monster.id.includes('m2') || monster.name.includes('버섯')) {
       return { sprite: './assets/monster_mushroom.png', idleClass: 'mushroom-act-idle', sizeClass: 'medium-size' };
     }
@@ -250,10 +253,23 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
 
   const activeBossPattern = bossPatternWarning ?? bossPatternVfxEvent?.pattern ?? null;
 
+  const getAttackClassByIdle = (idleCls: string) => {
+    if (isBoss) return 'enemy-act-attack boss-act-attack';
+    if (idleCls.includes('slime')) return 'enemy-act-attack slime-act-attack';
+    if (idleCls.includes('spirit') || idleCls.includes('bee')) return 'enemy-act-attack spirit-act-attack';
+    if (idleCls.includes('beast')) return 'enemy-act-attack beast-act-attack';
+    if (idleCls.includes('golem')) return 'enemy-act-attack golem-act-attack';
+    return 'enemy-act-attack';
+  };
+
   const getHitActionClass = () => {
     if (isDeadState) return 'enemy-act-defeat';
+    if (activeHitStep === 3) return isBoss ? 'enemy-act-hit-3-boss' : 'enemy-act-hit-3';
+    if (activeHitStep === 2) return isBoss ? 'enemy-act-hit-2-boss' : 'enemy-act-hit-2';
+    if (activeHitStep === 1) return isBoss ? 'enemy-act-hit-1-boss' : 'enemy-act-hit-1';
     if (isFrozen || isStunned) return 'enemy-act-cc-frozen';
-    return 'enemy-rig-driven';
+    if (isAttacking || patternImpactActive || ch13SpecialActive) return getAttackClassByIdle(monsterConfig.idleClass);
+    return monsterConfig.idleClass;
   };
 
   return (
@@ -453,7 +469,12 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           display: flex;
           flex-direction: column;
           align-items: center;
-          margin-bottom: 6px;
+          margin-bottom: 0px;
+          padding: 3px 9px 4px;
+          border-radius: 11px;
+          background: rgba(11, 18, 33, 0.78);
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
           z-index: 10;
         }
 
@@ -475,7 +496,6 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           border-radius: 9999px;
           border: 1px solid;
           box-shadow: 0 2px 5px rgba(0, 0, 0, 0.55);
-          backdrop-filter: blur(4px);
         }
 
         .status-sec {
@@ -485,11 +505,11 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
         }
 
         .status-tint-freeze .monster-2d-sprite {
-          filter: drop-shadow(0 0 12px #38bdf8) brightness(1.15) hue-rotate(15deg) !important;
+          opacity: 0.94;
         }
 
         .status-tint-burn .monster-2d-sprite {
-          filter: drop-shadow(0 0 12px #f97316) brightness(1.12) saturate(1.25) !important;
+          opacity: 0.96;
         }
 
         .dungeon-gold-aura .monster-2d-sprite {
@@ -837,7 +857,6 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           max-width: 100%;
           max-height: 100%;
           object-fit: contain;
-          filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.45));
           z-index: 2;
           pointer-events: none;
           transform-origin: bottom center;
@@ -854,13 +873,13 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           pointer-events: none;
         }
 
-        .monster-skeletal-stage .monster-skeletal-canvas,
-        .status-tint-freeze .monster-skeletal-canvas,
-        .status-tint-burn .monster-skeletal-canvas,
-        .hit-crit-recoil .monster-skeletal-canvas,
-        .dungeon-gold-aura .monster-skeletal-canvas,
-        .dungeon-exp-aura .monster-skeletal-canvas,
-        .dungeon-ruins-aura .monster-skeletal-canvas {
+        .monster-skeletal-stage canvas.monster-skeletal-canvas,
+        .status-tint-freeze canvas.monster-skeletal-canvas,
+        .status-tint-burn canvas.monster-skeletal-canvas,
+        .hit-crit-recoil canvas.monster-skeletal-canvas,
+        .dungeon-gold-aura canvas.monster-skeletal-canvas,
+        .dungeon-exp-aura canvas.monster-skeletal-canvas,
+        .dungeon-ruins-aura canvas.monster-skeletal-canvas {
           width: 118%;
           max-width: none;
           height: 118%;
@@ -870,13 +889,19 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           animation: none !important;
         }
 
-        .monster-skeletal-stage.is-boss-rig .monster-skeletal-canvas {
+        .monster-skeletal-stage.is-boss-rig canvas.monster-skeletal-canvas {
           width: 116%;
           height: 116%;
         }
 
-        .enemy-sprite-wrapper .character-ground-shadow {
-          opacity: 0.22;
+        img.monster-original-art-sprite {
+          width: 100%;
+          height: 100%;
+          max-width: 100%;
+          max-height: 100%;
+          object-fit: contain;
+          display: block;
+          pointer-events: none;
         }
 
         /* 1/2/3타 피격 파동 링 (Pure CSS geometric ring, no text/emojis) */
@@ -1097,8 +1122,7 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           width: 26px;
           height: 12px;
           border-radius: 50%;
-          background: rgba(180, 170, 140, 0.65);
-          filter: blur(2px);
+          background: radial-gradient(ellipse at center, rgba(180, 170, 140, 0.72) 0%, transparent 75%);
           animation: knockbackDust 0.28s ease-out forwards;
         }
 
@@ -1248,8 +1272,8 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           100% { transform: translateX(0) scale(1, 1); }
         }
         @keyframes whiteFlashLight {
-          0% { filter: brightness(6.5) contrast(1.9) drop-shadow(0 0 14px rgba(255, 255, 255, 0.85)); }
-          100% { filter: brightness(1) contrast(1) saturate(1); }
+          0% { opacity: 0.78; }
+          100% { opacity: 1; }
         }
 
         /* 2타: 중간 밀림 (15px / 보스 6.5px), 몸체 흔들림, 방향성 반동 */
@@ -1278,8 +1302,8 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           100% { transform: translateX(0) scale(1, 1) rotate(0deg); }
         }
         @keyframes amberFlashMedium {
-          0% { filter: brightness(10) contrast(2.2) drop-shadow(0 0 20px rgba(251, 191, 36, 0.88)); }
-          100% { filter: brightness(1) contrast(1) saturate(1); }
+          0% { opacity: 0.72; }
+          100% { opacity: 1; }
         }
 
         /* 3타: 강한 넉백 (24px / 보스 11px), 몸체 압축 및 탄성 복원 */
@@ -1311,21 +1335,21 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
         }
         @keyframes whiteGoldFlashHeavy {
           0% {
-            filter: brightness(22) contrast(3.5) saturate(0) drop-shadow(0 0 35px rgba(254, 240, 138, 0.95)) drop-shadow(0 0 16px rgba(249, 115, 22, 0.85));
+            opacity: 0.68;
             transform: scale(0.92) translateX(6px);
           }
           40% {
-            filter: brightness(9) contrast(2.2) saturate(0.3) drop-shadow(0 0 20px rgba(251, 191, 36, 0.75));
+            opacity: 0.86;
           }
           100% {
-            filter: brightness(1) contrast(1) saturate(1) drop-shadow(0 0 0 transparent);
+            opacity: 1;
             transform: scale(1) translateX(0);
           }
         }
 
         /* 치명타 추가 시각 리코일 */
         .hit-crit-recoil .monster-2d-sprite {
-          filter: drop-shadow(0 0 18px rgba(249, 115, 22, 0.85)) !important;
+          opacity: 0.94;
         }
 
         /* 사망 연출: 몸체 붕괴 + 축소 + 투명도 감소 */
@@ -1338,57 +1362,53 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           0% {
             opacity: 1;
             transform: translateX(0) translateY(0) scale(1, 1) rotate(0deg);
-            filter: brightness(2.5) contrast(1.4);
           }
           28% {
             opacity: 0.9;
             transform: translateX(12px) translateY(-4px) scale(1.08, 0.9) rotate(6deg);
-            filter: brightness(3.2) drop-shadow(0 0 22px #f59e0b);
           }
           65% {
             opacity: 0.45;
             transform: translateX(16px) translateY(10px) scale(0.72, 0.56) rotate(12deg);
-            filter: brightness(1.8) saturate(0.4) blur(1px);
           }
           100% {
             opacity: 0;
             transform: translateX(18px) translateY(22px) scale(0.22, 0.15) rotate(16deg);
-            filter: brightness(0.8) blur(3px);
           }
         }
 
         /* PC Responsive Layout (width >= 768px) */
         @media (min-width: 768px) {
           .enemy-sprite-wrapper {
-            height: clamp(200px, 24vh, 310px);
-            width: calc(clamp(200px, 24vh, 310px) * 0.95);
+            height: clamp(190px, 22.5vh, 260px);
+            width: calc(clamp(190px, 22.5vh, 260px) * 0.95);
           }
 
           .is-boss-combatant .enemy-sprite-wrapper {
-            height: clamp(290px, 34vh, 430px);
-            width: calc(clamp(290px, 34vh, 430px) * 0.98);
+            height: clamp(245px, 29vh, 335px);
+            width: calc(clamp(245px, 29vh, 335px) * 0.98);
           }
 
           .monster-2d-sprite.slime-size {
-            height: clamp(160px, 19vh, 250px);
+            height: clamp(150px, 18vh, 215px);
           }
 
           .monster-2d-sprite.medium-size {
-            height: clamp(200px, 24vh, 310px);
+            height: clamp(190px, 22.5vh, 260px);
           }
 
           .monster-2d-sprite.boss-size {
-            height: clamp(290px, 34vh, 430px);
+            height: clamp(245px, 29vh, 335px);
           }
 
           .character-ground-shadow.normal-ground-shadow {
-            width: calc(clamp(200px, 24vh, 310px) * 0.7);
-            height: calc(clamp(200px, 24vh, 310px) * 0.12);
+            width: calc(clamp(190px, 22.5vh, 260px) * 0.7);
+            height: calc(clamp(190px, 22.5vh, 260px) * 0.12);
           }
 
           .character-ground-shadow.boss-ground-shadow {
-            width: calc(clamp(290px, 34vh, 430px) * 0.75);
-            height: calc(clamp(290px, 34vh, 430px) * 0.13);
+            width: calc(clamp(245px, 29vh, 335px) * 0.75);
+            height: calc(clamp(245px, 29vh, 335px) * 0.13);
           }
         }
       `}</style>
