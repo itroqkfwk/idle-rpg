@@ -12,6 +12,7 @@ import {
 } from '../data/monsterAnimationClips';
 import { PackedRigAtlas, getCachedMonsterAtlas, preloadMonsterRigParts } from '../utils/monsterPetAssetCache';
 import { animationClock } from '../utils/animationClock';
+import type { mountLilyFrog } from '../utils/lilyFrog';
 import {
   combatAnchorRegistry,
   CombatSceneContextId,
@@ -22,6 +23,8 @@ import {
 
 interface MonsterSkeletalRigProps {
   monster: Pick<Monster, 'id' | 'name' | 'isBoss' | 'element'>;
+  currentHp?: number;
+  attacking?: boolean;
   animState: MonsterRigState;
   bossPhase?: 1 | 2;
   bossPattern?: BossPatternType | null;
@@ -105,6 +108,8 @@ function computeAdaptiveDpr(): number {
 
 export const MonsterSkeletalRig: React.FC<MonsterSkeletalRigProps> = ({
   monster,
+  currentHp,
+  attacking = false,
   animState,
   bossPhase = 1,
   bossPattern = null,
@@ -127,6 +132,22 @@ export const MonsterSkeletalRig: React.FC<MonsterSkeletalRigProps> = ({
   const resolvedScene: CombatSceneContextId = sceneContext ?? (isMainBattleMonster ? 'main_battle' : 'skill_preview');
   const isOriginalArt = renderMode === 'original_art';
   const resolvedSrc = fallbackSrc || spec.sourcePng || './assets/monster_slime.png';
+  const showFrog = isOriginalArt && resolvedScene === 'main_battle' && monster.id === 'c2_m2';
+  const frogCanvas = useRef<HTMLCanvasElement>(null);
+  const frogView = useRef<ReturnType<typeof mountLilyFrog>>(null);
+  useEffect(() => {
+    const canvas = frogCanvas.current;
+    if (!showFrog || !canvas) return;
+    let cancelled = false;
+    import('../utils/lilyFrog').then(({ mountLilyFrog }) => {
+      if (!cancelled) frogView.current = mountLilyFrog(canvas);
+    }).catch(() => { /* Keep the illustration if the renderer cannot initialize. */ });
+    return () => {
+      cancelled = true;
+      frogView.current?.dispose();
+      frogView.current = null;
+    };
+  }, [showFrog]);
 
   const hostRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -136,6 +157,8 @@ export const MonsterSkeletalRig: React.FC<MonsterSkeletalRigProps> = ({
   const dprRef = useRef<number>(computeAdaptiveDpr());
 
   const stateRef = useRef({
+    currentHp,
+    attacking,
     monsterId: monster.id,
     rigId,
     animState,
@@ -151,6 +174,8 @@ export const MonsterSkeletalRig: React.FC<MonsterSkeletalRigProps> = ({
     onAttachmentsUpdate,
   });
   stateRef.current = {
+    currentHp,
+    attacking,
     monsterId: monster.id,
     rigId,
     animState,
@@ -268,6 +293,18 @@ export const MonsterSkeletalRig: React.FC<MonsterSkeletalRigProps> = ({
       const timer = timerRef.current;
       const dtMs = Math.max(0, Math.min(50, now - timer.lastFrameTime));
       timer.lastFrameTime = now;
+
+      const frogPose = frogView.current?.draw(now, {
+        animState: s.animState,
+        attacking: s.attacking,
+        hp: s.currentHp,
+        locked: s.isFrozen || s.isStunned,
+        paused: s.paused || s.isHitStop,
+      });
+      if (frogPose) {
+        combatAnchorRegistry.setMonsterAnchors(s.resolvedScene, frogPose);
+        return;
+      }
 
       const clipId = resolveMonsterClipId(s.animState);
       const key = `${s.rigId}:${clipId}:${s.animState}:${s.bossPattern ?? ''}`;
@@ -438,6 +475,15 @@ export const MonsterSkeletalRig: React.FC<MonsterSkeletalRigProps> = ({
   if (isOriginalArt) {
     return (
       <div className={`monster-skeletal-stage monster-original-art-stage ${spec.isBoss ? 'is-boss-rig' : ''} ${className}`}>
+        {showFrog && (
+          <canvas
+            ref={frogCanvas}
+            className="lily-frog-model"
+            data-model-id="c2_m2"
+            data-render-mode="model_3d"
+            aria-hidden="true"
+          />
+        )}
         <img
           ref={(el) => {
             hostRef.current = el;

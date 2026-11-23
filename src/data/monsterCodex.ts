@@ -41,7 +41,7 @@ const MONSTER_SPRITE_MAP: Record<string, string> = {
   c1_m4: './assets/monster_spirit.png',
   c1_boss: './assets/ch1_boss.png',
   c2_m1: './assets/ch2_water_spirit.png',
-  c2_m2: './assets/monster_slime.png',
+  c2_m2: './assets/ch2_frog.png',
   c2_m3: './assets/monster_mushroom.png',
   c2_boss: './assets/ch2_boss.png',
   c3_m1: './assets/monster_slime.png',

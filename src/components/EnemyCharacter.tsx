@@ -225,7 +225,7 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
       return { sprite: './assets/ch2_water_spirit.png', idleClass: 'spirit-act-idle', sizeClass: 'medium-size' };
     }
     if (monster.id === 'c2_m2') {
-      return { sprite: './assets/monster_slime.png', idleClass: 'slime-act-idle', sizeClass: 'slime-size' };
+      return { sprite: './assets/ch2_frog.png', idleClass: 'slime-act-idle', sizeClass: 'medium-size' };
     }
     if (monster.id === 'c2_m3') {
       return { sprite: './assets/monster_mushroom.png', idleClass: 'mushroom-act-idle', sizeClass: 'medium-size' };
@@ -457,6 +457,8 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
         {/* Articulated 2D Monster / Boss Skeletal Rig */}
         <MonsterSkeletalRig
           monster={monster}
+          currentHp={monster.currentHp}
+          attacking={isAttacking}
           animState={enemyAnimState}
           bossPhase={bossPhase}
           bossPattern={activeBossPattern}
@@ -921,6 +923,20 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
           display: block;
           pointer-events: none;
         }
+
+        .lily-frog-model {
+          position: absolute;
+          bottom: 0;
+          left: -20%;
+          width: 140%;
+          height: 125%;
+          z-index: 3;
+          visibility: hidden;
+          pointer-events: none;
+        }
+        .lily-frog-model[data-ready="true"] { visibility: visible; }
+        .lily-frog-model[data-ready="true"] + img { visibility: hidden; }
+        .enemy-sprite-wrapper:has(.lily-frog-model[data-ready="true"]) { animation: none; }
 
         /* 1/2/3타 피격 파동 링 (Pure CSS geometric ring, no text/emojis) */
         .enemy-hit-impact-ring {
