@@ -788,3 +788,17 @@ html, body {
   font-size: 11px !important;
   border-radius: 10px !important;
 }
+.knight-model {
+  position: absolute;
+  bottom: 0;
+  left: -25%;
+  width: 150%;
+  height: 120%;
+  pointer-events: none;
+  visibility: hidden;
+}
+.knight-model[data-ready="true"] { visibility: visible; }
+.knight-model[data-ready="true"] ~ img,
+.hero-sprite-wrapper:has(.knight-model[data-ready="true"]) .hero-afterimage-ghost {
+  opacity: 0;
+}

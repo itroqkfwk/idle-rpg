@@ -14,6 +14,7 @@ import {
 } from '../data/heroAnimationClips';
 import { PackedHeroAtlas, getCachedHeroAtlas, preloadHeroRigParts } from '../utils/heroRigAssetCache';
 import { animationClock } from '../utils/animationClock';
+import type { mountKnight } from '../utils/knightModel';
 import {
   combatAnchorRegistry,
   CombatSceneContextId,
@@ -113,6 +114,18 @@ export const HeroSkeletalRig: React.FC<HeroSkeletalRigProps> = ({
   const resolvedSrc = fallbackSrc || (classId === 'mage' ? './assets/hero_mage.png' : './assets/hero_knight.png');
 
   const hostRef = useRef<HTMLElement | null>(null);
+  const knightCanvas = useRef<HTMLCanvasElement>(null);
+  const knight = useRef<ReturnType<typeof mountKnight>>(null);
+  const showKnight = classId === 'warrior' && isOriginalArt;
+  useEffect(() => {
+    const el = knightCanvas.current;
+    if (!showKnight || !el) return;
+    let cancelled = false;
+    import('../utils/knightModel').then(({mountKnight}) => {
+      if (!cancelled) knight.current = mountKnight(el);
+    }).catch(() => {});
+    return () => { cancelled = true; knight.current?.dispose(); knight.current = null; };
+  }, [showKnight]);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const atlasRef = useRef<PackedHeroAtlas | null>(isOriginalArt ? null : getCachedHeroAtlas(classId));
   const [assetsReady, setAssetsReady] = useState<boolean>(isOriginalArt ? true : Boolean(atlasRef.current));
@@ -273,7 +286,7 @@ export const HeroSkeletalRig: React.FC<HeroSkeletalRigProps> = ({
         : Math.min(1, timer.elapsedMs / Math.max(1, durationMs));
 
       const signature = `${clipKey}:${Math.round(normT * 240)}`;
-      if ((s.paused || s.isHitStop) && timer.lastDrawnSignature === signature) {
+      if (!knight.current && (s.paused || s.isHitStop) && timer.lastDrawnSignature === signature) {
         return;
       }
       timer.lastDrawnSignature = signature;
@@ -395,6 +408,7 @@ export const HeroSkeletalRig: React.FC<HeroSkeletalRigProps> = ({
           bodyCenter: toClient(solved.attachments.bodyCenter),
           canvasRect: rect,
         };
+        Object.assign(clientPts, knight.current?.draw(now,s.animState,normT));
         combatAnchorRegistry.setHeroAnchors(s.resolvedScene, clientPts);
         if (s.onAttachmentsUpdate) {
           s.onAttachmentsUpdate(clientPts, normT);
@@ -421,6 +435,7 @@ export const HeroSkeletalRig: React.FC<HeroSkeletalRigProps> = ({
   if (isOriginalArt) {
     return (
       <div className={`hero-skeletal-stage hero-original-art-stage ${className}`}>
+        {showKnight && <canvas ref={knightCanvas} className="knight-model" data-model-id="hero_knight" aria-hidden="true" />}
         <img
           ref={(el) => {
             hostRef.current = el;

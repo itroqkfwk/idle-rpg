@@ -172,7 +172,7 @@ const RIG_META: Record<MonsterRigId, { archetype: MonsterArchetype; isBoss: bool
   c1_boss: { archetype: 'boss_c1',  isBoss: true,  sourcePng: './assets/ch1_boss.png' },
 
   c2_m1:   { archetype: 'spirit',   isBoss: false, sourcePng: './assets/ch2_water_spirit.png' },
-  c2_m2:   { archetype: 'slime',    isBoss: false, sourcePng: './assets/ch2_frog.png' },
+  c2_m2:   { archetype: 'slime',    isBoss: false },
   c2_m3:   { archetype: 'mushroom', isBoss: false },
   c2_boss: { archetype: 'boss_c2',  isBoss: true,  sourcePng: './assets/ch2_boss.png' },
 
