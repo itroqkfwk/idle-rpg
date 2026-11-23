@@ -165,10 +165,19 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
     ? 1
     : null;
 
-  // Determine monster sprite & idle animation type (preserving original PNG assets)
+  // Determine monster sprite & idle animation type (preserving original PNG assets + dedicated v3.4 illustrations)
   const getMonsterType = () => {
-    if (isRuinsDungeonBoss || monster.id === 'c1_boss' || monster.id === 'c2_boss' || monster.id === 'c3_boss') {
-      return { sprite: './assets/boss_golem.png', idleClass: 'boss-act-idle', sizeClass: 'boss-size' };
+    if (isRuinsDungeonBoss) {
+      return { sprite: './assets/ruins_boss.png', idleClass: 'boss-act-idle', sizeClass: 'boss-size' };
+    }
+    if (monster.id === 'c1_boss') {
+      return { sprite: './assets/ch1_boss.png', idleClass: 'boss-act-idle', sizeClass: 'boss-size' };
+    }
+    if (monster.id === 'c2_boss') {
+      return { sprite: './assets/ch2_boss.png', idleClass: 'boss-act-idle', sizeClass: 'boss-size' };
+    }
+    if (monster.id === 'c3_boss') {
+      return { sprite: './assets/ch3_boss.png', idleClass: 'boss-act-idle', sizeClass: 'boss-size' };
     }
     if (isCh4Boss || monster.id === 'c4_boss') {
       return { sprite: './assets/ch4_boss.png', idleClass: 'boss-act-idle', sizeClass: 'boss-size' };
@@ -201,7 +210,7 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
       return { sprite: './assets/ch5_golem.png', idleClass: 'golem-act-idle', sizeClass: 'medium-size' };
     }
     if (isBoss) {
-      return { sprite: './assets/boss_golem.png', idleClass: 'boss-act-idle', sizeClass: 'boss-size' };
+      return { sprite: './assets/ch1_boss.png', idleClass: 'boss-act-idle', sizeClass: 'boss-size' };
     }
     if (isGoldDungeonMob) {
       return { sprite: './assets/monster_spirit.png', idleClass: 'spirit-act-idle', sizeClass: 'medium-size' };
@@ -211,6 +220,15 @@ export const EnemyCharacter: React.FC<EnemyCharacterProps> = ({
       if (monster.id.includes('_w3')) return { sprite: './assets/monster_bee.png', idleClass: 'bee-act-idle', sizeClass: 'medium-size' };
       if (monster.id.includes('_w4')) return { sprite: './assets/monster_spirit.png', idleClass: 'spirit-act-idle', sizeClass: 'medium-size' };
       return { sprite: './assets/monster_slime.png', idleClass: 'slime-act-idle', sizeClass: 'slime-size' };
+    }
+    if (monster.id === 'c2_m1') {
+      return { sprite: './assets/ch2_water_spirit.png', idleClass: 'spirit-act-idle', sizeClass: 'medium-size' };
+    }
+    if (monster.id === 'c2_m2') {
+      return { sprite: './assets/monster_slime.png', idleClass: 'slime-act-idle', sizeClass: 'slime-size' };
+    }
+    if (monster.id === 'c2_m3') {
+      return { sprite: './assets/monster_mushroom.png', idleClass: 'mushroom-act-idle', sizeClass: 'medium-size' };
     }
     if (monster.id === 'c3_m2' || monster.name.includes('여우')) {
       return { sprite: './assets/ch3_fox.png', idleClass: 'beast-act-idle', sizeClass: 'medium-size' };

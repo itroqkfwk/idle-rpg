@@ -54,16 +54,16 @@ export const PetPage: React.FC<PetPageProps> = ({
 
   const getPetTheme = (p: Pet) => {
     if (p.id === 'pet_fairy' || p.name.includes('요정')) {
-      return { sprite: './assets/ch5_butterfly.png', color: '#38bdf8', coopLabel: '빛가루 마력탄 협동 사격 (골드 보너스)' };
+      return { sprite: './assets/pet_fairy.png', color: '#38bdf8', coopLabel: '빛가루 마력탄 협동 사격 (골드 보너스)' };
     }
     if (p.id === 'pet_slime' || p.name.includes('슬라임')) {
-      return { sprite: './assets/ch5_slime.png', color: '#10b981', coopLabel: '탄성 점프 바디슬램 협동 타격 (공격력 증폭)' };
+      return { sprite: './assets/pet_slime.png', color: '#10b981', coopLabel: '탄성 점프 바디슬램 협동 타격 (공격력 증폭)' };
     }
     if (p.id === 'pet_cat' || p.name.includes('냥이')) {
-      return { sprite: './assets/ch5_fox.png', color: '#c084fc', coopLabel: '달빛 질풍 할퀴기 협동 연타 (공격속도 가속)' };
+      return { sprite: './assets/pet_cat.png', color: '#c084fc', coopLabel: '달빛 질풍 할퀴기 협동 연타 (공격속도 가속)' };
     }
     if (p.id === 'pet_dragon' || p.name.includes('드래곤')) {
-      return { sprite: './assets/ch4_spirit.png', color: '#f87171', coopLabel: '루비 브레스 화염구 협동 포격 (치명타 피해 증폭)' };
+      return { sprite: './assets/pet_dragon.png', color: '#f87171', coopLabel: '루비 브레스 화염구 협동 포격 (치명타 피해 증폭)' };
     }
     return { sprite: './assets/pet_fox.png', color: '#f59e0b', coopLabel: '화염 여우불 협동 급습 (치명타 확률 상승)' };
   };
@@ -87,7 +87,7 @@ export const PetPage: React.FC<PetPageProps> = ({
         )}
       </div>
 
-      <div className="drawer-content">
+      <div className="drawer-content pet-drawer-body">
         {/* Active / Inspected Pet Showcase Pedestal */}
         {activePet && (() => {
           const theme = getPetTheme(activePet);
@@ -99,11 +99,11 @@ export const PetPage: React.FC<PetPageProps> = ({
               data-testid="pet-showcase-pedestal"
               style={{
                 borderColor: `${theme.color}66`,
-                background: `radial-gradient(circle at 50% 45%, ${theme.color}24 0%, rgba(15, 23, 42, 0.9) 78%)`,
+                background: `radial-gradient(circle at 50% 42%, color-mix(in srgb, ${theme.color} 18%, #0f172a) 0%, rgba(12, 18, 34, 0.99) 78%)`,
               }}
             >
-              <div className="pedestal-glow-ring" style={{ borderColor: `${theme.color}88` }} />
               <div className={`pedestal-sprite-container ${!activePet.owned ? 'icon-silhouette' : ''}`}>
+                <div className="pedestal-glow-ring" style={{ borderColor: `${theme.color}88` }} />
                 <PetSkeletalRig
                   petId={activePet.id}
                   petName={activePet.name}
@@ -170,7 +170,7 @@ export const PetPage: React.FC<PetPageProps> = ({
                 <div className="pet-card-top-row">
                   {/* Avatar Frame */}
                   <div className="pet-avatar-frame" style={{ borderColor: `${theme.color}66` }}>
-                    <img src={theme.sprite} alt={pet.name} className="pet-thumb-img" />
+                    <img src={theme.sprite} alt={pet.name} className="pet-thumb-img" decoding="async" />
                     {!pet.owned && (
                       <div className="pet-lock-badge">
                         <Lock size={12} color="#fff" />
@@ -261,41 +261,63 @@ export const PetPage: React.FC<PetPageProps> = ({
           cursor: pointer;
         }
 
-        /* Pedestal Showcase */
+        /* Pedestal Showcase (Pinned visibly above scrolling pet roster) */
+        .pet-drawer-body {
+          overflow: hidden !important;
+          padding-bottom: 10px;
+        }
+
+        .pet-roster-list {
+          flex: 1;
+          min-height: 0;
+          overflow-y: auto;
+          overflow-x: hidden;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          padding-right: 2px;
+        }
+
         .pet-showcase-pedestal {
           position: relative;
-          background: radial-gradient(circle at 50% 60%, rgba(245, 158, 11, 0.12) 0%, rgba(15, 23, 42, 0.8) 75%);
-          border: 1px solid rgba(245, 158, 11, 0.3);
-          border-radius: 20px;
-          padding: 16px 12px 12px;
+          background: radial-gradient(circle at 50% 45%, rgba(245, 158, 11, 0.14) 0%, rgba(12, 18, 34, 0.99) 75%);
+          border: 1px solid rgba(245, 158, 11, 0.35);
+          border-radius: 18px;
+          padding: 10px 12px 10px;
           display: flex;
           flex-direction: column;
           align-items: center;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+          flex-shrink: 0;
+          box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
         }
 
         .pedestal-glow-ring {
           position: absolute;
-          bottom: 46px;
-          width: 90px;
-          height: 24px;
+          bottom: 2px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 78px;
+          height: 20px;
           border-radius: 50%;
-          background: radial-gradient(ellipse at center, rgba(245, 158, 11, 0.4) 0%, transparent 70%);
-          border: 1px solid rgba(245, 158, 11, 0.4);
+          background: radial-gradient(ellipse at center, rgba(245, 158, 11, 0.42) 0%, transparent 72%);
+          border: 1px solid rgba(245, 158, 11, 0.45);
           pointer-events: none;
+          z-index: 0;
         }
 
         .pedestal-sprite-container {
           position: relative;
-          width: 84px;
-          height: 84px;
+          width: 76px;
+          height: 76px;
           display: flex;
           justify-content: center;
           align-items: center;
-          margin-bottom: 6px;
+          margin-bottom: 4px;
         }
 
         .pedestal-pet-rig {
+          position: relative;
+          z-index: 1;
           width: 100%;
           height: 100%;
           display: flex;
@@ -315,7 +337,6 @@ export const PetPage: React.FC<PetPageProps> = ({
           width: 100%;
           height: 100%;
           object-fit: contain;
-          filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 12px rgba(245, 158, 11, 0.4));
           animation: showcasePetFloat 2.2s ease-in-out infinite;
         }
 

@@ -133,6 +133,7 @@ export const MonsterCodexModal: React.FC<MonsterCodexModalProps> = ({ codex, onC
                 src={activeItem.sprite}
                 alt={isActiveDiscovered ? activeItem.name : '미발견 몬스터'}
                 className={!isActiveDiscovered ? 'codex-silhouette' : ''}
+                decoding="async"
                 draggable={false}
               />
               {activeItem.isBoss && (
@@ -216,6 +217,7 @@ export const MonsterCodexModal: React.FC<MonsterCodexModalProps> = ({ codex, onC
                       src={item.sprite}
                       alt={discovered ? item.name : '미발견'}
                       className={!discovered ? 'codex-silhouette' : ''}
+                      decoding="async"
                       draggable={false}
                     />
                   </div>
@@ -240,8 +242,7 @@ export const MonsterCodexModal: React.FC<MonsterCodexModalProps> = ({ codex, onC
           position: fixed;
           inset: 0;
           z-index: 125;
-          background: rgba(2, 6, 23, 0.78);
-          backdrop-filter: blur(6px);
+          background: rgba(2, 6, 23, 0.84);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -250,9 +251,9 @@ export const MonsterCodexModal: React.FC<MonsterCodexModalProps> = ({ codex, onC
         }
         .codex-modal-panel {
           width: 100%;
-          max-width: 680px;
-          max-height: 88vh;
-          background: linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(10, 15, 30, 0.99) 100%);
+          max-width: 378px;
+          max-height: min(86dvh, 720px);
+          background: linear-gradient(180deg, rgba(15, 23, 42, 0.99) 0%, rgba(10, 15, 30, 0.99) 100%);
           border: 1px solid rgba(56, 189, 248, 0.35);
           border-radius: 18px;
           box-shadow: 0 20px 50px rgba(0, 0, 0, 0.75);
@@ -260,6 +261,12 @@ export const MonsterCodexModal: React.FC<MonsterCodexModalProps> = ({ codex, onC
           flex-direction: column;
           overflow: hidden;
           color: #f8fafc;
+        }
+        @media (min-width: 768px) {
+          .codex-modal-panel {
+            max-width: 660px;
+            max-height: 86dvh;
+          }
         }
         .codex-modal-header {
           display: flex;
@@ -339,20 +346,20 @@ export const MonsterCodexModal: React.FC<MonsterCodexModalProps> = ({ codex, onC
         }
         .codex-chapter-tabs {
           display: flex;
-          gap: 6px;
-          padding: 8px 16px;
-          overflow-x: auto;
+          flex-wrap: wrap;
+          gap: 5px;
+          padding: 7px 14px;
           flex-shrink: 0;
           border-bottom: 1px solid rgba(255, 255, 255, 0.06);
         }
         .codex-ch-btn {
-          min-height: 44px;
-          padding: 6px 12px;
+          min-height: 32px;
+          padding: 4px 10px;
           border-radius: 999px;
           background: rgba(30, 41, 59, 0.75);
           border: 1px solid rgba(255, 255, 255, 0.1);
           color: #94a3b8;
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 800;
           white-space: nowrap;
           cursor: pointer;
@@ -583,7 +590,17 @@ export const MonsterCodexModal: React.FC<MonsterCodexModalProps> = ({ codex, onC
         .codex-pips i.on {
           background: #4ade80;
         }
-        @media (max-width: 520px) {
+        .codex-scroll-body::-webkit-scrollbar {
+          width: 5px;
+        }
+        .codex-scroll-body::-webkit-scrollbar-track {
+          background: rgba(15, 23, 42, 0.55);
+        }
+        .codex-scroll-body::-webkit-scrollbar-thumb {
+          background: rgba(148, 163, 184, 0.35);
+          border-radius: 999px;
+        }
+        @media (max-width: 767px) {
           .codex-detail-card {
             flex-direction: column;
             align-items: center;

@@ -212,8 +212,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         <div className="settings-footer">
-          <span>CozyPaws Idle RPG v3.1</span>
-          <span>Cozy Fantasy 2D Idle RPG · Visual & UX Remaster</span>
+          <span>CozyPaws Idle RPG v3.4</span>
+          <span>Cozy Fantasy 2D Idle RPG · Visual &amp; UX Remaster</span>
         </div>
       </div>
 

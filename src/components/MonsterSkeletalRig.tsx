@@ -126,7 +126,7 @@ export const MonsterSkeletalRig: React.FC<MonsterSkeletalRigProps> = ({
   const spec = MONSTER_RIG_SPECS[rigId];
   const resolvedScene: CombatSceneContextId = sceneContext ?? (isMainBattleMonster ? 'main_battle' : 'skill_preview');
   const isOriginalArt = renderMode === 'original_art';
-  const resolvedSrc = fallbackSrc || spec.sourcePng;
+  const resolvedSrc = fallbackSrc || spec.sourcePng || './assets/monster_slime.png';
 
   const hostRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -444,6 +444,7 @@ export const MonsterSkeletalRig: React.FC<MonsterSkeletalRigProps> = ({
           }}
           src={resolvedSrc}
           alt={alt}
+          decoding="async"
           className={`monster-2d-sprite monster-original-art-sprite monster-skeletal-canvas ${className}`}
           data-render-mode="original_art"
           data-rig-ready="true"

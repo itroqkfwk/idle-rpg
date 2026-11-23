@@ -18,10 +18,10 @@ export const PetCompanion: React.FC<PetCompanionProps> = ({
   if (!pet) return null;
 
   const getPetSprite = (p: Pet) => {
-    if (p.id === 'pet_fairy' || p.name.includes('요정')) return './assets/ch5_butterfly.png';
-    if (p.id === 'pet_slime' || p.name.includes('슬라임')) return './assets/ch5_slime.png';
-    if (p.id === 'pet_cat' || p.name.includes('냥이')) return './assets/ch5_fox.png';
-    if (p.id === 'pet_dragon' || p.name.includes('드래곤')) return './assets/ch4_spirit.png';
+    if (p.id === 'pet_fairy' || p.name.includes('요정')) return './assets/pet_fairy.png';
+    if (p.id === 'pet_slime' || p.name.includes('슬라임')) return './assets/pet_slime.png';
+    if (p.id === 'pet_cat' || p.name.includes('냥이')) return './assets/pet_cat.png';
+    if (p.id === 'pet_dragon' || p.name.includes('드래곤')) return './assets/pet_dragon.png';
     return './assets/pet_fox.png';
   };
 
@@ -53,12 +53,12 @@ export const PetCompanion: React.FC<PetCompanionProps> = ({
       <style>{`
         .pet-companion-box {
           position: absolute;
-          bottom: 4px;
-          left: -4px;
+          bottom: -8px;
+          left: -14px;
           display: flex;
           flex-direction: column;
           align-items: center;
-          z-index: 5;
+          z-index: 7;
           pointer-events: none;
           user-select: none;
         }
@@ -142,8 +142,8 @@ export const PetCompanion: React.FC<PetCompanionProps> = ({
 
         @media (min-width: 768px) {
           .pet-companion-box {
-            left: clamp(-2px, 0.8vw, 12px);
-            bottom: clamp(4px, 0.8vh, 12px);
+            left: -18px;
+            bottom: 0px;
           }
 
           .pet-skeletal-stage {

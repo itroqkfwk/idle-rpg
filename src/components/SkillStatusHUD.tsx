@@ -205,8 +205,7 @@ export const SkillStatusHUD: React.FC<SkillStatusHUDProps> = ({
           align-items: center;
           gap: 6px;
           padding: 5px 8px;
-          background: rgba(11, 18, 33, 0.82);
-          backdrop-filter: blur(12px);
+          background: rgba(11, 18, 33, 0.94);
           border: 1px solid rgba(255, 255, 255, 0.12);
           border-radius: 16px;
           box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);

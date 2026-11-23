@@ -62,8 +62,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
 
         .nav-dock-container {
           height: 50px;
-          background: rgba(11, 17, 32, 0.88);
-          backdrop-filter: blur(14px);
+          background: rgba(11, 17, 32, 0.95);
           border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 16px;
           box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.12);

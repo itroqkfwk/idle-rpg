@@ -169,16 +169,16 @@ const RIG_META: Record<MonsterRigId, { archetype: MonsterArchetype; isBoss: bool
   c1_m2:   { archetype: 'mushroom', isBoss: false, sourcePng: './assets/monster_mushroom.png' },
   c1_m3:   { archetype: 'flying',   isBoss: false, sourcePng: './assets/monster_bee.png' },
   c1_m4:   { archetype: 'spirit',   isBoss: false, sourcePng: './assets/monster_spirit.png' },
-  c1_boss: { archetype: 'boss_c1',  isBoss: true,  sourcePng: './assets/boss_golem.png' },
+  c1_boss: { archetype: 'boss_c1',  isBoss: true,  sourcePng: './assets/ch1_boss.png' },
 
-  c2_m1:   { archetype: 'spirit',   isBoss: false, sourcePng: './assets/ch4_spirit.png' },
+  c2_m1:   { archetype: 'spirit',   isBoss: false, sourcePng: './assets/ch2_water_spirit.png' },
   c2_m2:   { archetype: 'slime',    isBoss: false },
   c2_m3:   { archetype: 'mushroom', isBoss: false },
-  c2_boss: { archetype: 'boss_c2',  isBoss: true },
+  c2_boss: { archetype: 'boss_c2',  isBoss: true,  sourcePng: './assets/ch2_boss.png' },
 
   c3_m1:   { archetype: 'slime',    isBoss: false },
-  c3_m2:   { archetype: 'beast',    isBoss: false, sourcePng: './assets/pet_fox.png' },
-  c3_boss: { archetype: 'boss_c3',  isBoss: true },
+  c3_m2:   { archetype: 'beast',    isBoss: false, sourcePng: './assets/ch3_fox.png' },
+  c3_boss: { archetype: 'boss_c3',  isBoss: true,  sourcePng: './assets/ch3_boss.png' },
 
   c4_m1:   { archetype: 'slime',    isBoss: false, sourcePng: './assets/ch4_slime.png' },
   c4_m2:   { archetype: 'spirit',   isBoss: false, sourcePng: './assets/ch4_spirit.png' },
@@ -193,7 +193,7 @@ const RIG_META: Record<MonsterRigId, { archetype: MonsterArchetype; isBoss: bool
   c5_boss: { archetype: 'boss_c5',  isBoss: true,  sourcePng: './assets/ch5_boss.png' },
 
   dg_gold:  { archetype: 'spirit',  isBoss: false },
-  dg_ruins: { archetype: 'boss_c1', isBoss: true, sourcePng: './assets/boss_golem.png' },
+  dg_ruins: { archetype: 'boss_c1', isBoss: true, sourcePng: './assets/ruins_boss.png' },
 };
 
 export const ALL_MONSTER_RIG_IDS = Object.keys(RIG_META) as MonsterRigId[];

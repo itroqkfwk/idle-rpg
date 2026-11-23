@@ -212,8 +212,7 @@ export const QuestWidget: React.FC<QuestWidgetProps> = ({
           right: 14px;
           z-index: 50;
           height: 34px;
-          background: rgba(15, 23, 42, 0.72);
-          backdrop-filter: blur(10px);
+          background: rgba(15, 23, 42, 0.92);
           border: 1px solid rgba(255, 255, 255, 0.14);
           border-radius: 9999px;
           padding: 0 12px;
@@ -348,8 +347,7 @@ export const QuestWidget: React.FC<QuestWidgetProps> = ({
             min-height: 74px;
             border-radius: 14px;
             padding: 8px 12px;
-            background: rgba(7, 13, 28, 0.82);
-            backdrop-filter: blur(14px);
+            background: rgba(7, 13, 28, 0.92);
             border: 1px solid rgba(255, 255, 255, 0.12);
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
             display: flex;

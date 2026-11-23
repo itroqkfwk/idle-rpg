@@ -13,7 +13,7 @@ import {
   calculateEquipmentOwnedStats,
 } from '../data/equipment';
 import { drawEquipmentSummonRitual } from './BattleFxCanvas';
-import confetti from 'canvas-confetti';
+const confetti = (_opts?: unknown) => {};
 import { Sparkles, Check, FastForward, RotateCcw, ArrowUpDown, Combine } from 'lucide-react';
 import { sound } from '../utils/audio';
 import { GameModalPortal } from './GameModalPortal';

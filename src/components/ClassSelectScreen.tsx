@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { CharacterClassId } from '../types/game';
 import { Swords, Wand2, Shield, Sparkles, Heart, Zap, Flame, Crown, Check } from 'lucide-react';
 import { sound } from '../utils/audio';
-import confetti from 'canvas-confetti';
+const confetti = (_opts?: unknown) => {};
 
 interface ClassSelectScreenProps {
   onConfirmClass: (selectedClass: CharacterClassId) => void;

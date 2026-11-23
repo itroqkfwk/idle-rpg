@@ -185,12 +185,13 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
   return (
     <div className={`battle-environment-root ${isBossFight ? 'boss-battle-mode' : ''}`}>
       {/* 🌲 Dynamic 2D Painted Environment Panorama Backdrop */}
-      <div className="battle-bg-container" style={{ filter: stageEnv.filterStyle }}>
+      <div className="battle-bg-container">
         <img
           key={stageEnv.bgImage}
           src={stageEnv.bgImage}
           alt={stageEnv.areaName}
           className="battle-bg-image"
+          decoding="async"
           draggable={false}
         />
 
@@ -581,7 +582,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         }
 
         .boss-battle-mode .battle-bg-image {
-          filter: brightness(0.82) contrast(1.15) saturate(1.1);
+          opacity: 0.9;
         }
 
         /* ☀️ Sunlight Godrays */
@@ -677,7 +678,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           right: -15%;
           height: 90px;
           border-radius: 50%;
-          filter: blur(18px);
+          opacity: 0.72;
           animation: marshMistDrift 9s ease-in-out infinite alternate;
         }
         .mist-band-1 {
@@ -728,8 +729,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           width: 105px;
           height: 70px;
           border-radius: 50% 50% 0 0;
-          background: radial-gradient(ellipse at center, rgba(16, 44, 20, 0.72) 0%, transparent 80%);
-          filter: blur(5px);
+          background: radial-gradient(ellipse at center, rgba(16, 44, 20, 0.62) 0%, transparent 78%);
           pointer-events: none;
           z-index: 8;
           animation: bushWindSway 6s ease-in-out infinite alternate;
@@ -849,8 +849,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           gap: 3px;
           padding: 6px 10px;
           border-radius: 12px;
-          background: rgba(11, 18, 33, 0.84);
-          backdrop-filter: blur(8px);
+          background: rgba(11, 18, 33, 0.92);
           border: 1px solid rgba(255, 255, 255, 0.14);
           box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
           pointer-events: none;
@@ -1015,7 +1014,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         /* Center Boss Alert */
         .arena-center-banner {
           position: absolute;
-          top: -48px;
+          top: -64px;
           left: 50%;
           transform: translateX(-50%);
           z-index: 10;
@@ -1023,6 +1022,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           flex-direction: column;
           align-items: center;
           white-space: nowrap;
+          pointer-events: none;
         }
 
         .boss-alert-badge {
@@ -1030,8 +1030,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           align-items: center;
           gap: 6px;
           padding: 4px 14px;
-          background: rgba(15, 23, 42, 0.88);
-          backdrop-filter: blur(8px);
+          background: rgba(15, 23, 42, 0.94);
           border: 1px solid rgba(239, 68, 68, 0.6);
           border-radius: 9999px;
           box-shadow: 0 4px 16px rgba(239, 68, 68, 0.45);
@@ -1106,8 +1105,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           align-items: center;
           gap: 6px;
           padding: 5px 14px;
-          background: rgba(15, 23, 42, 0.85);
-          backdrop-filter: blur(8px);
+          background: rgba(15, 23, 42, 0.92);
           color: #94a3b8;
           border: 1px solid rgba(255, 255, 255, 0.15);
           border-radius: 9999px;
@@ -1130,8 +1128,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           transform: translateX(-50%);
           width: min(92%, 420px);
           z-index: 18;
-          background: rgba(11, 17, 32, 0.88);
-          backdrop-filter: blur(10px);
+          background: rgba(11, 17, 32, 0.94);
           border: 1px solid rgba(245, 158, 11, 0.5);
           border-radius: 14px;
           padding: 7px 12px;
@@ -1230,8 +1227,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
           align-items: center;
           gap: 6px;
           padding: 3px 12px;
-          background: rgba(15, 23, 42, 0.75);
-          backdrop-filter: blur(8px);
+          background: rgba(15, 23, 42, 0.9);
           border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 9999px;
           color: #94a3b8;
@@ -1413,16 +1409,16 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
         /* ⚡ CP Delta Chip */
         .battle-cp-delta-chip {
           position: absolute;
-          top: 16px;
-          left: 16px;
-          background: rgba(15, 23, 42, 0.88);
+          top: 158px;
+          left: 10px;
+          background: rgba(15, 23, 42, 0.92);
           border: 1.5px solid rgba(245, 158, 11, 0.5);
           padding: 4px 10px;
           border-radius: 10px;
           display: flex;
           align-items: center;
           gap: 5px;
-          z-index: 30;
+          z-index: 12;
           pointer-events: none;
           box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4), 0 0 10px rgba(245, 158, 11, 0.2);
           animation: cpDeltaAnim 1.4s ease-out forwards;

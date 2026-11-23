@@ -236,8 +236,7 @@ export const TopHUD: React.FC<TopHUDProps> = ({
           justify-content: space-between;
           padding: 4px 10px;
           z-index: 40;
-          background: linear-gradient(180deg, rgba(8, 12, 22, 0.85) 0%, rgba(8, 12, 22, 0.4) 75%, transparent 100%);
-          backdrop-filter: blur(8px);
+          background: linear-gradient(180deg, rgba(8, 12, 22, 0.94) 0%, rgba(8, 12, 22, 0.65) 75%, transparent 100%);
           user-select: none;
           box-sizing: border-box;
         }
@@ -531,7 +530,7 @@ export const TopHUD: React.FC<TopHUDProps> = ({
           text-shadow: 0 0 6px rgba(59, 130, 246, 0.5);
         }
 
-        @media (max-width: 480px) {
+        @media (max-width: 767px) {
           .game-top-hud {
             padding: 4px 5px;
             gap: 3px;
@@ -539,6 +538,7 @@ export const TopHUD: React.FC<TopHUDProps> = ({
           .profile-capsule-btn {
             padding: 2px 5px 2px 2px;
             gap: 4px;
+            flex-shrink: 0;
           }
           .profile-avatar-thumb {
             width: 24px;
@@ -549,17 +549,33 @@ export const TopHUD: React.FC<TopHUDProps> = ({
           }
           .profile-exp-track,
           .profile-hp-track {
-            width: 30px;
+            width: 28px;
           }
           .profile-bar-pct {
             font-size: 7px;
           }
+          .stage-capsule-badge {
+            padding: 2px 6px;
+            min-width: 0;
+            max-width: 122px;
+            flex-shrink: 1;
+            overflow: hidden;
+          }
+          .stage-name-text {
+            font-size: 8.5px;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
           .currencies-right-cluster {
             gap: 2px;
+            min-width: 0;
+            flex-shrink: 1;
           }
           .currency-pill {
             padding: 2px 4px;
             gap: 2px;
+            min-width: 0;
           }
           .currency-val {
             font-size: 8.5px;
@@ -567,15 +583,10 @@ export const TopHUD: React.FC<TopHUDProps> = ({
           .currency-icon {
             font-size: 8.5px;
           }
-          .stage-capsule-badge {
-            padding: 2px 6px;
-          }
-          .stage-name-text {
-            font-size: 8.5px;
-          }
           .settings-circle-btn {
             width: 22px;
             height: 22px;
+            flex-shrink: 0;
           }
         }
 

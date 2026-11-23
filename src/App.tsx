@@ -106,7 +106,8 @@ import { EquipmentPage } from './pages/EquipmentPage';
 import { PetPage } from './pages/PetPage';
 import { ShopPage } from './pages/ShopPage';
 import { DungeonPage } from './pages/DungeonPage';
-import confetti from 'canvas-confetti';
+// Disabled canvas-confetti in v3.4 to prevent secondary full-window canvas rAF overhead & viewport overflow
+const confetti = (_opts?: unknown) => {};
 
 export const App: React.FC = () => {
   // --- Game State from LocalStorage (Loaded once on initial mount) ---
@@ -1303,10 +1304,12 @@ export const App: React.FC = () => {
           stats: {
             ...prev.stats,
             level: 30,
+            exp: 0,
+            maxExp: 320000,
             atkLevel: 35,
             hpLevel: 35,
             defLevel: 30,
-            currentHp: 53827,
+            currentHp: 40000,
             atkSpeed: 1.65,
             gold: 950000,
           },

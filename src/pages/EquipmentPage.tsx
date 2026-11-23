@@ -1158,23 +1158,26 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
 
         .equip-view-mode-tabs {
           display: grid;
-          grid-template-columns: repeat(3, 1fr);
+          grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: 5px;
           margin-bottom: 4px;
         }
 
         .view-mode-pill {
-          padding: 6px 8px;
+          padding: 6px 4px;
           border-radius: 9px;
           background: rgba(15, 23, 42, 0.75);
           border: 1px solid rgba(255, 255, 255, 0.12);
           color: #94a3b8;
-          font-size: 10.5px;
+          font-size: 10px;
           font-weight: 800;
           cursor: pointer;
           transition: all 0.15s ease;
           white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
           text-align: center;
+          min-width: 0;
         }
 
         .view-mode-pill.active {
@@ -1569,13 +1572,21 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
 
         .inventory-tiles-grid {
           display: grid;
-          grid-template-columns: repeat(2, 1fr);
+          grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 8px;
+          width: 100%;
+          box-sizing: border-box;
         }
 
-        @media (min-width: 520px) {
+        @media (min-width: 768px) {
           .inventory-tiles-grid {
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+        }
+
+        @media (min-width: 1024px) {
+          .inventory-tiles-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
           }
         }
 
@@ -1584,10 +1595,13 @@ export const EquipmentPage: React.FC<EquipmentPageProps> = ({
           background: rgba(15, 23, 42, 0.78);
           border: 1.5px solid rgba(255, 255, 255, 0.12);
           border-radius: 12px;
-          padding: 8px;
+          padding: 12px 7px 8px;
           display: flex;
           flex-direction: column;
           align-items: center;
+          min-width: 0;
+          width: 100%;
+          box-sizing: border-box;
           cursor: pointer;
           transition: transform 0.15s ease;
         }

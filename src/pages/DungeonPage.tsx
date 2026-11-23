@@ -127,7 +127,7 @@ export const DungeonPage: React.FC<DungeonPageProps> = ({
           const bgMap: Record<DungeonId, { bg: string; bossThumb: string }> = {
             gold_mine: { bg: './assets/autumn_bg.jpg', bossThumb: './assets/ch4_slime.png' },
             training_forest: { bg: './assets/forest_bg.jpg', bossThumb: './assets/ch4_spirit.png' },
-            ancient_ruins: { bg: './assets/crystal_garden_bg.webp', bossThumb: './assets/boss_golem.png' },
+            ancient_ruins: { bg: './assets/crystal_garden_bg.webp', bossThumb: './assets/ruins_boss.png' },
           };
           const visual = bgMap[dungeonId];
 

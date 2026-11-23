@@ -186,19 +186,18 @@ export const MissionModal: React.FC<MissionModalProps> = ({
             position: fixed;
             inset: 0;
             z-index: 120;
-            background: rgba(2, 6, 23, 0.72);
-            backdrop-filter: blur(6px);
+            background: rgba(2, 6, 23, 0.82);
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 16px;
+            padding: 12px;
             box-sizing: border-box;
           }
           .mission-modal-panel {
             width: 100%;
-            max-width: 520px;
-            max-height: min(84vh, 660px);
-            background: linear-gradient(180deg, rgba(15, 23, 42, 0.97) 0%, rgba(17, 24, 39, 0.98) 100%);
+            max-width: 378px;
+            max-height: min(84dvh, 660px);
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.99) 0%, rgba(17, 24, 39, 0.99) 100%);
             border: 1px solid rgba(129, 140, 248, 0.35);
             border-radius: 18px;
             box-shadow: 0 24px 55px rgba(0, 0, 0, 0.75);
@@ -206,6 +205,11 @@ export const MissionModal: React.FC<MissionModalProps> = ({
             flex-direction: column;
             overflow: hidden;
             color: #f8fafc;
+          }
+          @media (min-width: 768px) {
+            .mission-modal-panel {
+              max-width: 520px;
+            }
           }
           .mission-modal-header {
             display: flex;
@@ -313,7 +317,19 @@ export const MissionModal: React.FC<MissionModalProps> = ({
           .mission-list-scroll {
             flex: 1;
             overflow-y: auto;
+            overflow-x: hidden;
             padding: 12px 16px 16px;
+          }
+          .mission-list-scroll::-webkit-scrollbar {
+            width: 5px;
+          }
+          .mission-list-scroll::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.55);
+          }
+          .mission-list-scroll::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.35);
+            border-radius: 999px;
+          }
             display: flex;
             flex-direction: column;
             gap: 10px;

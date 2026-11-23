@@ -878,7 +878,7 @@ export const HeroPage: React.FC<HeroPageProps> = ({
                         </div>
                         <div className="skill-info-col">
                           <div className="skill-name-row">
-                            <span className="skill-name-txt" style={{ color: rConf.color }}>{skill.name}</span>
+                            <span className="skill-name-txt" style={{ color: skill.rarity === 'common' ? '#f8fafc' : rConf.color }}>{skill.name}</span>
                             <span
                               className="skill-elem-tag"
                               style={{ color: elemMeta.color, background: elemMeta.bg, borderColor: elemMeta.border }}
@@ -1536,7 +1536,7 @@ export const HeroPage: React.FC<HeroPageProps> = ({
                       </span>
                       <span className="skill-lvl-badge" style={{ position: 'static' }}>Lv.{inspectSkill.level}</span>
                     </div>
-                    <h3 className="breakdown-title" style={{ color: rConf.color, marginTop: '2px' }}>
+                    <h3 className="breakdown-title" style={{ color: inspectSkill.rarity === 'common' ? '#f8fafc' : rConf.color, marginTop: '2px' }}>
                       {inspectSkill.name}
                     </h3>
                   </div>
@@ -1839,16 +1839,20 @@ export const HeroPage: React.FC<HeroPageProps> = ({
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 4px 8px;
+          gap: 4px;
+          padding: 4px 7px;
           border-radius: 8px;
           background: rgba(2, 6, 23, 0.55);
           border: 1px solid rgba(255, 255, 255, 0.08);
-          font-size: 10px;
+          font-size: 9.5px;
           color: #94a3b8;
+          white-space: nowrap;
+          word-break: keep-all;
+          min-width: 0;
         }
 
         .wallet-item-chip strong {
-          font-size: 10.5px;
+          font-size: 10px;
           font-weight: 800;
           color: #f8fafc;
         }
@@ -1888,6 +1892,9 @@ export const HeroPage: React.FC<HeroPageProps> = ({
           font-weight: 800;
           padding: 1px 6px;
           border-radius: 999px;
+          white-space: nowrap;
+          word-break: keep-all;
+          flex-shrink: 0;
         }
 
         .upgrade-afford-tag.tag-ready {
@@ -2688,12 +2695,14 @@ export const HeroPage: React.FC<HeroPageProps> = ({
           display: flex;
           align-items: center;
           gap: 6px;
+          flex-wrap: wrap;
         }
 
         .upgrade-name {
           font-size: 0.82rem;
           font-weight: 800;
           color: #f1f5f9;
+          word-break: keep-all;
         }
 
         .upgrade-lvl {
@@ -2703,6 +2712,8 @@ export const HeroPage: React.FC<HeroPageProps> = ({
           background: rgba(168, 85, 247, 0.15);
           padding: 1px 6px;
           border-radius: 4px;
+          white-space: nowrap;
+          flex-shrink: 0;
         }
 
         .upgrade-effect-row {
@@ -2754,9 +2765,9 @@ export const HeroPage: React.FC<HeroPageProps> = ({
         }
 
         .upgrade-buy-btn.cant-buy {
-          background: rgba(30, 41, 59, 0.5);
-          border-color: rgba(255, 255, 255, 0.05);
-          color: #64748b;
+          background: rgba(30, 41, 59, 0.78);
+          border-color: rgba(148, 163, 184, 0.22);
+          color: #94a3b8;
           cursor: not-allowed;
         }
 

@@ -427,6 +427,7 @@ export const HeroSkeletalRig: React.FC<HeroSkeletalRigProps> = ({
           }}
           src={resolvedSrc}
           alt={alt}
+          decoding="async"
           className="hero-2d-sprite hero-original-art-sprite hero-skeletal-canvas"
           data-render-mode="original_art"
           data-rig-ready="true"

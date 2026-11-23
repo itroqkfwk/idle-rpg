@@ -75,10 +75,10 @@ function computeAdaptiveDpr(): number {
 }
 
 function getDefaultPetOriginalSprite(rigId: PetRigId): string {
-  if (rigId === 'pet_fairy') return './assets/ch5_butterfly.png';
-  if (rigId === 'pet_slime') return './assets/ch5_slime.png';
-  if (rigId === 'pet_cat') return './assets/ch5_fox.png';
-  if (rigId === 'pet_dragon') return './assets/ch4_spirit.png';
+  if (rigId === 'pet_fairy') return './assets/pet_fairy.png';
+  if (rigId === 'pet_slime') return './assets/pet_slime.png';
+  if (rigId === 'pet_cat') return './assets/pet_cat.png';
+  if (rigId === 'pet_dragon') return './assets/pet_dragon.png';
   return './assets/pet_fox.png';
 }
 
@@ -378,6 +378,7 @@ export const PetSkeletalRig: React.FC<PetSkeletalRigProps> = ({
           }}
           src={resolvedSrc}
           alt={alt}
+          decoding="async"
           className="pet-2d-sprite pet-original-art-sprite pet-skeletal-canvas"
           data-render-mode="original_art"
           data-rig-ready="true"
