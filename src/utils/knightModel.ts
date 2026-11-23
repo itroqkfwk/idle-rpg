@@ -1,6 +1,9 @@
 import { AnimationAction, AnimationMixer, Box3, DirectionalLight, Group, HemisphereLight,
-  LoopOnce, Mesh, Object3D, OrthographicCamera, Scene, SkinnedMesh, Vector3, WebGLRenderer } from 'three';
+  DataTexture, EquirectangularReflectionMapping, LinearFilter, LinearSRGBColorSpace,
+  LoopOnce, Mesh, NeutralToneMapping, Object3D, OrthographicCamera, Scene, SkinnedMesh,
+  SRGBColorSpace, Texture, Vector3, WebGLRenderer } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import type { HeroRigState } from '../data/heroAnimationClips';
 
 // The existing hero clock owns clip time, including hit stop and preview pause.
@@ -10,9 +13,46 @@ export function mountKnight(canvas: HTMLCanvasElement) {
   const renderer = new WebGLRenderer({ canvas, context: gl, alpha: true, antialias: true });
   renderer.setClearColor(0, 0);
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
+  renderer.outputColorSpace = SRGBColorSpace;
+  renderer.toneMapping = NeutralToneMapping;
+  renderer.toneMappingExposure = 1.04;
   const scene = new Scene();
-  scene.add(new HemisphereLight(0xfff0db, 0xb8b0c6, 1.55));
-  const key = new DirectionalLight(0xffead2, 2.05), rim = new DirectionalLight(0xc1deff, 1.2);
+  // Two broad reflected panels keep the brushed armor legible at icon size.
+  // Three prefilters this small linear panorama once for the full range of roughness.
+  const pixels = new Uint8Array(128 * 64 * 4);
+  for (let y = 0; y < 64; y++) {
+    for (let x = 0; x < 128; x++) {
+      const u = x / 128, v = y / 64;
+      const panel = Math.exp(-((u-.22)**2/.006 + (v-.70)**2/.035));
+      const edge = Math.exp(-((u-.72)**2/.0025 + (v-.56)**2/.065));
+      const ambient = .035 + .12 * v;
+      const i = 4 * (128 * y + x);
+      pixels[i] = 255 * Math.min(1, ambient + .88*panel + .48*edge);
+      pixels[i+1] = 255 * Math.min(1, ambient + .78*panel + .63*edge);
+      pixels[i+2] = 255 * Math.min(1, ambient + .70*panel + .83*edge);
+      pixels[i+3] = 255;
+    }
+  }
+  const studio = new DataTexture(pixels,128,64);
+  studio.mapping = EquirectangularReflectionMapping;
+  studio.colorSpace = LinearSRGBColorSpace;
+  studio.magFilter = studio.minFilter = LinearFilter;
+  studio.needsUpdate = true;
+  scene.environment = studio; scene.environmentIntensity = .64;
+  const fill = new HemisphereLight(0xe7efff, 0xb39994, 1.28);
+  const key = new DirectionalLight(0xffebd8, 1.88), rim = new DirectionalLight(0xbcdcff, 1.4);
+  scene.add(fill);
+  const backdrop = canvas.closest<HTMLElement>('.battle-environment-root');
+  function lightStage() {
+    const chapter = Number(backdrop?.dataset.chapter);
+    const cool = [2,4,5].includes(chapter);
+    fill.color.set(cool ? 0xcbdfff : 0xfff0d8);
+    fill.groundColor.set(cool ? 0x9c9bb4 : 0xa7a483);
+    rim.color.set(chapter === 3 ? 0xffbc8d : cool ? 0xa9d5ff : 0xc4e4d2);
+  }
+  const stageObserver = new MutationObserver(lightStage);
+  if (backdrop) stageObserver.observe(backdrop, {attributes:true, attributeFilter:['data-chapter']});
+  lightStage();
   key.position.set(-3,5,4); rim.position.set(3,3,-2); scene.add(key,rim);
   const camera = new OrthographicCamera(-1,1,1,-1,.01,40);
   camera.position.z = 9;
@@ -40,29 +80,40 @@ export function mountKnight(canvas: HTMLCanvasElement) {
   observer.observe(canvas);
   function release(asset: Group) {
     const materials = new Set<import('three').Material>();
+    const textures = new Set<Texture>();
+    const skeletons = new Set<SkinnedMesh['skeleton']>();
     asset.traverse(node => {
       if (node instanceof Mesh) {
         node.geometry.dispose();
         for (const mat of [node.material].flat()) materials.add(mat);
-        if (node instanceof SkinnedMesh) node.skeleton.dispose();
+        if (node instanceof SkinnedMesh) skeletons.add(node.skeleton);
       }
     });
-    for (const material of materials) material.dispose();
+    for (const material of materials) {
+      for (const value of Object.values(material)) if (value instanceof Texture) textures.add(value);
+      material.dispose();
+    }
+    for (const skeleton of skeletons) skeleton.dispose();
+    for (const texture of textures) {
+      texture.dispose();
+      if (typeof ImageBitmap !== 'undefined' && texture.image instanceof ImageBitmap) texture.image.close();
+    }
   }
   function dispose() {
     if (closed) return;
     closed = true; canvas.dataset.ready = 'false'; abort.abort(); observer.disconnect();
     canvas.removeEventListener('webglcontextlost',dispose);
     if (model) { mixer?.stopAllAction(); mixer?.uncacheRoot(model); release(model); }
-    renderer.dispose();
+    stageObserver.disconnect(); scene.environment = null; studio.dispose(); renderer.dispose();
     if (!gl!.isContextLost()) renderer.forceContextLoss();
   }
   canvas.addEventListener('webglcontextlost',dispose);
   async function load() {
-    const url = new URL('./models/hero_knight.glb', document.baseURI);
+    const url = new URL('./models/hero_knight.glb?v=2', document.baseURI);
     const res = await fetch(url,{signal:abort.signal});
     if (!res.ok) throw new Error(String(res.status));
-    const data = await new GLTFLoader().parseAsync(await res.arrayBuffer(),new URL('.',url).href);
+    const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+    const data = await loader.parseAsync(await res.arrayBuffer(),new URL('.',url).href);
     if (closed) { release(data.scene); return; }
     model = data.scene; actor.add(model); mixer = new AnimationMixer(model);
     tip = model.getObjectByName('WeaponTip')!; grip = model.getObjectByName('WeaponGrip')!;

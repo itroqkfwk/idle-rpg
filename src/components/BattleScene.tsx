@@ -183,7 +183,7 @@ export const BattleScene: React.FC<BattleSceneProps> = ({
   );
 
   return (
-    <div className={`battle-environment-root ${isBossFight ? 'boss-battle-mode' : ''}`}>
+    <div className={`battle-environment-root ${isBossFight ? 'boss-battle-mode' : ''}`} data-chapter={stageEnv.chapter}>
       {/* 🌲 Dynamic 2D Painted Environment Panorama Backdrop */}
       <div className="battle-bg-container">
         <img

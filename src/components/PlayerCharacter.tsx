@@ -956,6 +956,14 @@ export const PlayerCharacter: React.FC<PlayerCharacterProps> = ({
           transform-origin: 50% 88%;
         }
 
+        .hero-sprite-wrapper:has(.knight-model[data-ready="true"]) .character-ground-shadow {
+          bottom: 0;
+          background:
+            radial-gradient(ellipse 18% 30% at 35% 58%, #19213080, transparent),
+            radial-gradient(ellipse 18% 30% at 64% 58%, #19213080, transparent),
+            radial-gradient(ellipse closest-side, #27323b66, transparent);
+        }
+
         .hero-fallback-sprite {
           width: 100%;
           height: 100%;
